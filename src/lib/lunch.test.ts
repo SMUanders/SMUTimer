@@ -15,7 +15,7 @@ function breakEntry(start: string, end: string): TimeEntry {
   return {
     id: "b", employeeId: "anders", workDate: MON, startTime: start, endTime: end, durationMinutes: 0,
     categoryId: "pause", subcategoryId: "frokost", customer: "", note: "",
-    isBreak: true, isRedo: false, redoReason: null, redoNote: "", splitGroupId: "g",
+    isBreak: true, isRedo: false, redoReason: null, redoNote: "", splitGroupId: "g", slettet: false,
     createdAt: "", updatedAt: "",
   };
 }

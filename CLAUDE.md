@@ -23,17 +23,17 @@ ligne SMU":
    font-weight ≥ 600 synligt, border-radius ≥ 8px (14px på kort).
 5. Login, tomme states og fejlskærme skal føles som SMU.
 
-## Kendte afvigelser fra standarden (ryd op når der er tid)
-Dokumenteret jf. standardens krav om at notere afvigelser:
+## Datamodel (på SMU-standard)
+- Tabel: **`tid_time_entries`** (tid_-prefiks). `employee_id uuid → profiler(id)`.
+- **Medarbejdere = den delte `profiler`** (via `src/lib/people.ts`) — ingen egen
+  liste. `nt` vises som "Natasha"; `info` ekskluderes; navne med stort forbogstav.
+- **Soft-delete:** `slettet boolean`; sletning markerer i stedet for at fjerne.
+- Audit `created_by`/`updated_by` = `auth.uid()`.
 
-- **Tabelnavne ikke prefikset endnu:** appen bruger `employees` og `time_entries`
-  (fra før prefiks-reglen). Bør migreres til `tid_time_entries` m.fl. `employees`
-  er appens egen medarbejder-liste (til vælgeren) — overvej at bruge den **delte
-  `profiler`** i stedet, så personer ikke dubleres på tværs af apps.
+## Kendte afvigelser (mindre — ryd op ved lejlighed)
 - **Stack-version:** React 18 + Vite 5 (standarden/`smu-os-v2` er på React 19 +
-  Vite 8). Fungerer; kan opgraderes ved lejlighed.
-- **Ingen soft-deletes endnu:** sletning er hard delete. Standarden foreskriver
-  `slettet: boolean` + append-only aktivitetslog. Har dog `created_by`/`updated_by`.
+  Vite 8). Fungerer; kan opgraderes.
+- **Ingen append-only aktivitetslog** endnu (har soft-delete + audit-kolonner).
 - **Ingen roller** (bevidst V1) — alle indloggede ser/redigerer alt.
 
 ## Domæne-noter (SMU Tid-specifikt)

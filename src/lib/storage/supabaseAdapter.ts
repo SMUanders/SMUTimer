@@ -10,13 +10,14 @@ import type { TimeEntryStore } from "./types";
 // Når rigtig auth tilføjes, kan RLS binde employee_id til auth.uid().
 // Se supabase/migrations for schema + policies.
 
-const TABLE = "time_entries";
+const TABLE = "tid_time_entries";
 
 // DB-række (snake_case).
 interface Row {
   id: string;
   employee_id: string;
   work_date: string;
+  slettet: boolean;
   start_time: string;
   end_time: string;
   duration_minutes: number;
@@ -38,6 +39,7 @@ function toRow(e: TimeEntry): Row {
     id: e.id,
     employee_id: e.employeeId,
     work_date: e.workDate,
+    slettet: e.slettet,
     start_time: e.startTime,
     end_time: e.endTime,
     duration_minutes: e.durationMinutes,
@@ -60,6 +62,7 @@ function fromRow(r: Row): TimeEntry {
     id: r.id,
     employeeId: r.employee_id,
     workDate: r.work_date,
+    slettet: r.slettet,
     startTime: r.start_time,
     endTime: r.end_time,
     durationMinutes: r.duration_minutes,
@@ -83,6 +86,7 @@ function patchToRow(patch: Partial<TimeEntry>): Record<string, unknown> {
     id: "id",
     employeeId: "employee_id",
     workDate: "work_date",
+    slettet: "slettet",
     startTime: "start_time",
     endTime: "end_time",
     durationMinutes: "duration_minutes",
@@ -117,6 +121,7 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
         .select("*")
         .eq("employee_id", employeeId)
         .eq("work_date", isoDate)
+        .eq("slettet", false)
         .order("start_time", { ascending: true });
       if (error) throw error;
       return (data as Row[]).map(fromRow);
@@ -127,6 +132,7 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
         .from(TABLE)
         .select("*")
         .eq("work_date", isoDate)
+        .eq("slettet", false)
         .order("start_time", { ascending: true });
       if (error) throw error;
       return (data as Row[]).map(fromRow);
@@ -138,6 +144,7 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
         .select("*")
         .gte("work_date", fromIso)
         .lte("work_date", toIso)
+        .eq("slettet", false)
         .order("start_time", { ascending: true });
       if (error) throw error;
       return (data as Row[]).map(fromRow);
@@ -154,15 +161,16 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
       if (error) throw error;
     },
 
+    // Soft-delete: markér slettet (updated_at/by sættes af trigger).
     async deleteEntry(id) {
-      const { error } = await client.from(TABLE).delete().eq("id", id);
+      const { error } = await client.from(TABLE).update({ slettet: true }).eq("id", id);
       if (error) throw error;
     },
 
     async deleteSplitGroup(splitGroupId) {
       const { error } = await client
         .from(TABLE)
-        .delete()
+        .update({ slettet: true })
         .eq("split_group_id", splitGroupId);
       if (error) throw error;
     },

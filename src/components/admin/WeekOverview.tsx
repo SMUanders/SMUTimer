@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import type { TimeEntry } from "../../types";
-import { EMPLOYEES } from "../../data/employees";
+import { people } from "../../lib/people";
 import { store } from "../../lib/storage";
 import { employeeDaySummary, STATUS_META } from "../../lib/adminSummary";
 import {
@@ -70,7 +70,7 @@ export default function WeekOverview() {
             ))}
           </div>
 
-          {EMPLOYEES.map((emp) => (
+          {people().map((emp) => (
             <div key={emp.id} className="week-row">
               <div className="week-cell week-name">{emp.name}</div>
               {days.map((d) => {

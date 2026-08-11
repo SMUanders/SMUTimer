@@ -8,7 +8,7 @@ function e(start: string, end: string): TimeEntry {
     workDate: "2026-08-10", startTime: start, endTime: end, durationMinutes: 0,
     categoryId: "montage-ude", subcategoryId: null, customer: "", note: "",
     isBreak: false, isRedo: false, redoReason: null, redoNote: "",
-    splitGroupId: null, createdAt: "", updatedAt: "",
+    splitGroupId: null, slettet: false, createdAt: "", updatedAt: "",
   };
 }
 

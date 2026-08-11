@@ -1,5 +1,5 @@
 import { LayoutGrid } from "lucide-react";
-import { EMPLOYEES } from "../data/employees";
+import { people } from "../lib/people";
 
 interface Props {
   onSelect: (employeeId: string) => void;
@@ -12,7 +12,7 @@ export default function EmployeeSelect({ onSelect }: Props) {
       <h1 className="picker-title">SMU Tid</h1>
       <p className="picker-sub">Vælg medarbejder for at åbne dagsseddel</p>
       <div className="picker-grid">
-        {EMPLOYEES.map((e) => (
+        {people().map((e) => (
           <button key={e.id} className="picker-item" onClick={() => onSelect(e.id)}>
             {e.name}
           </button>

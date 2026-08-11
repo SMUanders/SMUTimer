@@ -15,7 +15,7 @@ function e(
     workDate: "2026-08-10", startTime: start, endTime: end, durationMinutes: dur,
     categoryId: "montage-ude", subcategoryId: null, customer: "", note: "",
     isBreak: false, isRedo: false, redoReason: null, redoNote: "",
-    splitGroupId: null, createdAt: "", updatedAt: "",
+    splitGroupId: null, slettet: false, createdAt: "", updatedAt: "",
     ...opts,
   };
 }

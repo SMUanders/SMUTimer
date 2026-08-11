@@ -22,6 +22,10 @@ På Netlify sættes de samme to som Environment variables (scope **Builds**).
 3. `supabase/migrations/0003_audit_created_by.sql` — **audit**: tilføjer
    `created_by` / `updated_by` (= den indloggede bruger, `auth.uid()`). Udfyldes
    automatisk; kræver individuelle logins for at give mening.
+4. `supabase/migrations/0004_tid_prefix_profiler.sql` — **SMU-standard**: omdøber
+   `time_entries` → `tid_time_entries`, kobler `employee_id` til den delte
+   `profiler(id)`, tilføjer soft-delete (`slettet`), dropper appens egen
+   `employees`-tabel. ⚠️ Rydder eksisterende testdata (aftalt).
 
 Kør i Supabase SQL Editor (eller `supabase db push`).
 

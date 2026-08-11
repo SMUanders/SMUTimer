@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, LogOut } from "lucide-react";
 import { initStore } from "../lib/storage";
+import { loadPeople } from "../lib/people";
 import { isSupabaseConfigured } from "../lib/supabaseClient";
 import { signOut } from "../lib/auth";
 import DayOverview from "./admin/DayOverview";
@@ -17,10 +18,12 @@ export default function Admin() {
   const [storageName, setStorageName] = useState<"local" | "supabase">("local");
 
   useEffect(() => {
-    initStore().then((name) => {
+    (async () => {
+      const name = await initStore();
       setStorageName(name);
+      await loadPeople();
       setReady(true);
-    });
+    })();
   }, []);
 
   return (

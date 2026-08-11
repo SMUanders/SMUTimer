@@ -41,6 +41,8 @@ export interface TimeEntry {
   redoNote: string;
   /** Samler de dele der stammer fra ét frokost-split. */
   splitGroupId: string | null;
+  /** Soft-delete: markeret slettet i stedet for fjernet fysisk. */
+  slettet: boolean;
   createdAt: string;
   updatedAt: string;
 }

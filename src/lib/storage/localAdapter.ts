@@ -28,17 +28,19 @@ export const localAdapter: TimeEntryStore = {
 
   async getEntriesForDate(employeeId, isoDate) {
     return loadAll()
-      .filter((e) => e.employeeId === employeeId && e.workDate === isoDate)
+      .filter((e) => !e.slettet && e.employeeId === employeeId && e.workDate === isoDate)
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
   },
 
   async getEntriesForDateAll(isoDate) {
-    return loadAll().filter((e) => e.workDate === isoDate);
+    return loadAll().filter((e) => !e.slettet && e.workDate === isoDate);
   },
 
   async getEntriesInRange(fromIso, toIso) {
     // ISO-datoer sammenlignes korrekt som strenge.
-    return loadAll().filter((e) => e.workDate >= fromIso && e.workDate <= toIso);
+    return loadAll().filter(
+      (e) => !e.slettet && e.workDate >= fromIso && e.workDate <= toIso
+    );
   },
 
   async addEntries(newEntries) {
@@ -55,11 +57,24 @@ export const localAdapter: TimeEntryStore = {
     saveAll(all);
   },
 
+  // Soft-delete: markér slettet i stedet for at fjerne.
   async deleteEntry(id) {
-    saveAll(loadAll().filter((e) => e.id !== id));
+    const all = loadAll();
+    const idx = all.findIndex((e) => e.id === id);
+    if (idx === -1) return;
+    all[idx] = { ...all[idx], slettet: true, updatedAt: nowIso() };
+    saveAll(all);
   },
 
   async deleteSplitGroup(splitGroupId) {
-    saveAll(loadAll().filter((e) => e.splitGroupId !== splitGroupId));
+    const all = loadAll();
+    let changed = false;
+    for (let i = 0; i < all.length; i++) {
+      if (all[i].splitGroupId === splitGroupId) {
+        all[i] = { ...all[i], slettet: true, updatedAt: nowIso() };
+        changed = true;
+      }
+    }
+    if (changed) saveAll(all);
   },
 };

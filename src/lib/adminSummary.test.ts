@@ -11,7 +11,7 @@ function e(start: string, end: string, opts: Partial<TimeEntry> = {}): TimeEntry
     workDate: "2026-08-10", startTime: start, endTime: end, durationMinutes: dur,
     categoryId: "montage-ude", subcategoryId: null, customer: "", note: "",
     isBreak: false, isRedo: false, redoReason: null, redoNote: "",
-    splitGroupId: null, createdAt: "2026-08-10T07:00:00Z", updatedAt: "2026-08-10T07:00:00Z",
+    splitGroupId: null, slettet: false, createdAt: "2026-08-10T07:00:00Z", updatedAt: "2026-08-10T07:00:00Z",
     ...opts,
   };
 }

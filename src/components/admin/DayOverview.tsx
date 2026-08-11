@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import type { TimeEntry } from "../../types";
-import { EMPLOYEES } from "../../data/employees";
+import { people } from "../../lib/people";
 import { store } from "../../lib/storage";
 import { employeeDaySummary, STATUS_META } from "../../lib/adminSummary";
 import { formatDuration } from "../../lib/time";
@@ -31,7 +31,7 @@ export default function DayOverview() {
     };
   }, [date]);
 
-  const rows = EMPLOYEES.map((emp) => {
+  const rows = people().map((emp) => {
     const mine = entries.filter((e) => e.employeeId === emp.id);
     return { emp, s: employeeDaySummary(emp.id, mine, date) };
   });

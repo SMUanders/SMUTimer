@@ -71,6 +71,7 @@ function makeWorkEntry(
     redoReason: draft.isRedo ? draft.redoReason : null,
     redoNote: draft.isRedo ? draft.redoNote.trim() : "",
     splitGroupId,
+    slettet: false,
     createdAt: now,
     updatedAt: now,
   };
@@ -100,6 +101,7 @@ function makeBreakEntry(
     redoReason: null,
     redoNote: "",
     splitGroupId,
+    slettet: false,
     createdAt: now,
     updatedAt: now,
   };

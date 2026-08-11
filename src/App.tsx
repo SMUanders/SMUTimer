@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus, LogOut, LayoutGrid } from "lucide-react";
 import type { EntryDraft, TimeEntry } from "./types";
 import { isBreakCategory } from "./data/categories";
-import { getEmployee } from "./data/employees";
+import { getPerson, loadPeople } from "./lib/people";
 import { initStore, store, newId, nowIso } from "./lib/storage";
 import { buildEntries } from "./lib/entries";
 import { proposeLunchSplit, type LunchWindow } from "./lib/lunch";
@@ -53,7 +53,7 @@ function readDeepLink(): { employeeId: string | null; date: string | null } {
     const emp = p.get("medarbejder");
     const dato = p.get("dato");
     return {
-      employeeId: emp && getEmployee(emp) ? emp : null,
+      employeeId: emp || null, // valideres mod profiler efter load
       date: dato && /^\d{4}-\d{2}-\d{2}$/.test(dato) ? dato : null,
     };
   } catch {
@@ -81,13 +81,16 @@ export default function App() {
     setEntries(await store().getEntriesForDate(emp, d));
   }
 
-  // Initialiser storage-backend én gang.
+  // Initialiser storage + hent medarbejdere (profiler) én gang.
   useEffect(() => {
-    initStore().then((name) => {
+    (async () => {
+      const name = await initStore();
       setStorageName(name);
+      await loadPeople();
+      // Ryd et gemt/deep-linket valg der ikke findes i profiler (fx gammel slug).
+      setEmployeeId((cur) => (cur && !getPerson(cur) ? null : cur));
       setReady(true);
-      refresh();
-    });
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -102,7 +105,7 @@ export default function App() {
     [entries, date]
   );
 
-  const employee = getEmployee(employeeId);
+  const employee = getPerson(employeeId);
 
   // ---------- medarbejder ----------
   function selectEmployee(id: string) {
@@ -205,6 +208,13 @@ export default function App() {
   }
 
   // ---------- render ----------
+  if (!ready) {
+    return (
+      <div className="picker">
+        <p className="picker-sub">Indlæser…</p>
+      </div>
+    );
+  }
   if (!employeeId) {
     return <EmployeeSelect onSelect={selectEmployee} />;
   }
