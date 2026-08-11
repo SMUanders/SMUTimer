@@ -33,7 +33,10 @@ Denne fil er facit — start hver ny app her.
   i appen. **Public sign-ups slået fra.**
 - Fælles nem kode er ok — det er de forskellige **emails**, ikke koden, der giver
   identiteten. Session huskes pr. enhed.
-- **Ingen roller** før der er et bevist behov. Alle indloggede ser/redigerer alt.
+- **Ingen roller som udgangspunkt** — alle indloggede ser/redigerer alt. Men et
+  **bevist behov** kan begrunde stram rolle/RLS-adskillelse (fx SMU Wiki's
+  medarbejder/admin + godkendelsesflow). En begrundet, dokumenteret afvigelse er
+  ikke et brud på standarden.
 
 ## 4. Sikkerhed & data (RLS + audit)
 - **Nummererede migrations** i `supabase/migrations/` (0001 schema, 0002 auth-RLS,
@@ -44,14 +47,14 @@ Denne fil er facit — start hver ny app her.
   + trigger på update). Så vi altid ved hvem der oprettede/ændrede.
 
 ## 5. SMU-designunivers
-- **Palette** (ingen tilfældige farver):
-  - Navy `#1D384D` — **primær** (knapper, brand-accent, overskrifter)
-  - Blå `#2E9BD4` — accent/links
-  - Lys blå `#B7D4E5` — bløde flader
-  - Grøn `#006140` — ok/positiv/udfyldt
-  - Amber `#FFD874` — advarsel / mangler / opmærksomhed
-  - **Rød kun** til fejl, sletning, kritisk
-  - Hvid / rolige lyse baggrunde
+- **Kilde til sandhed: `docs/SMU_DESIGN_SYSTEM.md` i SMU OS (`smu-os-v2`).** Følg den
+  — værdierne herunder er kun et resumé.
+- **"Maj 2026"-palette** (faktisk SMU OS/Wiki-kode — ingen tilfældige farver):
+  - Navy `#213746` — **primær** (knapper, brand-accent, overskrifter)
+  - Primær blå `#3f9ed3` — accent/links
+  - **Varm beige baggrund `#f4f2ed`** — appens grundflade
+  - Grøn — ok/positiv · Amber — advarsel · **Rød kun** til fejl/kritisk
+  - (Eksakte sekundærfarver: se design-system-doc'en.)
 - **Dansk UI.** Samme knap-, felt- og kortstil på tværs af apps.
 - **Login, tomme states og fejlskærme skal føles som SMU** (navy brand-accent,
   "SMU OS"-mærkning) — ikke generiske framework-/login-templates.
