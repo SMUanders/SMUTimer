@@ -27,21 +27,28 @@ Kør i Supabase SQL Editor (eller `supabase db push`).
 Appen er lukket bag login når Supabase er konfigureret (deployet beta). Lokal dev
 uden keys forbliver åben (local fallback).
 
+- **Samme Supabase-projekt som SMU OS / SMU Wiki.** De **eksisterende Supabase
+  Auth-brugere genbruges** — login-gaten accepterer alle eksisterende authenticated
+  brugere. Der oprettes **ingen ny bruger-database** i SMU Tid.
 - **Login-metode:** email/password. Ingen magic link, ingen "glemt kodeord" i V1.
-- **Ingen selvregistrering i appen.** Beta-brugere oprettes manuelt:
-  **Supabase → Authentication → Users → Add user** (sæt email + password).
-- **Slå public sign-ups fra:** Supabase → Authentication → Providers/Settings →
-  deaktivér "Allow new users to sign up" (så kun manuelt oprettede kan logge ind).
+- **Ingen selvregistrering i appen.** Har en medarbejder ikke allerede en bruger,
+  oprettes vedkommende manuelt: **Supabase → Authentication → Users → Add user**.
+  (Kun undtagelsen — ikke alle fra bunden.)
+- **Public sign-ups skal være slået fra:** Supabase → Authentication →
+  Providers/Settings → "Allow new users to sign up" deaktiveret.
 - Supabase-brugeren er IKKE det samme som "medarbejder". Efter login vælger man
-  stadig medarbejder i appen som hidtil.
-- "Log ud" findes i headeren (dagsseddel + overblik).
+  stadig medarbejder i appen. Bemærk: `employees`-tabellen er SMU Tids egen
+  medarbejder-liste (til vælgeren) — ikke auth-brugere.
+- "Log ud" findes i headeren (dagsseddel + overblik). Ingen roller eller
+  medarbejderbinding endnu.
 
 ## Deploy-rækkefølge (vigtig)
 
 For at undgå et vindue hvor appen enten er utilgængelig eller stadig åben:
 
 1. **Kør migration 0002 i Supabase** (strammer RLS til authenticated).
-2. **Opret mindst én beta-bruger** (Auth → Users → Add user), så I kan logge ind.
+2. **Bekræft login med en eksisterende SMU-bruger** (fra SMU OS / SMU Wiki — samme
+   projekt). Opret kun manuelt hvis en medarbejder mangler bruger.
 3. **Deploy den nye kode** (git push → Netlify bygger). Den nye kode har
    login-gaten, så så snart RLS er stram OG koden er ude, er appen lukket korrekt.
 
