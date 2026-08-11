@@ -19,6 +19,9 @@ På Netlify sættes de samme to som Environment variables (scope **Builds**).
 2. `supabase/migrations/0002_auth_rls.sql` — **login-beskyttelse**: fjerner den
    åbne V1-adgang og kræver at brugeren er logget ind (authenticated) for at
    læse/skrive data. Ingen roller endnu — alle indloggede må se/redigere alt.
+3. `supabase/migrations/0003_audit_created_by.sql` — **audit**: tilføjer
+   `created_by` / `updated_by` (= den indloggede bruger, `auth.uid()`). Udfyldes
+   automatisk; kræver individuelle logins for at give mening.
 
 Kør i Supabase SQL Editor (eller `supabase db push`).
 
@@ -29,7 +32,14 @@ uden keys forbliver åben (local fallback).
 
 - **Samme Supabase-projekt som SMU OS / SMU Wiki.** De **eksisterende Supabase
   Auth-brugere genbruges** — login-gaten accepterer alle eksisterende authenticated
-  brugere. Der oprettes **ingen ny bruger-database** i SMU Tid.
+  brugere. Der oprettes **ingen ny bruger-database** i SMU Tid. På sigt samles alle
+  SMU-apps i ét system, så samme brugere går igen.
+- **Email-mønster:** `fornavn@signmeup.dk` (fx `anders@signmeup.dk`). Nogle konti
+  afviger (fx `nt@signmeup.dk`, `info@signmeup.dk`). Individuelle logins bruges, så
+  audit (`created_by`/`updated_by`) kan skelne hvem der handlede.
+- **Adgangskode:** kan være en fælles nem kode til alle (min. 6 tegn i Supabase),
+  da det er de forskellige emails — ikke koden — der giver identiteten. Login huskes
+  pr. enhed, så det er ikke bøvlet i daglig brug.
 - **Login-metode:** email/password. Ingen magic link, ingen "glemt kodeord" i V1.
 - **Ingen selvregistrering i appen.** Har en medarbejder ikke allerede en bruger,
   oprettes vedkommende manuelt: **Supabase → Authentication → Users → Add user**.
@@ -41,6 +51,17 @@ uden keys forbliver åben (local fallback).
   medarbejder-liste (til vælgeren) — ikke auth-brugere.
 - "Log ud" findes i headeren (dagsseddel + overblik). Ingen roller eller
   medarbejderbinding endnu.
+
+## Audit (hvem oprettede/ændrede)
+
+Efter migration 0003 gemmer hver linje i `time_entries`:
+- `created_by` — uid på den bruger der oprettede linjen (auto = `auth.uid()`).
+- `updated_by` — uid på den bruger der sidst ændrede den (sat af trigger).
+
+Slå op i **Supabase → Table editor → time_entries** (eller SQL). For at oversætte
+uid → person: **Authentication → Users** (uid ↔ email). Bemærk: `employee_id` er
+*hvis* dagsseddel linjen er — `created_by`/`updated_by` er *hvem der tastede*.
+At vise dette i appens UI er en senere, separat opgave.
 
 ## Deploy-rækkefølge (vigtig)
 
