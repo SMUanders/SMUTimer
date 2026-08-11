@@ -47,14 +47,15 @@ Denne fil er facit — start hver ny app her.
   + trigger på update). Så vi altid ved hvem der oprettede/ændrede.
 
 ## 5. SMU-designunivers
-- **Kilde til sandhed: `docs/SMU_DESIGN_SYSTEM.md` i SMU OS (`smu-os-v2`).** Følg den
-  — værdierne herunder er kun et resumé.
-- **"Maj 2026"-palette** (faktisk SMU OS/Wiki-kode — ingen tilfældige farver):
-  - Navy `#213746` — **primær** (knapper, brand-accent, overskrifter)
-  - Primær blå `#3f9ed3` — accent/links
-  - **Varm beige baggrund `#f4f2ed`** — appens grundflade
-  - Grøn — ok/positiv · Amber — advarsel · **Rød kun** til fejl/kritisk
-  - (Eksakte sekundærfarver: se design-system-doc'en.)
+- **Kilde til sandhed = SMU OS' `src/index.css` i `smu-os-v2`** (CSS custom
+  properties). Kopiér token-sættet derfra; værdierne herunder er kun resumé.
+- **SMU OS-palette** (faktisk kode — ingen tilfældige farver):
+  - Navy `#213746` (`--color-navy`) — **primær** (knapper, brand, tekst)
+  - Primær blå `#3f9ed3` (`--color-primary`, deep `#2384b8`) — accent/links
+  - **Varm beige baggrund `#f4f2ed`** (`--color-bg`); række `#f9f7f3`; kort hvid
+  - Kant `#e4e0d8`; muted tekst `#78909c`; lys blå `#c4d9e9`
+  - **Teal `#159b86` = ok/positiv** (ikke grøn) · **orange `#ef9f27` = advarsel**
+    (ikke gul) · **rød kun** til fejl/kritisk
 - **Dansk UI.** Samme knap-, felt- og kortstil på tværs af apps.
 - **Login, tomme states og fejlskærme skal føles som SMU** (navy brand-accent,
   "SMU OS"-mærkning) — ikke generiske framework-/login-templates.
