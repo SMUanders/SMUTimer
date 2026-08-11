@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TimeEntry } from "../../types";
 import type { TimeEntryStore } from "./types";
 
@@ -106,9 +106,8 @@ function patchToRow(patch: Partial<TimeEntry>): Record<string, unknown> {
   return out;
 }
 
-export function createSupabaseAdapter(url: string, anonKey: string): TimeEntryStore {
-  const client: SupabaseClient = createClient(url, anonKey);
-
+// Bruger den DELTE klient (fra supabaseClient.ts), så login-sessionen følger med.
+export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
   return {
     name: "supabase",
 

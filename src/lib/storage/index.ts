@@ -1,29 +1,14 @@
 import type { TimeEntryStore } from "./types";
 import { localAdapter } from "./localAdapter";
+import { createSupabaseAdapter } from "./supabaseAdapter";
+import { getSupabaseClient, isSupabaseConfigured } from "../supabaseClient";
 
 export type { TimeEntryStore } from "./types";
 export { newId, nowIso } from "./types";
+export { isSupabaseConfigured };
 
-// Vælger storage-backend: Supabase når credentials findes, ellers local-fallback.
-// Supabase-adapteren (og supabase-js) importeres dynamisk, så den kun kommer med
-// i bundlet når den faktisk bruges.
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-
-export function isSupabaseConfigured(): boolean {
-  return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
-}
-
-// MIDLERTIDIG DEBUG (fjernes efter Netlify-env er bekræftet):
-// viser om env-variablerne er bagt ind i buildet — UDEN at afsløre keyen.
-export function envDebug() {
-  return {
-    hasUrl: Boolean(SUPABASE_URL),
-    hasKey: Boolean(SUPABASE_ANON_KEY),
-    urlHost: SUPABASE_URL ? new URL(SUPABASE_URL).host : null, // host er ikke hemmelig
-  };
-}
+// Vælger storage-backend: Supabase når konfigureret (delt klient), ellers
+// local-fallback (lokal dev uden keys).
 
 let active: TimeEntryStore = localAdapter;
 let initialized = false;
@@ -32,22 +17,15 @@ let initialized = false;
 export async function initStore(): Promise<TimeEntryStore["name"]> {
   if (initialized) return active.name;
   initialized = true;
-  if (isSupabaseConfigured()) {
+  const client = getSupabaseClient();
+  if (client) {
     try {
-      const { createSupabaseAdapter } = await import("./supabaseAdapter");
-      active = createSupabaseAdapter(SUPABASE_URL!, SUPABASE_ANON_KEY!);
+      active = createSupabaseAdapter(client);
     } catch (err) {
-      // Falder tilbage til local hvis Supabase ikke kan initialiseres.
       console.error("Supabase-init fejlede — bruger local fallback.", err);
       active = localAdapter;
     }
   }
-  // MIDLERTIDIG DEBUG (fjernes efter Netlify-env er bekræftet):
-  const dbg = envDebug();
-  console.info(
-    `[SMU Tid] backend=${active.name} · VITE_SUPABASE_URL present=${dbg.hasUrl} · VITE_SUPABASE_ANON_KEY present=${dbg.hasKey}` +
-      (dbg.urlHost ? ` · host=${dbg.urlHost}` : "")
-  );
   return active.name;
 }
 

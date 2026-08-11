@@ -9,6 +9,8 @@ import { summarizeDay, expectedWorkMinutes } from "./lib/summary";
 import { suggestNextSlot } from "./lib/suggest";
 import { durationMinutes } from "./lib/time";
 import { todayIso, addDays, formatDanishDate } from "./lib/dates";
+import { isSupabaseConfigured } from "./lib/supabaseClient";
+import { signOut } from "./lib/auth";
 import DaySummary from "./components/DaySummary";
 import EntryRow from "./components/EntryRow";
 import EntryEditor, { emptyDraft } from "./components/EntryEditor";
@@ -227,9 +229,16 @@ export default function App() {
             </button>
           </div>
         </div>
-        <a className="link-btn" href="/oversigt">
-          Overblik →
-        </a>
+        <div className="header-actions">
+          <a className="link-btn" href="/oversigt">
+            Overblik →
+          </a>
+          {isSupabaseConfigured && (
+            <button className="logout-btn" onClick={() => signOut()}>
+              Log ud
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="datebar">

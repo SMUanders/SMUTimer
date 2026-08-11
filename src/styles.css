@@ -4,7 +4,8 @@
   --ink: #1c2430;
   --muted: #6b7688;
   --line: #e3e6eb;
-  --brand: #2f6df0;
+  /* Primær = SMU navy (ingen tilfældig blå). Bruges til primærknapper m.m. */
+  --brand: #1d384d;
   --brand-ink: #ffffff;
   --warn: #b7791f;
   --warn-bg: #fff6e6;
@@ -121,6 +122,71 @@ button {
   font-size: 14px;
   font-weight: 700;
   white-space: nowrap;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.logout-btn {
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.logout-btn:hover {
+  color: var(--danger);
+  border-color: #f0c9c6;
+}
+
+/* ---------- Login-side (SMU OS-stil) ---------- */
+.login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  /* Rolig lys baggrund med et diskret SMU-blåt anstrøg. */
+  background: linear-gradient(180deg, #eaf1f6 0%, var(--bg) 55%);
+}
+.login-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--smu-darkblue); /* SMU-navy brand-accent */
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 26px 24px 28px;
+  width: 100%;
+  max-width: 380px;
+}
+.login-brand {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--smu-blue);
+  margin-bottom: 10px;
+}
+.login-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0 0 4px;
+  color: var(--smu-darkblue);
+}
+.login-sub {
+  color: var(--muted);
+  margin: 0 0 20px;
+}
+.login-card .btn-primary {
+  max-width: none;
+  margin-top: 4px;
 }
 
 /* ---------- Date bar ---------- */
