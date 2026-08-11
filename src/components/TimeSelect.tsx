@@ -28,6 +28,7 @@ export default function TimeSelect({ value, onChange, from = "06:00", to = "18:0
   return (
     <>
       <input
+        className="smu-input"
         type="time"
         list={DATALIST_ID}
         value={value}

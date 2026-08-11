@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, Plus, LogOut, LayoutGrid } from "lucide-react";
 import type { EntryDraft, TimeEntry } from "./types";
 import { isBreakCategory } from "./data/categories";
 import { getEmployee } from "./data/employees";
@@ -224,26 +225,26 @@ export default function App() {
           </h1>
           <div className="who">
             Registrerer som: <strong>{employee?.name ?? employeeId}</strong>
-            <button className="switch-btn" onClick={switchEmployee}>
+            <button className="smu-btn-ghost" onClick={switchEmployee}>
               Skift
             </button>
           </div>
         </div>
         <div className="header-actions">
-          <a className="link-btn" href="/oversigt">
-            Overblik →
+          <a className="smu-btn-secondary link-btn" href="/oversigt">
+            <LayoutGrid size={15} /> Overblik
           </a>
           {isSupabaseConfigured && (
-            <button className="logout-btn" onClick={() => signOut()}>
-              Log ud
+            <button className="smu-btn-secondary link-btn" onClick={() => signOut()}>
+              <LogOut size={15} /> Log ud
             </button>
           )}
         </div>
       </header>
 
       <div className="datebar">
-        <button className="datebtn" aria-label="Forrige dag" onClick={() => setDate(addDays(date, -1))}>
-          ‹
+        <button className="icon-btn" aria-label="Forrige dag" onClick={() => setDate(addDays(date, -1))}>
+          <ChevronLeft size={20} />
         </button>
         <div className="date-current">
           <div className="date-text">{formatDanishDate(date)}</div>
@@ -254,10 +255,10 @@ export default function App() {
             onChange={(e) => e.target.value && setDate(e.target.value)}
           />
         </div>
-        <button className="datebtn" aria-label="Næste dag" onClick={() => setDate(addDays(date, 1))}>
-          ›
+        <button className="icon-btn" aria-label="Næste dag" onClick={() => setDate(addDays(date, 1))}>
+          <ChevronRight size={20} />
         </button>
-        <button className="today-btn" onClick={() => setDate(todayIso())}>
+        <button className="smu-btn-secondary" onClick={() => setDate(todayIso())}>
           I dag
         </button>
       </div>
@@ -286,8 +287,8 @@ export default function App() {
       </div>
 
       <div className="add-bar">
-        <button className="btn-primary" onClick={openNew}>
-          + Ny registrering
+        <button className="smu-btn-primary" onClick={openNew}>
+          <Plus size={18} /> Ny registrering
         </button>
       </div>
 

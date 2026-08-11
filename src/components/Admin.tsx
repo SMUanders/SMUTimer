@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ArrowLeft, LogOut } from "lucide-react";
 import { initStore } from "../lib/storage";
 import { isSupabaseConfigured } from "../lib/supabaseClient";
 import { signOut } from "../lib/auth";
@@ -33,11 +34,11 @@ export default function Admin() {
         </h1>
         <div className="header-actions">
           <a className="admin-back" href="/">
-            ← Til dagsseddel
+            <ArrowLeft size={15} /> Til dagsseddel
           </a>
           {isSupabaseConfigured && (
-            <button className="logout-btn" onClick={() => signOut()}>
-              Log ud
+            <button className="smu-btn-secondary link-btn" onClick={() => signOut()}>
+              <LogOut size={15} /> Log ud
             </button>
           )}
         </div>

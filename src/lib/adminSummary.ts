@@ -63,14 +63,15 @@ export function employeeDaySummary(
   };
 }
 
-// Status -> label + farver (SMU-palette). Bruges af både dag- og ugeoverblik.
+// Status -> label + SMU-designsystem-klasser (ingen rå hex i komponenter).
+//  badge = pille i dagsoverblik · cell = flade i ugeceller + legende-swatch.
 export const STATUS_META: Record<
   DayStatus,
-  { label: string; fg: string; bg: string }
+  { label: string; badge: string; cell: string }
 > = {
-  udfyldt: { label: "Udfyldt", fg: "#ffffff", bg: "#006140" }, // grøn
-  overarbejde: { label: "Overarbejde", fg: "#ffffff", bg: "#2e9bd4" }, // blå
-  delvist: { label: "Delvist", fg: "#5a4300", bg: "#ffd874" }, // gul/amber
-  "ikke-startet": { label: "Ikke startet", fg: "#4a5568", bg: "#e3e6eb" }, // grå
-  fri: { label: "Fri", fg: "#6b7688", bg: "#f0f2f5" }, // neutral
+  udfyldt: { label: "Udfyldt", badge: "smu-badge-green", cell: "wc-udfyldt" },
+  overarbejde: { label: "Overarbejde", badge: "smu-badge-blue", cell: "wc-overarbejde" },
+  delvist: { label: "Delvist", badge: "smu-badge-orange", cell: "wc-delvist" },
+  "ikke-startet": { label: "Ikke startet", badge: "smu-badge-grey", cell: "wc-ikke-startet" },
+  fri: { label: "Fri", badge: "smu-badge-grey", cell: "wc-fri" },
 };

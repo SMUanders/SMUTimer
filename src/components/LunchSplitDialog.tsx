@@ -42,10 +42,10 @@ export default function LunchSplitDialog({ draft, lunch, onResolve, onCancel }: 
           </div>
         </div>
         <div className="dialog-actions">
-          <button className="btn-primary" onClick={() => onResolve(true)}>
+          <button className="smu-btn-primary" onClick={() => onResolve(true)}>
             Ja, split omkring frokost
           </button>
-          <button className="btn-ghost" onClick={() => onResolve(false)}>
+          <button className="smu-btn-secondary" onClick={() => onResolve(false)}>
             Arbejdede gennem frokost / split ikke
           </button>
         </div>

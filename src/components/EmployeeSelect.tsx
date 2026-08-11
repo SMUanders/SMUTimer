@@ -1,3 +1,4 @@
+import { LayoutGrid } from "lucide-react";
 import { EMPLOYEES } from "../data/employees";
 
 interface Props {
@@ -19,7 +20,7 @@ export default function EmployeeSelect({ onSelect }: Props) {
       </div>
       <p style={{ marginTop: 24 }}>
         <a className="admin-back" href="/oversigt">
-          Åbn overblik (admin) →
+          <LayoutGrid size={15} /> Åbn overblik (admin)
         </a>
       </p>
     </div>

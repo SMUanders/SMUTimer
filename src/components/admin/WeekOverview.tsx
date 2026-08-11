@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import type { TimeEntry } from "../../types";
 import { EMPLOYEES } from "../../data/employees";
 import { store } from "../../lib/storage";
@@ -42,18 +43,18 @@ export default function WeekOverview() {
   return (
     <div>
       <div className="datebar">
-        <button className="datebtn" aria-label="Forrige uge" onClick={() => setAnchor(addDays(anchor, -7))}>
-          ‹
+        <button className="icon-btn" aria-label="Forrige uge" onClick={() => setAnchor(addDays(anchor, -7))}>
+          <ChevronLeft size={20} />
         </button>
         <div className="date-current">
           <div className="date-text">
             Uge {isoWeekNumber(days[0])} · {formatShortDate(days[0])}–{formatShortDate(days[4])}
           </div>
         </div>
-        <button className="datebtn" aria-label="Næste uge" onClick={() => setAnchor(addDays(anchor, 7))}>
-          ›
+        <button className="icon-btn" aria-label="Næste uge" onClick={() => setAnchor(addDays(anchor, 7))}>
+          <ChevronRight size={20} />
         </button>
-        <button className="today-btn" onClick={() => setAnchor(todayIso())}>
+        <button className="smu-btn-secondary" onClick={() => setAnchor(todayIso())}>
           Denne uge
         </button>
       </div>
@@ -81,8 +82,7 @@ export default function WeekOverview() {
                 return (
                   <div
                     key={d}
-                    className="week-cell clickable"
-                    style={{ background: meta.bg, color: meta.fg }}
+                    className={`week-cell clickable ${meta.cell}`}
                     role="button"
                     tabIndex={0}
                     title={`${emp.name} · ${d} · ${meta.label}`}
@@ -93,7 +93,7 @@ export default function WeekOverview() {
                   >
                     <div className="week-hours">
                       {s.hasEntries ? `${hours(s.workedMinutes)} t` : "—"}
-                      {s.redoCount > 0 ? " ⚠" : ""}
+                      {s.redoCount > 0 ? <AlertTriangle size={12} /> : null}
                     </div>
                     <div className="week-sub">{meta.label}</div>
                   </div>
@@ -107,11 +107,13 @@ export default function WeekOverview() {
       <div className="admin-legend">
         {(["udfyldt", "delvist", "ikke-startet", "overarbejde", "fri"] as const).map((k) => (
           <span key={k} className="legend-item">
-            <span className="legend-swatch" style={{ background: STATUS_META[k].bg }} />
+            <span className={`legend-swatch ${STATUS_META[k].cell}`} />
             {STATUS_META[k].label}
           </span>
         ))}
-        <span className="legend-item">⚠ = omgøring</span>
+        <span className="legend-item">
+          <AlertTriangle size={13} /> = omgøring
+        </span>
       </div>
     </div>
   );

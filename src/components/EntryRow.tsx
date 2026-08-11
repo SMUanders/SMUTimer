@@ -1,3 +1,4 @@
+import { Pencil, Trash2 } from "lucide-react";
 import type { TimeEntry } from "../types";
 import { getCategory, getSubcategory, getRedoReason } from "../data/categories";
 
@@ -28,12 +29,14 @@ export default function EntryRow({ entry, onEdit, onDelete }: Props) {
         {(entry.isRedo || entry.splitGroupId) && (
           <div className="entry-badges">
             {entry.isRedo && (
-              <span className="badge redo">
+              <span className="smu-badge smu-badge-violet">
                 Omgøring
                 {entry.redoReason ? `: ${getRedoReason(entry.redoReason)?.name}` : ""}
               </span>
             )}
-            {entry.splitGroupId && <span className="badge">Frokost-opdelt</span>}
+            {entry.splitGroupId && (
+              <span className="smu-badge smu-badge-grey">Frokost-opdelt</span>
+            )}
           </div>
         )}
         {entry.isRedo && entry.redoNote && (
@@ -44,10 +47,12 @@ export default function EntryRow({ entry, onEdit, onDelete }: Props) {
       {/* Fast højre kolonne — knapper bliver altid i rækken, uanset note-længde */}
       <div className="entry-actions">
         {!entry.isBreak && (
-          <button onClick={() => onEdit(entry)}>Rediger</button>
+          <button onClick={() => onEdit(entry)}>
+            <Pencil size={14} /> Rediger
+          </button>
         )}
         <button className="del" onClick={() => onDelete(entry)}>
-          Slet
+          <Trash2 size={14} /> Slet
         </button>
       </div>
     </div>

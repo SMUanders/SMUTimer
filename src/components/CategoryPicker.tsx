@@ -17,6 +17,7 @@ export default function CategoryPicker({ categoryId, subcategoryId, onChange }: 
       <div className="field" style={{ margin: 0 }}>
         <label>Kategori</label>
         <select
+          className="smu-input"
           value={categoryId}
           onChange={(e) => {
             const nextCat = getCategory(e.target.value);
@@ -35,6 +36,7 @@ export default function CategoryPicker({ categoryId, subcategoryId, onChange }: 
       <div className="field" style={{ margin: 0 }}>
         <label>Underpunkt</label>
         <select
+          className="smu-input"
           value={subcategoryId ?? ""}
           disabled={subs.length === 0}
           onChange={(e) => onChange(categoryId, e.target.value || null)}

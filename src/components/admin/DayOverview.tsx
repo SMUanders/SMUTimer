@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import type { TimeEntry } from "../../types";
 import { EMPLOYEES } from "../../data/employees";
 import { store } from "../../lib/storage";
@@ -38,8 +39,8 @@ export default function DayOverview() {
   return (
     <div>
       <div className="datebar">
-        <button className="datebtn" aria-label="Forrige dag" onClick={() => setDate(addDays(date, -1))}>
-          ‹
+        <button className="icon-btn" aria-label="Forrige dag" onClick={() => setDate(addDays(date, -1))}>
+          <ChevronLeft size={20} />
         </button>
         <div className="date-current">
           <div className="date-text">{formatDanishDate(date)}</div>
@@ -50,10 +51,10 @@ export default function DayOverview() {
             onChange={(e) => e.target.value && setDate(e.target.value)}
           />
         </div>
-        <button className="datebtn" aria-label="Næste dag" onClick={() => setDate(addDays(date, 1))}>
-          ›
+        <button className="icon-btn" aria-label="Næste dag" onClick={() => setDate(addDays(date, 1))}>
+          <ChevronRight size={20} />
         </button>
-        <button className="today-btn" onClick={() => setDate(todayIso())}>
+        <button className="smu-btn-secondary" onClick={() => setDate(todayIso())}>
           I dag
         </button>
       </div>
@@ -107,12 +108,7 @@ export default function DayOverview() {
               </div>
               <div>
                 <span className="ov-label">Status</span>
-                <span
-                  className="status-pill"
-                  style={{ background: meta.bg, color: meta.fg }}
-                >
-                  {meta.label}
-                </span>
+                <span className={`smu-badge ${meta.badge}`}>{meta.label}</span>
               </div>
               <div className="ov-num">
                 <span className="ov-label">Huller</span>
@@ -120,7 +116,13 @@ export default function DayOverview() {
               </div>
               <div className="ov-num">
                 <span className="ov-label">Omgøringer</span>
-                {s.redoCount > 0 ? <span className="warn-dot">⚠ {s.redoCount}</span> : "—"}
+                {s.redoCount > 0 ? (
+                  <span className="ov-warn">
+                    <AlertTriangle size={13} /> {s.redoCount}
+                  </span>
+                ) : (
+                  "—"
+                )}
               </div>
               <div className="ov-num">
                 <span className="ov-label">Sidst opdateret</span>
@@ -134,7 +136,7 @@ export default function DayOverview() {
       <div className="admin-legend">
         {(["udfyldt", "delvist", "ikke-startet", "overarbejde", "fri"] as const).map((k) => (
           <span key={k} className="legend-item">
-            <span className="legend-swatch" style={{ background: STATUS_META[k].bg }} />
+            <span className={`legend-swatch ${STATUS_META[k].cell}`} />
             {STATUS_META[k].label}
           </span>
         ))}

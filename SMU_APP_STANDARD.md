@@ -1,139 +1,187 @@
-# SMU App-standard — fællesnævnere for alle SMU mini-apps
+# SMU_APP_STANDARD.md — standard for alle SMU/Signmeup-apps
 
-Fælles fundament for **alle** SMU-apps (SMU Tid, SMU APV, …). En SMU-app er ejet
-kode i vores eget univers, bygget så den senere kan integreres i **SMU OS**.
-Denne fil er facit — start hver ny app her.
+**Kanonisk kilde.** Dette dokument er standarden for enhver app i SMU-universet (SMU OS, Wiki, Tid, APV, …). `smu-os-v2` er navet — når en ny app startes, **kopiér denne fil ind i det nye repo** og følg den. Afvigelser skal dokumenteres i den enkelte apps `CLAUDE.md`.
+
+Design-detaljer (farver, typografi, komponenter) lever i det separate dokument [`docs/SMU_DESIGN_SYSTEM.md`](docs/SMU_DESIGN_SYSTEM.md). Denne fil dækker arkitektur, stack, backend, auth, sikkerhed og arbejdsmåde.
 
 ---
 
-## 1. Teknologi
-- **React 18 + Vite + TypeScript**. Responsiv web-app (mobil + desktop).
-- **Minimale dependencies** — hold appen let. Ingen tunge UI-frameworks uden behov.
-- **Vitest** til unit-tests på ren logik (adskilt fra UI).
-- **Node 20** til builds (Netlify).
-- Scripts: `npm run dev`, `npm test`, `npm run build`.
+## 1. Grundprincip
 
-## 2. Backend: det DELTE Supabase-projekt
-- Alle SMU-apps deler **samme Supabase-projekt** som SMU OS / SMU Wiki
-  (Postgres + Auth). Samme brugere går igen på tværs.
-- Kun to miljøvariabler: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
-- ⚠️ **Navngiv app-specifikke tabeller med app-prefix** (fx `apv_...`, `tid_...`)
-  for at undgå kollision i det delte projekt. Overvej om data er app-specifik
-  (prefix) eller fælles platformsdata (fx en delt personer/medarbejder-tabel).
-- **Én delt Supabase-klient** til både auth og data, så login-sessionen (JWT)
-  følger med på data-kald (ellers afviser RLS dem). Mønster: `lib/supabaseClient.ts`.
-- **Storage bag et interface** med adaptere: en Supabase-adapter (den rigtige) og
-  en localStorage-adapter **kun som dev-fallback**. localStorage er ALDRIG den
-  endelige dataløsning.
+- **Ejet kode, bygget til at integreres i SMU OS.** Ikke en løs prototype.
+- **Små, fokuserede apps.** Én app løser én ting godt. **Ingen** ERP/dashboard/ekstra moduler før behovet er bevist.
+- **Ingen iframe.** Apps integreres som rigtig kode, ikke indlejrede rammer.
+- På sigt kombineres apps til ét samlet SMU OS. Byg som om det sker i morgen: delt Supabase, delt auth, delt design.
 
-## 3. Auth / login
-- **Supabase Auth, email/password.** Login-gate (`AuthGate`) aktiv når Supabase er
-  konfigureret; lokal dev uden keys må forblive åben (dev-fallback).
-- **Genbrug eksisterende brugere** (`fornavn@signmeup.dk`). Ingen selvregistrering
-  i appen. **Public sign-ups slået fra.**
-- Fælles nem kode er ok — det er de forskellige **emails**, ikke koden, der giver
-  identiteten. Session huskes pr. enhed.
-- **Ingen roller som udgangspunkt** — alle indloggede ser/redigerer alt. Men et
-  **bevist behov** kan begrunde stram rolle/RLS-adskillelse (fx SMU Wiki's
-  medarbejder/admin + godkendelsesflow). En begrundet, dokumenteret afvigelse er
-  ikke et brud på standarden.
+---
 
-## 4. Sikkerhed & data (RLS + audit)
-- **Nummererede migrations** i `supabase/migrations/` (0001 schema, 0002 auth-RLS,
-  0003 audit, …). Kør i rækkefølge; dokumentér deploy-rækkefølgen.
-- **RLS: kun `authenticated`** (`to authenticated using(true) with check(true)`).
-  Aldrig åben `using(true)` i produktion.
-- **Audit-kolonner**: `created_by` / `updated_by` = `auth.uid()` (default på insert
-  + trigger på update). Så vi altid ved hvem der oprettede/ændrede.
+## 2. Stack
 
-## 5. SMU-designunivers
-- **Kilde til sandhed = SMU OS' `src/index.css` i `smu-os-v2`** (CSS custom
-  properties). Kopiér token-sættet derfra; værdierne herunder er kun resumé.
-- **SMU OS-palette** (faktisk kode — ingen tilfældige farver):
-  - Navy `#213746` (`--color-navy`) — **primær** (knapper, brand, tekst)
-  - Primær blå `#3f9ed3` (`--color-primary`, deep `#2384b8`) — accent/links
-  - **Varm beige baggrund `#f4f2ed`** (`--color-bg`); række `#f9f7f3`; kort hvid
-  - Kant `#e4e0d8`; muted tekst `#78909c`; lys blå `#c4d9e9`
-  - **Teal `#159b86` = ok/positiv** (ikke grøn) · **orange `#ef9f27` = advarsel**
-    (ikke gul) · **rød kun** til fejl/kritisk
-- **Dansk UI.** Samme knap-, felt- og kortstil på tværs af apps.
-- **Login, tomme states og fejlskærme skal føles som SMU** (navy brand-accent,
-  "SMU OS"-mærkning) — ikke generiske framework-/login-templates.
-- Ingen accent-striber/understregninger under titler (AI-look). Brug hvidrum,
-  bløde baggrundstoner, ikoner-i-cirkler.
+Den faktiske, beviste stack i `smu-os-v2` (juni 2026):
 
-## 6. Deploy
-- **Git → Netlify (continuous deploy). ALDRIG drag-drop** (så bages env ikke ind,
-  og SPA-routes/`netlify.toml` følger ikke med).
-- `netlify.toml` (build `npm run build`, publish `dist`, `NODE_VERSION 20`, SPA
-  redirect) **+** `public/_redirects` (`/* /index.html 200`) så SPA-fallback også
-  virker uanset metode.
-- Env-variabler sættes i **Netlify UI** (scope **Builds**) — Vite bager dem ind
-  ved build.
-- `.env.local` gitignored; `.env.example` committes uden keys.
+| Lag | Valg | Note |
+|---|---|---|
+| UI | **React 19** + **TypeScript** (strict) | `noUnusedLocals` + `noUnusedParameters` håndhæves — build fejler ved ubrugte variabler |
+| Build | **Vite 8** | `npm run build` = `tsc -b && vite build` |
+| Styling | **Tailwind CSS 4** via `@tailwindcss/vite` | Konfiguration i CSS med `@theme` (ingen `tailwind.config.js`) |
+| Routing | **react-router-dom 7** | |
+| Ikoner | **lucide-react** | **Aldrig emojis i UI** |
+| PDF | **jsPDF** (+ `html2canvas` ved behov) | Se `src/utils/` for mønstre |
+| Backend-klient | **@supabase/supabase-js 2** | Én delt singleton-klient |
+| Serverless | **Netlify Functions** (`@netlify/functions`, esbuild) | Kun til ting der kræver hemmelige tokens |
+| Node | **Node 20** til builds | ⚠️ Bør pinnes eksplicit — se §9 |
+| Tests | **Vitest** (standard-mål) | Ikke opsat i `smu-os-v2` endnu — tilføj ved ny app hvis muligt |
 
-## 7. Kodestruktur (genbrug fra SMU Tid)
+**Minimale dependencies.** Tilføj ikke et bibliotek uden at det er nødvendigt. Foretræk platform/standard frem for ny dep.
+
+---
+
+## 3. Backend — DELT Supabase-projekt
+
+Alle SMU-apps deler **samme Supabase-projekt** (database, auth, RLS). Det er det der gør sammensmeltningen til SMU OS mulig.
+
+- Frontend har kun brug for `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`.
+- **App-prefix på alle tabeller** for at undgå kollision i det delte projekt:
+  - SMU OS-kernen: `sager`, `kunder`, `brands`, `profiler`, … (uden prefix — historisk kerne)
+  - Wiki: `wiki_`
+  - Tid: `tid_`
+  - APV: `apv_`
+  - Nye apps vælger et kort, unikt prefix og holder sig til det.
+- **Delte tabeller på tværs af apps:** `profiler` (brugere/roller) og Supabase `auth.users` deles. Læs dem — opret dem ikke igen.
+- **Én delt Supabase-klient** pr. app (`src/lib/supabase.ts`, singleton). Auth-session og data deler klient.
+- **Storage bag et interface + adapter**, så datalag kan skiftes uden at røre UI.
+- **localStorage kun som dev-fallback** — aldrig den endelige dataløsning.
+
+Reference-klient (fra `smu-os-v2`):
+
+```ts
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Supabase URL og anon key mangler i .env.local')
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 ```
-src/
-  main.tsx                 // simpel sti-baseret routing + <AuthGate>
-  lib/
-    supabaseClient.ts      // én delt klient (auth + data)
-    auth.ts                // useAuth / signIn / signOut
-    storage/               // interface + localAdapter + supabaseAdapter
-    <domæne>.ts            // ren, testbar logik (ingen UI)
-  data/                    // seed/config (data-drevet)
-  components/
-    AuthGate.tsx, Login.tsx
-    <app-UI>
-supabase/migrations/       // 0001, 0002, 0003 …
-netlify.toml, public/_redirects, .env.example
-SUPABASE.md, SMU_PRINCIPLES.md, SMU_APP_STANDARD.md
+
+---
+
+## 4. Auth
+
+- **Supabase Auth, email/password.**
+- **Login-gate** når Supabase er konfigureret. Lokal dev uden keys må være åben.
+- **Genbrug eksisterende brugere** (`fornavn@signmeup.dk`). **Ingen signup i appen.** Public signup er slået fra i Supabase.
+- Auth-mønster: en `AuthContext` henter session + `profiler`-rækken ved opstart og lytter på auth-ændringer. En `Layout`-wrapper beskytter ruter og redirecter til `/login` hvis ikke autentificeret.
+
+---
+
+## 5. Roller
+
+- **Ingen roller som udgangspunkt.** Start uden rolle-adskillelse.
+- Et **bevist behov** kan begrunde stram rolle/RLS-adskillelse (fx SMU Wiki's medarbejder/admin + godkendelsesflow, eller SMU OS' seks roller). **Dokumentér afvigelsen** i appens `CLAUDE.md`.
+- Roller håndhæves **både** i databasen (RLS) **og** i frontend (rolle-tjek i komponenter). Frontend-tjek alene er ikke sikkerhed.
+- Brug en `SECURITY DEFINER`-funktion (fx `er_admin()`) i RLS-politikker for at undgå rekursion.
+
+---
+
+## 6. Sikkerhed
+
+- **Nummererede migrations** i `supabase/migrations/`. Format: `YYYYMMDDHHMMSS_beskrivelse.sql`.
+- **RLS på alle tabeller.** Politikker skrives **kun `to authenticated`** — aldrig åben `using(true)` i prod. Stram videre (rolle/ejer) når behovet er bevist.
+- RLS-politikker skrives **i migreringsfilerne** — ikke i Supabase-dashboardet.
+- **Audit-kolonner:** `created_by` / `updated_by` = `auth.uid()`. Send `ansvarlig_id`/`created_by` **eksplicit fra klienten** — `DEFAULT auth.uid()` er upålidelig i PostgREST-kontekst.
+- **Soft deletes overalt.** Hver tabel har en `slettet: boolean` (eller `aktiv: boolean` for stamdata). **Aldrig hard delete.**
+- **Server-hemmeligheder aldrig i frontend-bundle.** Tokens (Economics, service role, o.l.) lever kun i Netlify Functions' miljø. Se §9.
+
+---
+
+## 7. Audit-logning
+
+Betydende dataændringer logges til en append-only aktivitetslog (ingen UPDATE/DELETE i RLS). Konvention for `handling`-værdier:
+
+- `'oprettet'` — nyt objekt
+- `'opdateret'` — felter ændret
+- `'status_skiftet'` — med `detaljer: { fra, til }`
+
+Ved batch-operationer: brug en bulk-variant der henter bruger+profil **én gang**, ikke pr. række.
+
+---
+
+## 8. Design
+
+**Kilde til sandhed: [`docs/SMU_DESIGN_SYSTEM.md`](docs/SMU_DESIGN_SYSTEM.md)** + `src/index.css` i `smu-os-v2`.
+
+Kort resumé (autoritativt i design-doc'en):
+- Palette: navy `#213746` (primær), primær blå `#3f9ed3` (accent), varm beige baggrund `#f4f2ed`.
+- Semantik: grøn = ok, amber = advarsel, **rød kun til fejl**.
+- Skrifttype: Plus Jakarta Sans (vægte 600/700/800).
+- Dansk UI. Ingen gradients, ingen emojis, ingen accent-striber.
+- Login, tomme states og fejlskærme skal føles som SMU.
+
+---
+
+## 9. Deploy og miljøvariabler
+
+- **Git → Netlify continuous deploy. ALDRIG drag-drop.**
+- `netlify.toml` i roden med build-command, publish-dir (`dist`), functions-dir og SPA-redirect. Reference:
+
+```toml
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
 ```
-- Ren domænelogik adskilt fra UI (let at teste + let at løfte ind i SMU OS).
-- Data-drevet config i `data/`. Simpel routing; SPA-fallback påkrævet.
 
-## 8. Anti-mål
-- Ikke ERP, ikke store dashboards, ikke ekstra moduler **før behovet er bevist**.
-- **Ingen iframe-integration.**
-- **Ingen localStorage som endelig dataløsning** (kun dev-fallback).
-- Hold appen lille og fokuseret.
+- **Node 20** ved build. ⚠️ Pinnes eksplicit — enten `NODE_VERSION = "20"` i `netlify.toml` `[build.environment]` eller en `.nvmrc`. *(Åben opgave i `smu-os-v2`: ikke pinnet endnu.)*
 
-## 9. Arbejdsmåde
-- Byg i **små trin**. Plan → godkendelse før større kodeændringer.
-- Kør **tsc + tests + build** efter ændringer.
-- Skriv **hvad der er ændret** og **hvad der skal testes manuelt**.
+**Miljøvariabler — to strengt adskilte typer:**
+
+| Type | Præfiks | Hvor | Havner i bundle? |
+|---|---|---|---|
+| Frontend | `VITE_` | `.env.local` (dev) / Netlify UI, scope Builds (prod) | **Ja** — kun anon key og url |
+| Server | *(ingen)* | `.env` (dev) / Netlify UI (prod) | **Nej — aldrig** |
+
+- `.env.local` (frontend) og `.env` (server) er begge **gitignored**.
+- `.env.example` committes **uden values** som skabelon.
+- Ved maskineskift: `.env`-filerne flyttes manuelt. Alt andet er i Git.
+
+---
+
+## 10. Arbejdsmåde
+
+- **Byg i små trin.** **Plan → godkendelse** før større kodeændringer.
+- Kør **`tsc` + tests + `npm run build`** efter ændringer. Skriv **hvad der er ændret** + **hvad der skal testes manuelt**.
 - **Stop og spørg** ved uklarheder.
+- **Alt på dansk:** kode, kommentarer, kommunikation, variabelnavne, tabelnavne, UI-tekst.
+- **Kommandoer:** `npm run dev` · `npm run build` · `npm run lint` · `npm run preview`.
+
+**Lukketids-rutine** ved slutningen af en session:
+1. Opdatér `CLAUDE.md` med status, nye tabeller/felter, nye sider og dagens beslutninger.
+2. Kør `npm run build` for at fange TypeScript-fejl.
+3. Commit alt med dansk besked der forklarer *hvorfor*, ikke kun *hvad*.
+4. Push til `origin/main`.
+5. List manuelle skridt brugeren skal lave på live-databasen (migrationer, brugere, seed-data).
 
 ---
 
-## Startprompt til en ny SMU-app
+## 11. Checkliste — ny SMU-app
 
-> Vi skal bygge en ny lille SMU-app (fx **SMU APV**), som senere skal integreres i
-> SMU OS. Det er ikke en løs prototype — det bygges som ejet kode efter
-> **SMU App-standarden** (`SMU_APP_STANDARD.md`).
->
-> **Før du koder:**
-> 1. Læs dokumentationen hvis den findes: `SMU_APP_STANDARD.md`, `SMU_PRINCIPLES.md`,
->    `SUPABASE.md`, `PROJECT_OVERVIEW.md`, `DOMAIN_MODEL.md`, `ROADMAP.md`,
->    `NEXT_STEPS.md` + app-specifik spec.
-> 2. Undersøg projektstrukturen; genbrug SMU Tid-mønstrene (supabaseClient, auth,
->    AuthGate, storage-adapter, SMU-styling).
-> 3. Foreslå hvor appen placeres (eget repo vs. mappe) og hvordan den kobler til
->    det delte Supabase-projekt.
-> 4. Foreslå datamodel (**app-prefix på tabeller**) + routes.
-> 5. Skriv en kort implementeringsplan.
-> 6. Vent på godkendelse før større kodeændringer.
->
-> **Faste rammer:** React+Vite+TS, minimale deps, Vitest · delt Supabase-projekt,
-> kun de to VITE_-env, én delt klient, storage bag interface, localStorage kun
-> dev-fallback · Supabase Auth email/password, login-gate, genbrug brugere, ingen
-> signup, ingen roller endnu · RLS kun authenticated + audit (created_by/updated_by)
-> · SMU-palette (navy #1D384D primær, blå #2E9BD4, grøn #006140, amber advarsel, rød
-> kun fejl), dansk UI, SMU-følelse på login/empty/error · Git→Netlify deploy
-> (netlify.toml + _redirects, Node 20).
->
-> **Anti-mål:** ingen ERP/dashboard/ekstra moduler før behov · ingen iframe · ingen
-> localStorage som endelig data · hold den lille.
->
-> **Arbejdsmåde:** små trin · tsc/tests/build efter ændringer · skriv hvad der er
-> ændret + hvad jeg skal teste · stop og spørg ved uklarheder.
+1. Vite + React 19 + TS (strict) projekt. Kopiér `src/index.css`-tokens fra `smu-os-v2`.
+2. Kopiér denne `SMU_APP_STANDARD.md` og `docs/SMU_DESIGN_SYSTEM.md` ind.
+3. Vælg et unikt tabel-prefix (`wiki_`, `tid_`, `apv_`, …).
+4. `src/lib/supabase.ts` — delt singleton mod **samme** Supabase-projekt.
+5. `AuthContext` + `Layout`-gate. Genbrug `profiler`/`auth.users` — opret dem ikke.
+6. `netlify.toml` + `.env.example` + pin Node 20.
+7. Første migration: tabeller med prefix, `slettet`-kolonne, audit-kolonner, RLS `to authenticated`.
+8. Skriv appens egen `CLAUDE.md` og dokumentér enhver afvigelse fra denne standard.

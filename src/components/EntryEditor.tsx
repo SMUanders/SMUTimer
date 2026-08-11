@@ -99,6 +99,7 @@ export default function EntryEditor({
           <div className="field">
             <label>Kunde</label>
             <input
+              className="smu-input"
               type="text"
               placeholder="fx Kunde X"
               value={draft.customer}
@@ -109,6 +110,7 @@ export default function EntryEditor({
           <div className="field">
             <label>Note</label>
             <textarea
+              className="smu-input"
               placeholder="Valgfri note…"
               value={draft.note}
               onChange={(e) => set("note", e.target.value)}
@@ -136,10 +138,11 @@ export default function EntryEditor({
           </div>
 
           {draft.isRedo && (
-            <div style={{ paddingLeft: 4, borderLeft: "3px solid var(--brand)" }}>
-              <div className="field" style={{ marginLeft: 12 }}>
+            <div className="redo-panel">
+              <div className="field">
                 <label>Omgøring årsag</label>
                 <select
+                  className="smu-input"
                   value={draft.redoReason ?? REDO_REASONS[0].id}
                   onChange={(e) => set("redoReason", e.target.value)}
                 >
@@ -150,9 +153,10 @@ export default function EntryEditor({
                   ))}
                 </select>
               </div>
-              <div className="field" style={{ marginLeft: 12, marginBottom: 0 }}>
+              <div className="field" style={{ marginBottom: 0 }}>
                 <label>Omgøring note</label>
                 <textarea
+                  className="smu-input"
                   placeholder="Beskriv omgøringen (intern opfølgning)…"
                   value={draft.redoNote}
                   onChange={(e) => set("redoNote", e.target.value)}
@@ -164,14 +168,13 @@ export default function EntryEditor({
 
         {/* Sticky footer — Gem altid synlig, også ved lange formularer/små skærme */}
         <div className="sheet-footer">
-          <button className="btn-ghost" onClick={onClose} style={{ flex: "0 0 auto" }}>
+          <button className="smu-btn-secondary" onClick={onClose} style={{ flex: "0 0 auto" }}>
             Annuller
           </button>
           <button
-            className="btn-primary"
+            className="smu-btn-primary"
             onClick={handleSave}
             disabled={touched && !canSave}
-            style={{ flex: 1 }}
           >
             Gem
           </button>

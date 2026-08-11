@@ -40,6 +40,7 @@ export default function Login() {
           <label htmlFor="email">Email</label>
           <input
             id="email"
+            className="smu-input"
             type="email"
             autoComplete="username"
             value={email}
@@ -51,6 +52,7 @@ export default function Login() {
           <label htmlFor="password">Adgangskode</label>
           <input
             id="password"
+            className="smu-input"
             type="password"
             autoComplete="current-password"
             value={password}
@@ -59,7 +61,7 @@ export default function Login() {
           />
         </div>
 
-        <button className="btn-primary" type="submit" disabled={busy}>
+        <button className="smu-btn-primary" type="submit" disabled={busy}>
           {busy ? "Logger ind…" : "Log ind"}
         </button>
       </form>

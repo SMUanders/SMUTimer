@@ -32,20 +32,20 @@ export default function DaySummary({ summary }: Props) {
 
       <div className="summary-flags">
         {missingMinutes === 0 && overlaps.length === 0 && gaps.length === 0 && (
-          <span className="flag ok">Dagen ser komplet ud</span>
+          <span className="smu-badge smu-badge-green">Dagen ser komplet ud</span>
         )}
         {overlaps.length > 0 && (
-          <span className="flag">
-            {overlaps.length} overlap{overlaps.length > 1 ? "" : ""}
-          </span>
+          <span className="smu-badge smu-badge-orange">{overlaps.length} overlap</span>
         )}
         {gaps.length > 0 && (
-          <span className="flag">
+          <span className="smu-badge smu-badge-grey">
             {gaps.length} hul{gaps.length > 1 ? "ler" : ""}
           </span>
         )}
         {missingMinutes > 0 && (
-          <span className="flag">Mangler {formatDuration(missingMinutes)} t</span>
+          <span className="smu-badge smu-badge-orange">
+            Mangler {formatDuration(missingMinutes)} t
+          </span>
         )}
       </div>
     </div>

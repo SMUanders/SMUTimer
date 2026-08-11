@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import Admin from "./components/Admin";
 import AuthGate from "./components/AuthGate";
-import "./styles.css";
+import "./index.css";
 
 // Enkel sti-baseret routing (Vite serverer index.html som SPA-fallback):
 //  /oversigt (eller /admin) → Admin/Overblik, ellers dagsseddel.
