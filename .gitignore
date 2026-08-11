@@ -1,0 +1,14 @@
+# Afhængigheder
+node_modules/
+
+# Build-output
+dist/
+
+# Miljøvariabler / hemmeligheder — MÅ IKKE i git
+.env
+.env.local
+.env.*.local
+
+# Logs / OS
+npm-debug.log*
+.DS_Store

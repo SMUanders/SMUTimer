@@ -1,0 +1,16 @@
+# Netlify-konfiguration for SMU Tid.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Vite 5 + supabase-js kræver Node 18+. Pin til LTS for forudsigelige builds.
+  NODE_VERSION = "20"
+
+# SPA-fallback: alle stier serveres af index.html, så direkte load af
+# client-side routes (fx /oversigt) virker efter deploy.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
