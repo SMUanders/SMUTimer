@@ -1,0 +1,17 @@
+{
+  "name": "SMU Tid",
+  "short_name": "SMU Tid",
+  "description": "Digital dagsseddel — del af SMU OS",
+  "lang": "da",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f2ed",
+  "theme_color": "#213746",
+  "icons": [
+    { "src": "/pwa-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/pwa-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/pwa-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
