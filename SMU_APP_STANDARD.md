@@ -121,6 +121,17 @@ Kort resumé (autoritativt i design-doc'en):
 - Dansk UI. Ingen gradients, ingen emojis, ingen accent-striber.
 - Login, tomme states og fejlskærme skal føles som SMU.
 
+### PWA / hjemmeskærm (standard)
+Hver SMU-app skal kunne gemmes på telefonen som app-ikon:
+- `public/manifest.webmanifest` — `display: standalone`, `theme_color` navy
+  `#213746`, `background_color` beige `#f4f2ed`, ikoner 192 + 512 (+ maskable).
+- `index.html` — `manifest`-link, `theme-color`, `apple-touch-icon`,
+  `apple-mobile-web-app-capable` + `-title`.
+- **App-ikon i SMU-stil:** navy baggrund, enkel "SMU"/app-markering i hvid + blå.
+  Ingen tilfældige farver. (Genereres fx fra en SVG; behøver ikke ekstra runtime-dep.)
+- **Ingen service worker / offline i V1** — kun ikon + standalone-åbning. Appen må
+  fortsat kræve internet + login.
+
 ---
 
 ## 9. Deploy og miljøvariabler
