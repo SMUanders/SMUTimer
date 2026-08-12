@@ -2,7 +2,7 @@
 // bruge splitAroundLunch(). id/tidsstempel-fabrikker kan injiceres (test).
 
 import type { EntryDraft, TimeEntry } from "../types";
-import { BREAK_CATEGORY_ID, LUNCH_SUBCATEGORY_ID } from "../data/categories";
+import { BREAK_CATEGORY_ID, LUNCH_SUBCATEGORY_ID, isBreakCategory } from "../data/categories";
 import { durationMinutes } from "./time";
 import { splitAroundLunch, type LunchWindow } from "./lunch";
 
@@ -66,7 +66,8 @@ function makeWorkEntry(
     subcategoryId: draft.subcategoryId,
     customer: draft.customer.trim(),
     note: draft.note.trim(),
-    isBreak: false,
+    // Manuel "Pause"-kategori tæller også som pause (ikke arbejdstid).
+    isBreak: isBreakCategory(draft.categoryId),
     isRedo: draft.isRedo,
     redoReason: draft.isRedo ? draft.redoReason : null,
     redoNote: draft.isRedo ? draft.redoNote.trim() : "",

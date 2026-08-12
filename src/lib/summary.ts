@@ -3,6 +3,16 @@
 
 import type { TimeEntry } from "../types";
 import { toMinutes, overlaps, isWeekend } from "./time";
+import { isBreakCategory } from "../data/categories";
+
+/**
+ * En linje tæller som PAUSE (ikke arbejdstid) hvis den enten er markeret isBreak
+ * (auto-frokost-split) ELLER har hovedkategori "Pause" (manuel registrering).
+ * Robust mod at isBreak-flaget ikke er sat på ældre/manuelle pause-linjer.
+ */
+export function isPauseEntry(e: TimeEntry): boolean {
+  return e.isBreak || isBreakCategory(e.categoryId);
+}
 
 /** Forventet arbejdstid på en hverdag (minutter). 7,5 t = 450 min. */
 export const EXPECTED_WORK_MINUTES = 450;
@@ -39,8 +49,8 @@ export function summarizeDay(
   entries: TimeEntry[],
   expectedMinutes = EXPECTED_WORK_MINUTES
 ): DaySummary {
-  const work = entries.filter((e) => !e.isBreak);
-  const breaks = entries.filter((e) => e.isBreak);
+  const work = entries.filter((e) => !isPauseEntry(e));
+  const breaks = entries.filter((e) => isPauseEntry(e));
 
   const workedMinutes = work.reduce((sum, e) => sum + e.durationMinutes, 0);
   const breakMinutes = breaks.reduce((sum, e) => sum + e.durationMinutes, 0);

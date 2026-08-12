@@ -31,6 +31,32 @@ describe("summarizeDay", () => {
     expect(s.breakMinutes).toBe(30);
   });
 
+  it("MANUEL Pause-kategori (isBreak=false) tæller heller ikke som arbejde", () => {
+    // Regression: en pause registreret manuelt via kategori 'pause' må ikke
+    // tælle med, selvom isBreak-flaget ikke er sat.
+    const s = summarizeDay([
+      e("07:30", "12:00"), // 270 arbejde
+      e("12:00", "12:30", { categoryId: "pause", isBreak: false }), // 30 pause
+      e("12:30", "15:30"), // 180 arbejde
+    ]);
+    expect(s.workedMinutes).toBe(450); // 7,5 t — IKKE 480
+    expect(s.breakMinutes).toBe(30);
+  });
+
+  it("manuel pause skaber ikke overarbejde/manglende ift. 7,5 t", () => {
+    const s = summarizeDay(
+      [
+        e("07:30", "12:00"),
+        e("12:00", "12:30", { categoryId: "pause" }),
+        e("12:30", "15:30"),
+      ],
+      450
+    );
+    expect(s.workedMinutes).toBe(450);
+    expect(s.missingMinutes).toBe(0); // ikke manglende
+    // overarbejde udledes i adminSummary som max(0, worked-expected) = 0
+  });
+
   it("finder huller mellem linjer", () => {
     const s = summarizeDay([e("08:00", "09:00"), e("09:15", "10:00")]);
     expect(s.gaps).toHaveLength(1);

@@ -47,6 +47,22 @@ describe("employeeDaySummary", () => {
     expect(s.overtimeMinutes).toBe(90);
   });
 
+  it("manuel Pause tæller ikke → ingen overarbejde, status udfyldt", () => {
+    // Regression: 4,5t + pause 0,5t + 3t = 7,5t arbejde, ikke 8t.
+    const s = employeeDaySummary(
+      "anders",
+      [
+        e("07:30", "12:00"),
+        e("12:00", "12:30", { categoryId: "pause", isBreak: false }),
+        e("12:30", "15:30"),
+      ],
+      MON
+    );
+    expect(s.workedMinutes).toBe(450);
+    expect(s.overtimeMinutes).toBe(0);
+    expect(s.status).toBe("udfyldt");
+  });
+
   it("weekend → fri (forventet 0)", () => {
     const s = employeeDaySummary("anders", [], SAT);
     expect(s.status).toBe("fri");
