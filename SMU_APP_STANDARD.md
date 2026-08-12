@@ -121,6 +121,12 @@ Kort resumé (autoritativt i design-doc'en):
 - Dansk UI. Ingen gradients, ingen emojis, ingen accent-striber.
 - Login, tomme states og fejlskærme skal føles som SMU.
 
+### Favicon (standard)
+Ens på tværs af apps: **navy `#213746` bund med hvid "SMU"-mærke**. Som
+`public/favicon.svg` (skarp i alle størrelser) + PNG-fallback (`favicon-32.png`,
+`favicon-48.png`), linket i `index.html`. Hjemmeskærm-ikonet må gerne bære
+app-navnet (fx "SMU / TID"); favicon holdes enkel og læselig i fanen.
+
 ### PWA / hjemmeskærm (standard)
 Hver SMU-app skal kunne gemmes på telefonen som app-ikon:
 - `public/manifest.webmanifest` — `display: standalone`, `theme_color` navy
