@@ -121,11 +121,15 @@ Kort resumé (autoritativt i design-doc'en):
 - Dansk UI. Ingen gradients, ingen emojis, ingen accent-striber.
 - Login, tomme states og fejlskærme skal føles som SMU.
 
-### Favicon (standard)
-Ens på tværs af apps: **navy `#213746` bund med hvid "SMU"-mærke**. Som
-`public/favicon.svg` (skarp i alle størrelser) + PNG-fallback (`favicon-32.png`,
-`favicon-48.png`), linket i `index.html`. Hjemmeskærm-ikonet må gerne bære
-app-navnet (fx "SMU / TID"); favicon holdes enkel og læselig i fanen.
+### App-ikon & favicon (standard)
+**Navy `#213746` bund + ét enkelt hvidt symbol for appen** (SMU Tid = et **ur**;
+hver app vælger et passende symbol — evt. med blå `#3f9ed3` accent). Ingen
+tilfældige farver. **Samme ikon bruges som favicon i fanen OG som app-ikon på
+mobil** (hjemmeskærm), så alt hænger sammen.
+- Kilde: `public/favicon.svg` (skarp i alle størrelser).
+- Rasteriseret fra SVG'en: `favicon-32.png`, `favicon-48.png`, `pwa-192x192.png`,
+  `pwa-512x512.png`, `apple-touch-icon.png`.
+- Linket i `index.html` (favicon + apple-touch) og `manifest.webmanifest` (pwa).
 
 ### PWA / hjemmeskærm (standard)
 Hver SMU-app skal kunne gemmes på telefonen som app-ikon:
@@ -133,8 +137,8 @@ Hver SMU-app skal kunne gemmes på telefonen som app-ikon:
   `#213746`, `background_color` beige `#f4f2ed`, ikoner 192 + 512 (+ maskable).
 - `index.html` — `manifest`-link, `theme-color`, `apple-touch-icon`,
   `apple-mobile-web-app-capable` + `-title`.
-- **App-ikon i SMU-stil:** navy baggrund, enkel "SMU"/app-markering i hvid + blå.
-  Ingen tilfældige farver. (Genereres fx fra en SVG; behøver ikke ekstra runtime-dep.)
+- **App-ikon:** se "App-ikon & favicon" ovenfor (navy bund + hvidt app-symbol;
+  samme ikon som favicon). Genereres fra SVG'en — ingen ekstra runtime-dep.
 - **Ingen service worker / offline i V1** — kun ikon + standalone-åbning. Appen må
   fortsat kræve internet + login.
 
