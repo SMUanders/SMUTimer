@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import type { TimeEntry } from "../../types";
-import { people } from "../../lib/people";
+import type { Person } from "../../lib/people";
 import { store } from "../../lib/storage";
 import { employeeDaySummary, STATUS_META } from "../../lib/adminSummary";
 import {
@@ -24,7 +24,7 @@ function hours(minutes: number): string {
   return String(h).replace(".", ",");
 }
 
-export default function WeekOverview() {
+export default function WeekOverview({ visiblePeople }: { visiblePeople: Person[] }) {
   const [anchor, setAnchor] = useState<string>(todayIso());
   const [entries, setEntries] = useState<TimeEntry[]>([]);
 
@@ -70,7 +70,7 @@ export default function WeekOverview() {
             ))}
           </div>
 
-          {people().map((emp) => (
+          {visiblePeople.map((emp) => (
             <div key={emp.id} className="week-row">
               <div className="week-cell week-name">{emp.name}</div>
               {days.map((d) => {

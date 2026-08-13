@@ -257,6 +257,28 @@ body {
 .wc-overarbejde { background: var(--color-primary-soft); color: var(--color-primary-deep); }
 .wc-fri { background: var(--color-row-bg); color: var(--color-text-muted); }
 
+/* Medarbejder-filter (kun visning) */
+.filter-card {
+  background: var(--color-card); border: 1px solid var(--color-border); border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(33, 55, 70, 0.06); padding: 14px 16px; margin-bottom: 14px;
+}
+.filter-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  flex-wrap: wrap; margin-bottom: 12px;
+}
+.filter-status { font-size: 14px; color: var(--color-text-muted); font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+.filter-status strong { color: var(--color-navy); font-weight: 800; }
+.filter-quick { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.filter-reset { display: inline-flex; align-items: center; gap: 5px; }
+.filter-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 14px;
+}
+.filter-check {
+  display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700;
+  color: var(--color-navy); cursor: pointer;
+}
+.filter-check input { width: 18px; height: 18px; accent-color: var(--color-primary); cursor: pointer; }
+
 .admin-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--color-text-muted); font-weight: 600; }
 .legend-item { display: inline-flex; align-items: center; gap: 6px; }
 .legend-swatch { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }

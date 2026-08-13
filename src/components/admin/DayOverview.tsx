@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import type { TimeEntry } from "../../types";
-import { people } from "../../lib/people";
+import type { Person } from "../../lib/people";
 import { store } from "../../lib/storage";
 import { employeeDaySummary, STATUS_META } from "../../lib/adminSummary";
 import { formatDuration } from "../../lib/time";
@@ -17,7 +17,7 @@ function formatUpdated(iso: string | null): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-export default function DayOverview() {
+export default function DayOverview({ visiblePeople }: { visiblePeople: Person[] }) {
   const [date, setDate] = useState<string>(todayIso());
   const [entries, setEntries] = useState<TimeEntry[]>([]);
 
@@ -31,7 +31,7 @@ export default function DayOverview() {
     };
   }, [date]);
 
-  const rows = people().map((emp) => {
+  const rows = visiblePeople.map((emp) => {
     const mine = entries.filter((e) => e.employeeId === emp.id);
     return { emp, s: employeeDaySummary(emp.id, mine, date) };
   });
