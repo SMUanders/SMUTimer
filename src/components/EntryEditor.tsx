@@ -11,7 +11,7 @@ interface Props {
   initial: EntryDraft;
   /** Dagens øvrige linjer (den der redigeres er ekskluderet) — til overlap-tjek. */
   existing: TimeEntry[];
-  onSave: (draft: EntryDraft) => void;
+  onSave: (draft: EntryDraft, setAsCurrent: boolean) => void;
   onClose: () => void;
 }
 
@@ -38,6 +38,7 @@ export default function EntryEditor({
 }: Props) {
   const [draft, setDraft] = useState<EntryDraft>(initial);
   const [touched, setTouched] = useState(false);
+  const [setAsCurrent, setSetAsCurrent] = useState(false);
 
   const v = validateEntry(draft.startTime, draft.endTime, draft.categoryId, existing);
   const canSave = v.errors.length === 0;
@@ -49,7 +50,7 @@ export default function EntryEditor({
   function handleSave() {
     setTouched(true);
     if (!canSave) return;
-    onSave(draft);
+    onSave(draft, setAsCurrent);
   }
 
   return (
@@ -164,6 +165,19 @@ export default function EntryEditor({
               </div>
             </div>
           )}
+
+          {/* Sæt også denne kategori/kunde som "Aktuel opgave" (status — ikke tidsregistrering) */}
+          <div className="field toggle" style={{ marginTop: 4 }}>
+            <input
+              id="set-current"
+              type="checkbox"
+              checked={setAsCurrent}
+              onChange={(e) => setSetAsCurrent(e.target.checked)}
+            />
+            <label htmlFor="set-current" style={{ margin: 0 }}>
+              Sæt også som aktuel opgave
+            </label>
+          </div>
         </div>
 
         {/* Sticky footer — Gem altid synlig, også ved lange formularer/små skærme */}

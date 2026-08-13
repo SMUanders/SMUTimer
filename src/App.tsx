@@ -73,6 +73,8 @@ export default function App() {
   const [pending, setPending] = useState<PendingSplit | null>(null);
   const [storageName, setStorageName] = useState<"local" | "supabase">("local");
   const [ready, setReady] = useState(false);
+  // Bumpes når aktuel opgave sættes fra editoren, så CurrentTaskCard genindlæser.
+  const [currentTaskVersion, setCurrentTaskVersion] = useState(0);
 
   async function refresh(emp = employeeId, d = date) {
     if (!emp) {
@@ -120,8 +122,33 @@ export default function App() {
   }
 
   // ---------- gem-flow ----------
-  async function requestSave(draft: EntryDraft, editingId: string | null) {
+  // Aktuel opgave = STATUS, ikke tidsregistrering. Sætter kun en separat række
+  // i tid_current_tasks — rører aldrig time_entries eller nogen beregning.
+  async function applyCurrentTask(draft: EntryDraft) {
     if (!employeeId) return;
+    try {
+      await store().setCurrentTask({
+        employeeId,
+        categoryId: draft.categoryId,
+        subcategoryId: draft.subcategoryId,
+        orderNumber: draft.customer.trim() || null,
+        note: draft.note.trim() || null,
+        updatedAt: nowIso(),
+        updatedBy: null,
+      });
+      setCurrentTaskVersion((v) => v + 1);
+    } catch {
+      // Fejler blødt (tabellen mangler måske endnu) — blokerer ikke gem af tid.
+    }
+  }
+
+  async function requestSave(
+    draft: EntryDraft,
+    editingId: string | null,
+    setAsCurrent = false
+  ) {
+    if (!employeeId) return;
+    if (setAsCurrent) await applyCurrentTask(draft);
     const editing = editingId ? entries.find((e) => e.id === editingId) ?? null : null;
 
     // Redigering af en enkelt del i en frokost-opdeling: opdatér kun den linje.
@@ -274,7 +301,7 @@ export default function App() {
         </button>
       </div>
 
-      <CurrentTaskCard employeeId={employeeId} />
+      <CurrentTaskCard employeeId={employeeId} refreshSignal={currentTaskVersion} />
 
       <DaySummary summary={summary} />
 
@@ -311,7 +338,9 @@ export default function App() {
           workDate={date}
           initial={editor.initial}
           existing={editingExisting}
-          onSave={(draft) => requestSave(draft, editor.editingId)}
+          onSave={(draft, setAsCurrent) =>
+            requestSave(draft, editor.editingId, setAsCurrent)
+          }
           onClose={() => setEditor(null)}
         />
       )}

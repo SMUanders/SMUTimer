@@ -6,6 +6,8 @@ import CategoryPicker from "./CategoryPicker";
 
 interface Props {
   employeeId: string;
+  /** Bumpes udefra (fx når editoren sætter aktuel opgave) for at tvinge genindlæsning. */
+  refreshSignal?: number;
 }
 
 interface Draft {
@@ -25,7 +27,7 @@ function emptyDraft(): Draft {
 }
 
 // "Aktuel opgave" — status, IKKE tidsregistrering. Opretter ingen time_entries.
-export default function CurrentTaskCard({ employeeId }: Props) {
+export default function CurrentTaskCard({ employeeId, refreshSignal }: Props) {
   const [task, setTask] = useState<CurrentTask | null>(null);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -41,6 +43,13 @@ export default function CurrentTaskCard({ employeeId }: Props) {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employeeId]);
+
+  // Genindlæs (uden at nulstille redigering) når signalet bumpes udefra.
+  useEffect(() => {
+    if (refreshSignal === undefined) return;
+    refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshSignal]);
 
   function startEdit() {
     if (task) {
