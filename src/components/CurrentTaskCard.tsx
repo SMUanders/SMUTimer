@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 import { CATEGORIES, getCategory, getSubcategory } from "../data/categories";
 import { store, nowIso } from "../lib/storage";
-import { normalizeReference } from "../lib/smuNumber";
 import type { CurrentTask } from "../types";
 import CategoryPicker from "./CategoryPicker";
-import ReferenceField from "./ReferenceField";
 
 interface Props {
   employeeId: string;
@@ -77,7 +75,7 @@ export default function CurrentTaskCard({ employeeId, refreshSignal, onRegister 
         employeeId,
         categoryId: draft.categoryId,
         subcategoryId: draft.subcategoryId,
-        orderNumber: normalizeReference(draft.orderNumber) || null,
+        orderNumber: draft.orderNumber.trim() || null,
         note: draft.note.trim() || null,
         updatedAt: nowIso(),
         updatedBy: null,
@@ -124,19 +122,27 @@ export default function CurrentTaskCard({ employeeId, refreshSignal, onRegister 
               }
             />
           </div>
-          <ReferenceField
-            value={draft.orderNumber}
-            onChange={(v) => setDraft((d) => ({ ...d, orderNumber: v }))}
-          />
-          <div className="field">
-            <label>Note</label>
-            <input
-              className="smu-input"
-              type="text"
-              placeholder="Valgfri"
-              value={draft.note}
-              onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
-            />
+          <div className="row-2">
+            <div className="field">
+              <label>Ordre / sag</label>
+              <input
+                className="smu-input"
+                type="text"
+                placeholder="fx 12345"
+                value={draft.orderNumber}
+                onChange={(e) => setDraft((d) => ({ ...d, orderNumber: e.target.value }))}
+              />
+            </div>
+            <div className="field">
+              <label>Note</label>
+              <input
+                className="smu-input"
+                type="text"
+                placeholder="Valgfri"
+                value={draft.note}
+                onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
+              />
+            </div>
           </div>
           <div className="ct-actions">
             <button className="smu-btn-primary" onClick={save} disabled={busy}>
