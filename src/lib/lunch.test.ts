@@ -3,6 +3,7 @@ import {
   getLunchWindow,
   proposeLunchSplit,
   splitAroundLunch,
+  expectedLunchPlaceholder,
 } from "./lunch";
 import type { TimeEntry } from "../types";
 
@@ -16,6 +17,15 @@ function breakEntry(start: string, end: string): TimeEntry {
     id: "b", employeeId: "anders", workDate: MON, startTime: start, endTime: end, durationMinutes: 0,
     categoryId: "pause", subcategoryId: "frokost", customer: "", note: "",
     isBreak: true, isRedo: false, redoReason: null, redoNote: "", splitGroupId: "g", slettet: false,
+    createdAt: "", updatedAt: "",
+  };
+}
+
+function workEntry(start: string, end: string): TimeEntry {
+  return {
+    id: "w", employeeId: "anders", workDate: MON, startTime: start, endTime: end, durationMinutes: 0,
+    categoryId: "salg-administration", subcategoryId: null, customer: "", note: "",
+    isBreak: false, isRedo: false, redoReason: null, redoNote: "", splitGroupId: null, slettet: false,
     createdAt: "", updatedAt: "",
   };
 }
@@ -90,5 +100,33 @@ describe("proposeLunchSplit", () => {
 
   it("undgår dobbelt frokost hvis der allerede findes en pause i frokosten", () => {
     expect(proposeLunchSplit(MON, "10:00", "14:00", [breakEntry("12:00", "12:30")])).toBeNull();
+  });
+});
+
+describe("expectedLunchPlaceholder", () => {
+  it("tom dag (man) → vis forventet frokost 12:00–12:30", () => {
+    expect(expectedLunchPlaceholder(MON, [])).toEqual({ startTime: "12:00", endTime: "12:30" });
+  });
+
+  it("kun formiddag der slutter 12:00 → frokost er stadig forventet", () => {
+    expect(expectedLunchPlaceholder(MON, [workEntry("07:30", "12:00")])).toEqual({
+      startTime: "12:00", endTime: "12:30",
+    });
+  });
+
+  it("weekend → ingen placeholder", () => {
+    expect(expectedLunchPlaceholder(SAT, [])).toBeNull();
+  });
+
+  it("findes allerede en pause i frokosten → ingen placeholder", () => {
+    expect(expectedLunchPlaceholder(MON, [breakEntry("12:00", "12:30")])).toBeNull();
+  });
+
+  it("arbejdet henover frokosten (ingen split) → ingen placeholder", () => {
+    expect(expectedLunchPlaceholder(MON, [workEntry("10:00", "14:00")])).toBeNull();
+  });
+
+  it("fredag bruger 10:00–10:30", () => {
+    expect(expectedLunchPlaceholder(FRI, [])).toEqual({ startTime: "10:00", endTime: "10:30" });
   });
 });

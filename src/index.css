@@ -154,6 +154,11 @@ body {
   display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; gap: 12px; padding: 12px 14px; align-items: start;
 }
 .entry-row.is-break { background: var(--color-grey-soft); box-shadow: none; }
+/* "Forventet frokost" — visuel placeholder, ikke en registrering. */
+.entry-row.is-placeholder { background: transparent; border-style: dashed; }
+.entry-row.is-placeholder .entry-cat { color: var(--color-text-muted); display: inline-flex; align-items: center; gap: 6px; }
+.entry-row.is-placeholder .entry-time { color: var(--color-text-muted); }
+.entry-row.is-placeholder .entry-actions { justify-content: center; }
 .entry-time { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 14px; color: var(--color-navy); }
 .entry-time small { display: block; font-weight: 600; color: var(--color-text-muted); }
 .entry-main { min-width: 0; }

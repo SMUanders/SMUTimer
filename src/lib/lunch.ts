@@ -69,6 +69,28 @@ export function proposeLunchSplit(
   return lunch;
 }
 
+/**
+ * Skal dagssedlen vise en *forventet* frokost-placeholder?
+ * Returnerer frokostvinduet hvis ja, ellers null.
+ *
+ * Vises kun på frokost-dage (man–fre) hvor INGEN registrering (arbejde eller
+ * pause) rører frokost-vinduet — dvs. før man har splittet frokosten ud eller
+ * har arbejdet henover frokosten. Rent visuelt: tæller ikke i nogen sum.
+ */
+export function expectedLunchPlaceholder(
+  isoDate: string,
+  entries: TimeEntry[]
+): LunchWindow | null {
+  const lunch = getLunchWindow(isoDate);
+  if (!lunch) return null;
+
+  const lunchIv = asInterval(lunch);
+  const covered = entries.some((e) =>
+    overlaps({ start: toMinutes(e.startTime), end: toMinutes(e.endTime) }, lunchIv)
+  );
+  return covered ? null : lunch;
+}
+
 export interface SplitPart {
   startTime: string;
   endTime: string;

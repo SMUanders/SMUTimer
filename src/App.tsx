@@ -5,10 +5,10 @@ import { isBreakCategory } from "./data/categories";
 import { getPerson, loadPeople } from "./lib/people";
 import { initStore, store, newId, nowIso } from "./lib/storage";
 import { buildEntries } from "./lib/entries";
-import { proposeLunchSplit, type LunchWindow } from "./lib/lunch";
+import { proposeLunchSplit, expectedLunchPlaceholder, type LunchWindow } from "./lib/lunch";
 import { summarizeDay, expectedWorkMinutes } from "./lib/summary";
 import { suggestNextSlot } from "./lib/suggest";
-import { durationMinutes } from "./lib/time";
+import { durationMinutes, toMinutes } from "./lib/time";
 import { todayIso, addDays, formatDanishDate } from "./lib/dates";
 import { isSupabaseConfigured } from "./lib/supabaseClient";
 import { signOut } from "./lib/auth";
@@ -17,6 +17,7 @@ import EntryRow from "./components/EntryRow";
 import EntryEditor, { emptyDraft } from "./components/EntryEditor";
 import EmployeeSelect from "./components/EmployeeSelect";
 import LunchSplitDialog from "./components/LunchSplitDialog";
+import LunchPlaceholderRow from "./components/LunchPlaceholderRow";
 import CurrentTaskCard from "./components/CurrentTaskCard";
 
 const EMPLOYEE_KEY = "smu-tid.employee";
@@ -107,6 +108,22 @@ export default function App() {
     () => summarizeDay(entries, expectedWorkMinutes(date)),
     [entries, date]
   );
+
+  // Dagssedlens rækker: registreringer + en evt. "forventet frokost"-placeholder,
+  // sorteret efter starttid. Placeholderen er rent visuel (ingen sum, ingen DB).
+  type DayRow =
+    | { kind: "entry"; start: number; entry: TimeEntry }
+    | { kind: "lunch"; start: number; lunch: LunchWindow };
+  const dayRows = useMemo<DayRow[]>(() => {
+    const rows: DayRow[] = entries.map((e) => ({
+      kind: "entry",
+      start: toMinutes(e.startTime),
+      entry: e,
+    }));
+    const lunch = expectedLunchPlaceholder(date, entries);
+    if (lunch) rows.push({ kind: "lunch", start: toMinutes(lunch.startTime), lunch });
+    return rows.sort((a, b) => a.start - b.start);
+  }, [entries, date]);
 
   const employee = getPerson(employeeId);
 
@@ -326,23 +343,27 @@ export default function App() {
       <DaySummary summary={summary} />
 
       <div className="entry-list">
-        {entries.length === 0 ? (
+        {dayRows.length === 0 ? (
           <div className="empty">Ingen registreringer endnu. Tryk “+ Ny registrering”.</div>
         ) : (
-          entries.map((e) => (
-            <EntryRow
-              key={e.id}
-              entry={e}
-              onEdit={(entry) =>
-                setEditor({
-                  mode: "edit",
-                  editingId: entry.id,
-                  initial: draftFromEntry(entry),
-                })
-              }
-              onDelete={handleDelete}
-            />
-          ))
+          dayRows.map((r) =>
+            r.kind === "entry" ? (
+              <EntryRow
+                key={r.entry.id}
+                entry={r.entry}
+                onEdit={(entry) =>
+                  setEditor({
+                    mode: "edit",
+                    editingId: entry.id,
+                    initial: draftFromEntry(entry),
+                  })
+                }
+                onDelete={handleDelete}
+              />
+            ) : (
+              <LunchPlaceholderRow key="lunch-placeholder" window={r.lunch} />
+            )
+          )
         )}
       </div>
 
