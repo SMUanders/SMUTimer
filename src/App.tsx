@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus, LogOut, LayoutGrid } from "lucide-react";
-import type { EntryDraft, TimeEntry } from "./types";
+import type { CurrentTask, EntryDraft, TimeEntry } from "./types";
 import { isBreakCategory } from "./data/categories";
 import { getPerson, loadPeople } from "./lib/people";
 import { initStore, store, newId, nowIso } from "./lib/storage";
@@ -225,13 +225,29 @@ export default function App() {
     await refresh();
   }
 
-  function openNew() {
+  function openNew(prefill?: Partial<EntryDraft>) {
     // Foreslå næste ledige tidspunkt som start/slut.
     const slot = suggestNextSlot(entries);
     setEditor({
       mode: "new",
       editingId: null,
-      initial: { ...emptyDraft(), startTime: slot.startTime, endTime: slot.endTime },
+      initial: {
+        ...emptyDraft(),
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        ...prefill,
+      },
+    });
+  }
+
+  // Fra "Aktuel opgave": åbn ny registrering forudfyldt (ordre→kunde), så man
+  // ikke skal taste det samme igen. Bruger foreslået tid som normalt.
+  function registerFromCurrentTask(task: CurrentTask) {
+    openNew({
+      categoryId: task.categoryId,
+      subcategoryId: task.subcategoryId,
+      customer: task.orderNumber ?? "",
+      note: task.note ?? "",
     });
   }
 
@@ -301,7 +317,11 @@ export default function App() {
         </button>
       </div>
 
-      <CurrentTaskCard employeeId={employeeId} refreshSignal={currentTaskVersion} />
+      <CurrentTaskCard
+        employeeId={employeeId}
+        refreshSignal={currentTaskVersion}
+        onRegister={registerFromCurrentTask}
+      />
 
       <DaySummary summary={summary} />
 
@@ -327,7 +347,7 @@ export default function App() {
       </div>
 
       <div className="add-bar">
-        <button className="smu-btn-primary" onClick={openNew}>
+        <button className="smu-btn-primary" onClick={() => openNew()}>
           <Plus size={18} /> Ny registrering
         </button>
       </div>

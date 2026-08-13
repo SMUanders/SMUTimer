@@ -8,6 +8,8 @@ interface Props {
   employeeId: string;
   /** Bumpes udefra (fx når editoren sætter aktuel opgave) for at tvinge genindlæsning. */
   refreshSignal?: number;
+  /** Åbn ny registrering forudfyldt fra den aktuelle opgave. */
+  onRegister?: (task: CurrentTask) => void;
 }
 
 interface Draft {
@@ -27,7 +29,7 @@ function emptyDraft(): Draft {
 }
 
 // "Aktuel opgave" — status, IKKE tidsregistrering. Opretter ingen time_entries.
-export default function CurrentTaskCard({ employeeId, refreshSignal }: Props) {
+export default function CurrentTaskCard({ employeeId, refreshSignal, onRegister }: Props) {
   const [task, setTask] = useState<CurrentTask | null>(null);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -164,6 +166,11 @@ export default function CurrentTaskCard({ employeeId, refreshSignal }: Props) {
           </div>
           {task!.note && <div className="ct-note">{task!.note}</div>}
           <div className="ct-actions">
+            {onRegister && (
+              <button className="smu-btn-primary" onClick={() => onRegister(task!)} disabled={busy}>
+                Registrer tid på denne opgave
+              </button>
+            )}
             <button className="smu-btn-secondary" onClick={startEdit} disabled={busy}>
               Opdater
             </button>
