@@ -2,7 +2,9 @@ import { useState } from "react";
 import type { EntryDraft, TimeEntry } from "../types";
 import { CATEGORIES, REDO_REASONS } from "../data/categories";
 import { validateEntry } from "../lib/validation";
+import { normalizeReference } from "../lib/smuNumber";
 import CategoryPicker from "./CategoryPicker";
+import ReferenceField from "./ReferenceField";
 import TimeSelect from "./TimeSelect";
 
 interface Props {
@@ -50,7 +52,8 @@ export default function EntryEditor({
   function handleSave() {
     setTouched(true);
     if (!canSave) return;
-    onSave(draft, setAsCurrent);
+    // Normaliser SMU-nummer / intern kode ved gem (fx "184" → "SMU-0184").
+    onSave({ ...draft, customer: normalizeReference(draft.customer) }, setAsCurrent);
   }
 
   return (
@@ -97,16 +100,10 @@ export default function EntryEditor({
             />
           </div>
 
-          <div className="field">
-            <label>Kunde</label>
-            <input
-              className="smu-input"
-              type="text"
-              placeholder="fx Kunde X"
-              value={draft.customer}
-              onChange={(e) => set("customer", e.target.value)}
-            />
-          </div>
+          <ReferenceField
+            value={draft.customer}
+            onChange={(v) => set("customer", v)}
+          />
 
           <div className="field">
             <label>Note</label>

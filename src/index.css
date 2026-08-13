@@ -314,6 +314,29 @@ body {
 .ct-clear { color: var(--color-red-deep); }
 .ct-clear:hover { color: #8f2d2d; }
 
+/* ================= SMU-nummer / intern kode ================= */
+.ref-field { display: block; }
+.ref-kinds {
+  display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 8px;
+  background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 10px;
+}
+.ref-kind {
+  border: none; background: transparent; cursor: pointer;
+  padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 700;
+  color: var(--color-navy-soft);
+}
+.ref-kind:hover { color: var(--color-navy); }
+.ref-kind.active { background: var(--color-navy); color: #fff; }
+.ref-smu { display: flex; align-items: stretch; }
+.ref-prefix {
+  display: inline-flex; align-items: center; padding: 0 12px;
+  font-weight: 800; color: var(--color-navy); background: var(--color-primary-soft);
+  border: 1px solid var(--color-border); border-right: none;
+  border-radius: 10px 0 0 10px;
+}
+.ref-smu-input { border-radius: 0 10px 10px 0; }
+.ref-hint { margin-top: 6px; font-size: 12px; font-weight: 600; color: var(--color-text-muted); }
+
 /* /oversigt "Arbejder på nu" */
 .now-card {
   background: var(--color-card); border: 1px solid var(--color-border); border-radius: 14px;

@@ -29,6 +29,25 @@ På Netlify sættes de samme to som Environment variables (scope **Builds**).
 5. `supabase/migrations/0005_current_tasks.sql` — **"Aktuel opgave"** (status):
    ny tabel `tid_current_tasks` (én pr. medarbejder). RLS kun authenticated.
 
+## SMU-nummer / intern kode (V1 — feltstruktur, ingen SMU OS-opslag endnu)
+
+Feltet der før hed "Kunde/Ordre" hedder nu i UI **"SMU-nummer / intern kode"** og
+bruges både på en tidsregistrering og på "Aktuel opgave". **Ingen migration:** værdien
+gemmes fortsat i den eksisterende kolonne (`tid_time_entries.customer` og
+`tid_current_tasks.order_number`) — kun sproget/strukturen i UI er ændret.
+
+To typer (samme tekstfelt, normaliseres ved gem — `src/lib/smuNumber.ts`):
+- **SMU-sag** → primært til kundesager. UI viser fast prefiks "SMU-"; man taster kun
+  nummeret (fx `184`). Normaliseres konsekvent til **`SMU-0184`** (accepterer også
+  `0184`, `SMU-184`, `SMU0184`).
+- **Intern kode** → til intern tid. Foreslåede koder: `INTERN-LAGER`, `INTERN-MASKIN`,
+  `INTERN-OPRYDNING`, `INTERN-ADMIN`, `INTERN-SMUOS`, `INTERN-ANDET` (eller en fri kode).
+
+**Valgfrit i beta:** man kan gemme uden SMU-nummer/intern kode — ingen blokering,
+ingen advarsel endnu. Værdien føres korrekt med når man går mellem registrering og
+Aktuel opgave (begge veje). **Senere** kan SMU Tid slå SMU-nummeret op i SMU OS og
+auto-udfylde kunde/sagstitel — det er bevidst ikke bygget endnu.
+
 ## "Aktuel opgave" er STATUS — ikke tidsregistrering
 `tid_current_tasks` viser "hvad arbejder medarbejderen på lige nu". Den er **helt
 adskilt** fra `tid_time_entries`: tæller **aldrig** som arbejdstid og påvirker
