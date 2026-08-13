@@ -20,13 +20,6 @@ export default function EmployeeFilter({ people, hidden, onChange }: Props) {
     onChange(next);
   }
 
-  function udenAndersNatasha() {
-    const ids = people
-      .filter((p) => p.name === "Anders" || p.name === "Natasha")
-      .map((p) => p.id);
-    onChange(new Set(ids));
-  }
-
   return (
     <div className="filter-card">
       <div className="filter-head">
@@ -37,9 +30,6 @@ export default function EmployeeFilter({ people, hidden, onChange }: Props) {
         <div className="filter-quick">
           <button className="smu-btn-secondary" onClick={() => onChange(new Set())}>
             Alle
-          </button>
-          <button className="smu-btn-secondary" onClick={udenAndersNatasha}>
-            Uden Anders/Natasha
           </button>
           <button className="smu-btn-ghost filter-reset" onClick={() => onChange(new Set())}>
             <RotateCcw size={14} /> Nulstil filter
