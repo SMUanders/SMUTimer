@@ -26,6 +26,15 @@ På Netlify sættes de samme to som Environment variables (scope **Builds**).
    `time_entries` → `tid_time_entries`, kobler `employee_id` til den delte
    `profiler(id)`, tilføjer soft-delete (`slettet`), dropper appens egen
    `employees`-tabel. ⚠️ Rydder eksisterende testdata (aftalt).
+5. `supabase/migrations/0005_current_tasks.sql` — **"Aktuel opgave"** (status):
+   ny tabel `tid_current_tasks` (én pr. medarbejder). RLS kun authenticated.
+
+## "Aktuel opgave" er STATUS — ikke tidsregistrering
+`tid_current_tasks` viser "hvad arbejder medarbejderen på lige nu". Den er **helt
+adskilt** fra `tid_time_entries`: tæller **aldrig** som arbejdstid og påvirker
+ingen tal (arbejdstid, pause, mangler, overarbejde, dagsstatus, ugeoverblik).
+**Tidsregistrering sker fortsat manuelt** med start/slut som hidtil. Koden er
+bagudkompatibel: mangler tabellen, viser appen bare "Ingen aktuel opgave" (ingen fejl).
 
 Kør i Supabase SQL Editor (eller `supabase db push`).
 

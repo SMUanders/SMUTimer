@@ -1,4 +1,4 @@
-import type { TimeEntry } from "../../types";
+import type { TimeEntry, CurrentTask } from "../../types";
 
 // Fælles storage-interface. Al persistering går gennem dette — resten af appen
 // kender ikke til om data ligger i localStorage eller Supabase.
@@ -14,6 +14,12 @@ export interface TimeEntryStore {
   updateEntry(id: string, patch: Partial<TimeEntry>): Promise<void>;
   deleteEntry(id: string): Promise<void>;
   deleteSplitGroup(splitGroupId: string): Promise<void>;
+
+  // "Aktuel opgave" — status, adskilt fra time entries (påvirker ingen tal).
+  getCurrentTask(employeeId: string): Promise<CurrentTask | null>;
+  getAllCurrentTasks(): Promise<CurrentTask[]>;
+  setCurrentTask(task: CurrentTask): Promise<void>;
+  clearCurrentTask(employeeId: string): Promise<void>;
 }
 
 // ID/tidsstempel — bruges når nye entries bygges. crypto.randomUUID giver et

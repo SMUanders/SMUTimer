@@ -47,6 +47,20 @@ export interface TimeEntry {
   updatedAt: string;
 }
 
+/**
+ * "Aktuel opgave" — ren status pr. medarbejder ("hvad arbejder de på lige nu").
+ * IKKE tidsregistrering: tæller aldrig som arbejdstid og påvirker ingen tal.
+ */
+export interface CurrentTask {
+  employeeId: string;
+  categoryId: string;
+  subcategoryId: string | null;
+  orderNumber: string | null;
+  note: string | null;
+  updatedAt: string;
+  updatedBy: string | null;
+}
+
 /** Data brugeren indtaster i editoren (før split/udregning). */
 export interface EntryDraft {
   startTime: string;

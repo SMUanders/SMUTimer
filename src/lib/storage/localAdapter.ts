@@ -1,6 +1,19 @@
-import type { TimeEntry } from "../../types";
+import type { TimeEntry, CurrentTask } from "../../types";
 import type { TimeEntryStore } from "./types";
 import { nowIso } from "./types";
+
+const TASKS_KEY = "smu-tid.current-tasks.v1";
+function loadTasks(): CurrentTask[] {
+  try {
+    const raw = localStorage.getItem(TASKS_KEY);
+    return raw ? (JSON.parse(raw) as CurrentTask[]) : [];
+  } catch {
+    return [];
+  }
+}
+function saveTasks(t: CurrentTask[]): void {
+  localStorage.setItem(TASKS_KEY, JSON.stringify(t));
+}
 
 // Midlertidig dev-fallback: gemmer i browserens localStorage.
 // Bruges KUN indtil Supabase-credentials er sat (se index.ts). Ikke den
@@ -76,5 +89,24 @@ export const localAdapter: TimeEntryStore = {
       }
     }
     if (changed) saveAll(all);
+  },
+
+  // ---- Aktuel opgave ----
+  async getCurrentTask(employeeId) {
+    return loadTasks().find((t) => t.employeeId === employeeId) ?? null;
+  },
+
+  async getAllCurrentTasks() {
+    return loadTasks();
+  },
+
+  async setCurrentTask(task) {
+    const all = loadTasks().filter((t) => t.employeeId !== task.employeeId);
+    all.push({ ...task, updatedAt: nowIso() });
+    saveTasks(all);
+  },
+
+  async clearCurrentTask(employeeId) {
+    saveTasks(loadTasks().filter((t) => t.employeeId !== employeeId));
   },
 };

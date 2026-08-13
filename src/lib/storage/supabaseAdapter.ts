@@ -1,6 +1,29 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { TimeEntry } from "../../types";
+import type { TimeEntry, CurrentTask } from "../../types";
 import type { TimeEntryStore } from "./types";
+
+const TASKS_TABLE = "tid_current_tasks";
+
+interface TaskRow {
+  employee_id: string;
+  category: string;
+  subcategory: string | null;
+  order_number: string | null;
+  note: string | null;
+  updated_at: string;
+  updated_by: string | null;
+}
+function taskFromRow(r: TaskRow): CurrentTask {
+  return {
+    employeeId: r.employee_id,
+    categoryId: r.category,
+    subcategoryId: r.subcategory,
+    orderNumber: r.order_number,
+    note: r.note,
+    updatedAt: r.updated_at,
+    updatedBy: r.updated_by,
+  };
+}
 
 // Supabase-adapter — den endelige løsning. Aktiveres når VITE_SUPABASE_URL og
 // VITE_SUPABASE_ANON_KEY er sat (se index.ts). Uden credentials importeres
@@ -172,6 +195,56 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
         .from(TABLE)
         .update({ slettet: true })
         .eq("split_group_id", splitGroupId);
+      if (error) throw error;
+    },
+
+    // ---- Aktuel opgave ----
+    // Læsninger fejler blødt (returnerer null/[]), så appen ikke knækker hvis
+    // migration 0005 endnu ikke er kørt. Skrivninger kaster (UI viser fejl).
+    async getCurrentTask(employeeId) {
+      try {
+        const { data, error } = await client
+          .from(TASKS_TABLE)
+          .select("*")
+          .eq("employee_id", employeeId)
+          .maybeSingle();
+        if (error || !data) return null;
+        return taskFromRow(data as TaskRow);
+      } catch {
+        return null;
+      }
+    },
+
+    async getAllCurrentTasks() {
+      try {
+        const { data, error } = await client.from(TASKS_TABLE).select("*");
+        if (error || !data) return [];
+        return (data as TaskRow[]).map(taskFromRow);
+      } catch {
+        return [];
+      }
+    },
+
+    async setCurrentTask(task) {
+      // updated_at/updated_by håndteres af DB (default + trigger).
+      const row = {
+        employee_id: task.employeeId,
+        category: task.categoryId,
+        subcategory: task.subcategoryId,
+        order_number: task.orderNumber,
+        note: task.note,
+      };
+      const { error } = await client
+        .from(TASKS_TABLE)
+        .upsert(row, { onConflict: "employee_id" });
+      if (error) throw error;
+    },
+
+    async clearCurrentTask(employeeId) {
+      const { error } = await client
+        .from(TASKS_TABLE)
+        .delete()
+        .eq("employee_id", employeeId);
       if (error) throw error;
     },
   };

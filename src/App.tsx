@@ -17,6 +17,7 @@ import EntryRow from "./components/EntryRow";
 import EntryEditor, { emptyDraft } from "./components/EntryEditor";
 import EmployeeSelect from "./components/EmployeeSelect";
 import LunchSplitDialog from "./components/LunchSplitDialog";
+import CurrentTaskCard from "./components/CurrentTaskCard";
 
 const EMPLOYEE_KEY = "smu-tid.employee";
 
@@ -272,6 +273,8 @@ export default function App() {
           I dag
         </button>
       </div>
+
+      <CurrentTaskCard employeeId={employeeId} />
 
       <DaySummary summary={summary} />
 

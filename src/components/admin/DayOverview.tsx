@@ -6,6 +6,7 @@ import { store } from "../../lib/storage";
 import { employeeDaySummary, STATUS_META } from "../../lib/adminSummary";
 import { formatDuration } from "../../lib/time";
 import { addDays, formatDanishDate, todayIso } from "../../lib/dates";
+import CurrentTasksNow from "./CurrentTasksNow";
 
 function deepLink(employeeId: string, isoDate: string): string {
   return `/?medarbejder=${encodeURIComponent(employeeId)}&dato=${isoDate}`;
@@ -38,6 +39,8 @@ export default function DayOverview({ visiblePeople }: { visiblePeople: Person[]
 
   return (
     <div>
+      <CurrentTasksNow people={visiblePeople} />
+
       <div className="datebar">
         <button className="icon-btn" aria-label="Forrige dag" onClick={() => setDate(addDays(date, -1))}>
           <ChevronLeft size={20} />

@@ -300,3 +300,42 @@ body {
   .ov-label { display: inline; color: var(--color-text-muted); font-size: 12px; font-weight: 700; }
   .ov-open { grid-column: 1 / -1; justify-content: flex-start; }
 }
+
+/* ================= AKTUEL OPGAVE ================= */
+/* Dagsside-kort */
+.current-task { padding: 16px 18px; margin-bottom: 16px; }
+.ct-title { font-weight: 800; font-size: 15px; color: var(--color-navy); margin-bottom: 12px; }
+.ct-view { font-size: 15px; }
+.ct-cat { font-weight: 800; color: var(--color-navy); }
+.ct-sub { color: var(--color-text-muted); font-weight: 600; }
+.ct-order { color: var(--color-navy); font-weight: 700; }
+.ct-note { color: var(--color-text-muted); font-weight: 600; margin-top: 6px; font-size: 14px; }
+.ct-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+.ct-clear { color: var(--color-red-deep); }
+.ct-clear:hover { color: #8f2d2d; }
+
+/* /oversigt "Arbejder på nu" */
+.now-card {
+  background: var(--color-card); border: 1px solid var(--color-border); border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(33, 55, 70, 0.06); padding: 14px 16px; margin-bottom: 16px;
+}
+.now-head { font-weight: 800; font-size: 15px; color: var(--color-navy); margin-bottom: 6px; }
+.now-list { display: flex; flex-direction: column; }
+.now-row {
+  display: grid; grid-template-columns: 140px minmax(0, 1fr) auto; gap: 10px;
+  align-items: baseline; padding: 8px 0; border-top: 1px solid var(--color-border-soft);
+}
+.now-row:first-child { border-top: none; }
+.now-name { font-weight: 800; color: var(--color-navy); }
+.now-task { min-width: 0; font-size: 14px; font-weight: 600; }
+.now-cat { font-weight: 800; color: var(--color-navy); }
+.now-sub { color: var(--color-text-muted); }
+.now-order { color: var(--color-navy); font-weight: 700; }
+.now-note { color: var(--color-text-muted); }
+.now-empty { color: var(--color-text-muted); font-weight: 600; }
+.now-when { color: var(--color-text-muted); font-size: 12px; white-space: nowrap; text-align: right; }
+
+@media (max-width: 560px) {
+  .now-row { grid-template-columns: 1fr auto; }
+  .now-name { grid-column: 1 / -1; }
+}
