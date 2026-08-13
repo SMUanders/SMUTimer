@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
+import { UtensilsCrossed } from "lucide-react";
 import { store } from "../../lib/storage";
-import { getCategory, getSubcategory } from "../../data/categories";
+import {
+  getCategory,
+  getSubcategory,
+  isBreakCategory,
+  LUNCH_SUBCATEGORY_ID,
+} from "../../data/categories";
 import type { CurrentTask } from "../../types";
 import type { Person } from "../../lib/people";
 
@@ -44,17 +50,25 @@ export default function CurrentTasksNow({ people }: Props) {
           const t = byEmp.get(p.id);
           const cat = t ? getCategory(t.categoryId) : undefined;
           const sub = t ? getSubcategory(t.categoryId, t.subcategoryId) : undefined;
+          const atLunch = t ? isBreakCategory(t.categoryId) : false;
           return (
             <div key={p.id} className="now-row">
               <div className="now-name">{p.name}</div>
               <div className="now-task">
                 {t ? (
-                  <>
-                    <span className="now-cat">{cat?.name ?? "—"}</span>
-                    {sub && <span className="now-sub"> / {sub.name}</span>}
-                    {t.orderNumber && <span className="now-order"> · {t.orderNumber}</span>}
-                    {t.note && <span className="now-note"> — {t.note}</span>}
-                  </>
+                  atLunch ? (
+                    <span className="now-lunch">
+                      <UtensilsCrossed size={14} />
+                      {t.subcategoryId === LUNCH_SUBCATEGORY_ID ? " Til frokost" : ` ${sub?.name ?? "Pause"}`}
+                    </span>
+                  ) : (
+                    <>
+                      <span className="now-cat">{cat?.name ?? "—"}</span>
+                      {sub && <span className="now-sub"> / {sub.name}</span>}
+                      {t.orderNumber && <span className="now-order"> · {t.orderNumber}</span>}
+                      {t.note && <span className="now-note"> — {t.note}</span>}
+                    </>
+                  )
                 ) : (
                   <span className="now-empty">Ingen aktuel opgave</span>
                 )}

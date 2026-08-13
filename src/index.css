@@ -318,6 +318,12 @@ body {
 .ct-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
 .ct-clear { color: var(--color-red-deep); }
 .ct-clear:hover { color: #8f2d2d; }
+/* Frokost-status (tjekket ind på frokost) */
+.ct-lunch {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-weight: 800; font-size: 16px; color: var(--color-orange-deep);
+  background: var(--color-orange-soft); border-radius: 10px; padding: 8px 12px;
+}
 
 /* /oversigt "Arbejder på nu" */
 .now-card {
@@ -336,6 +342,7 @@ body {
 .now-cat { font-weight: 800; color: var(--color-navy); }
 .now-sub { color: var(--color-text-muted); }
 .now-order { color: var(--color-navy); font-weight: 700; }
+.now-lunch { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; color: var(--color-orange-deep); }
 .now-note { color: var(--color-text-muted); }
 .now-empty { color: var(--color-text-muted); font-weight: 600; }
 .now-when { color: var(--color-text-muted); font-size: 12px; white-space: nowrap; text-align: right; }

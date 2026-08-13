@@ -1,5 +1,13 @@
 import { useEffect, useState } from "react";
-import { CATEGORIES, getCategory, getSubcategory } from "../data/categories";
+import { UtensilsCrossed } from "lucide-react";
+import {
+  CATEGORIES,
+  getCategory,
+  getSubcategory,
+  isBreakCategory,
+  BREAK_CATEGORY_ID,
+  LUNCH_SUBCATEGORY_ID,
+} from "../data/categories";
 import { store, nowIso } from "../lib/storage";
 import type { CurrentTask } from "../types";
 import CategoryPicker from "./CategoryPicker";
@@ -102,7 +110,31 @@ export default function CurrentTaskCard({ employeeId, refreshSignal, onRegister 
     }
   }
 
+  // Tjek ind på frokost = sæt aktuel opgave til Pause/Frokost (status, ikke tid).
+  async function goToLunch() {
+    setBusy(true);
+    setError(null);
+    try {
+      await store().setCurrentTask({
+        employeeId,
+        categoryId: BREAK_CATEGORY_ID,
+        subcategoryId: LUNCH_SUBCATEGORY_ID,
+        orderNumber: null,
+        note: null,
+        updatedAt: nowIso(),
+        updatedBy: null,
+      });
+      setEditing(false);
+      await refresh();
+    } catch {
+      setError("Kunne ikke sætte frokost-status.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const showForm = editing || !task;
+  const atLunch = !!task && isBreakCategory(task.categoryId);
 
   return (
     <div className="current-task smu-card">
@@ -148,11 +180,30 @@ export default function CurrentTaskCard({ employeeId, refreshSignal, onRegister 
             <button className="smu-btn-primary" onClick={save} disabled={busy}>
               {task ? "Opdater" : "Sæt som aktuel opgave"}
             </button>
+            {!task && (
+              <button className="smu-btn-secondary" onClick={goToLunch} disabled={busy}>
+                <UtensilsCrossed size={14} /> Til frokost
+              </button>
+            )}
             {task && (
               <button className="smu-btn-secondary" onClick={() => setEditing(false)} disabled={busy}>
                 Annuller
               </button>
             )}
+          </div>
+        </>
+      ) : atLunch ? (
+        <>
+          <div className="ct-lunch">
+            <UtensilsCrossed size={18} /> Til frokost
+          </div>
+          <div className="ct-actions">
+            <button className="smu-btn-primary" onClick={clear} disabled={busy}>
+              Tilbage fra frokost
+            </button>
+            <button className="smu-btn-secondary" onClick={startEdit} disabled={busy}>
+              Sæt opgave
+            </button>
           </div>
         </>
       ) : (
@@ -173,6 +224,9 @@ export default function CurrentTaskCard({ employeeId, refreshSignal, onRegister 
             )}
             <button className="smu-btn-secondary" onClick={startEdit} disabled={busy}>
               Opdater
+            </button>
+            <button className="smu-btn-secondary" onClick={goToLunch} disabled={busy}>
+              <UtensilsCrossed size={14} /> Til frokost
             </button>
             <button className="smu-btn-ghost ct-clear" onClick={clear} disabled={busy}>
               Ryd aktuel opgave
