@@ -27,6 +27,23 @@ export function durationMinutes(startTime: string, endTime: string): number {
   return toMinutes(endTime) - toMinutes(startTime);
 }
 
+// ----- 15-minutters afrunding (til foreslåede tider; brugeren kan altid rette) -----
+export function floorTo15Min(min: number): number {
+  return min - ((min % 15) + 15) % 15;
+}
+export function ceilTo15Min(min: number): number {
+  const r = ((min % 15) + 15) % 15;
+  return r === 0 ? min : min + (15 - r);
+}
+/** Rund "HH:MM" NED til nærmeste kvarter (fx 09:07 → 09:00). */
+export function floorTo15(hhmm: string): string {
+  return toHHMM(floorTo15Min(toMinutes(hhmm)));
+}
+/** Rund "HH:MM" OP til nærmeste kvarter (fx 10:22 → 10:30). */
+export function ceilTo15(hhmm: string): string {
+  return toHHMM(ceilTo15Min(toMinutes(hhmm)));
+}
+
 /** Formatér minutter som "t:mm" til visning, fx 90 -> "1:30". */
 export function formatDuration(minutes: number): string {
   const sign = minutes < 0 ? "-" : "";

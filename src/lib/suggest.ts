@@ -8,7 +8,7 @@
 //   forbi dagens slut.
 
 import type { TimeEntry } from "../types";
-import { toMinutes, toHHMM } from "./time";
+import { toMinutes, toHHMM, ceilTo15Min } from "./time";
 
 export const DAY_START = "07:30";
 export const DAY_END = "18:00";
@@ -55,5 +55,11 @@ function slot(start: number, end: number, dayEnd: number, defaultDur: number): S
   let e = Math.max(end, s + 1);
   if (e > dayEnd) e = dayEnd;
   if (e <= s) e = s + defaultDur;
+  // 15-minutters rytme: rund op til nærmeste kvarter (no-op på allerede
+  // kvarter-alignet data → eksisterende forslag er uændrede).
+  s = ceilTo15Min(s);
+  e = ceilTo15Min(e);
+  if (e > dayEnd) e = dayEnd;
+  if (e <= s) e = Math.min(s + 15, dayEnd);
   return { startTime: toHHMM(s), endTime: toHHMM(e) };
 }

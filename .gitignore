@@ -4,6 +4,9 @@ node_modules/
 # Build-output
 dist/
 
+# Genereres ved build (versionskontrol) — matcher altid bundtets version
+public/version.json
+
 # Miljøvariabler / hemmeligheder — MÅ IKKE i git
 .env
 .env.local

@@ -9,7 +9,7 @@ import { proposeLunchSplit, expectedLunchPlaceholder, type LunchWindow } from ".
 import { summarizeDay, expectedWorkMinutes } from "./lib/summary";
 import { suggestNextSlot } from "./lib/suggest";
 import { getTaskStart, clearTaskStart, isoToHHMM } from "./lib/currentTaskStart";
-import { durationMinutes, toMinutes } from "./lib/time";
+import { durationMinutes, toMinutes, toHHMM, floorTo15, ceilTo15 } from "./lib/time";
 import { todayIso, addDays, formatDanishDate } from "./lib/dates";
 import { isSupabaseConfigured } from "./lib/supabaseClient";
 import { signOut } from "./lib/auth";
@@ -20,6 +20,8 @@ import EmployeeSelect from "./components/EmployeeSelect";
 import LunchSplitDialog from "./components/LunchSplitDialog";
 import LunchPlaceholderRow from "./components/LunchPlaceholderRow";
 import CurrentTaskCard from "./components/CurrentTaskCard";
+import UpdateBanner from "./components/UpdateBanner";
+import { appVersionShort } from "./lib/version";
 
 const EMPLOYEE_KEY = "smu-tid.employee";
 
@@ -286,10 +288,13 @@ export default function App() {
   function registerFromCurrentTask(task: CurrentTask) {
     if (!employeeId) return;
     const startIso = getTaskStart(employeeId) ?? task.updatedAt;
-    const startTime = isoToHHMM(startIso);
-    const nowHHMM = isoToHHMM(nowIso());
-    // Slut skal være efter start; ellers falder vi tilbage til foreslået slot.
-    const endTime = nowHHMM > startTime ? nowHHMM : suggestNextSlot(entries).endTime;
+    // Start rundes NED, slut (nu) rundes OP til nærmeste kvarter. Kun forslag —
+    // intet gemmes før brugeren trykker Gem, og tiderne kan altid rettes.
+    const startTime = floorTo15(isoToHHMM(startIso));
+    let endTime = ceilTo15(isoToHHMM(nowIso()));
+    if (toMinutes(endTime) <= toMinutes(startTime)) {
+      endTime = toHHMM(toMinutes(startTime) + 15);
+    }
 
     setClearCurrentOnSave(true);
     setEditor({
@@ -304,7 +309,7 @@ export default function App() {
         customer: task.orderNumber ?? "",
         note: task.note ?? "",
       },
-      hint: "Ret tiderne hvis de ikke passer, før du gemmer.",
+      hint: "Tiden er foreslået i 15-minutters intervaller. Ret start og slut hvis det ikke passer.",
     });
   }
 
@@ -408,8 +413,8 @@ export default function App() {
       </div>
 
       <div className="add-bar">
-        <button className="smu-btn-primary" onClick={() => openNew()}>
-          <Plus size={18} /> Ny registrering
+        <button className="smu-btn-secondary" onClick={() => openNew()}>
+          <Plus size={16} /> Ny manuel registrering
         </button>
       </div>
 
@@ -438,6 +443,11 @@ export default function App() {
           onCancel={() => setPending(null)}
         />
       )}
+
+      <div className="app-version">SMU Tid · v{appVersionShort()}</div>
+
+      {/* Udskydes mens en registrering redigeres/splittes (rører ikke gem). */}
+      <UpdateBanner defer={!!editor || !!pending} />
     </div>
   );
 }

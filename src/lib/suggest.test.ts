@@ -38,4 +38,11 @@ describe("suggestNextSlot", () => {
     const slot = suggestNextSlot([e("10:00", "12:00"), e("07:30", "09:00")]);
     expect(slot).toEqual({ startTime: "09:00", endTime: "10:00" });
   });
+
+  it("skæv sluttid rundes til 15-minutters rytme (10:22 → 10:30–11:00)", () => {
+    expect(suggestNextSlot([e("07:30", "10:22")])).toEqual({
+      startTime: "10:30",
+      endTime: "11:00",
+    });
+  });
 });
