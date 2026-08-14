@@ -15,15 +15,19 @@ interface Props {
 }
 
 const MONTHS = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
+function isToday(iso: string): boolean {
+  const d = new Date(iso);
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
 function formatWhen(iso: string): string {
   const d = new Date(iso);
   const hh = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  const now = new Date();
-  const sameDay =
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate();
-  return sameDay ? `i dag ${hh}` : `${d.getDate()}. ${MONTHS[d.getMonth()]} ${hh}`;
+  return isToday(iso) ? `i dag ${hh}` : `${d.getDate()}. ${MONTHS[d.getMonth()]} ${hh}`;
 }
 
 // "Arbejder på nu" — status pr. medarbejder. Ikke tidsregistrering.
@@ -51,8 +55,9 @@ export default function CurrentTasksNow({ people }: Props) {
           const cat = t ? getCategory(t.categoryId) : undefined;
           const sub = t ? getSubcategory(t.categoryId, t.subcategoryId) : undefined;
           const atLunch = t ? isBreakCategory(t.categoryId) : false;
+          const stale = t ? !isToday(t.updatedAt) : false;
           return (
-            <div key={p.id} className="now-row">
+            <div key={p.id} className={"now-row" + (stale ? " is-stale" : "")}>
               <div className="now-name">{p.name}</div>
               <div className="now-task">
                 {t ? (
@@ -67,6 +72,7 @@ export default function CurrentTasksNow({ people }: Props) {
                       {sub && <span className="now-sub"> / {sub.name}</span>}
                       {t.orderNumber && <span className="now-order"> · {t.orderNumber}</span>}
                       {t.note && <span className="now-note"> — {t.note}</span>}
+                      {stale && <span className="now-stale-badge">Ikke opdateret i dag</span>}
                     </>
                   )
                 ) : (

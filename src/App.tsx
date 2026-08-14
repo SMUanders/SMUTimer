@@ -8,6 +8,7 @@ import { buildEntries } from "./lib/entries";
 import { proposeLunchSplit, expectedLunchPlaceholder, type LunchWindow } from "./lib/lunch";
 import { summarizeDay, expectedWorkMinutes } from "./lib/summary";
 import { suggestNextSlot } from "./lib/suggest";
+import { getTaskStart, clearTaskStart, isoToHHMM } from "./lib/currentTaskStart";
 import { durationMinutes, toMinutes } from "./lib/time";
 import { todayIso, addDays, formatDanishDate } from "./lib/dates";
 import { isSupabaseConfigured } from "./lib/supabaseClient";
@@ -40,6 +41,8 @@ interface EditorState {
   mode: "new" | "edit";
   editingId: string | null;
   initial: EntryDraft;
+  /** Valgfri hjælpetekst i editoren (fx ved "Afslut og registrér tid"). */
+  hint?: string;
 }
 
 interface PendingSplit {
@@ -76,6 +79,9 @@ export default function App() {
   const [ready, setReady] = useState(false);
   // Bumpes når aktuel opgave sættes fra editoren, så CurrentTaskCard genindlæser.
   const [currentTaskVersion, setCurrentTaskVersion] = useState(0);
+  // Sandt når editoren blev åbnet via "Afslut og registrér tid" — så ryddes
+  // aktuel opgave efter et vellykket gem (men ikke ved Annuller).
+  const [clearCurrentOnSave, setClearCurrentOnSave] = useState(false);
 
   async function refresh(emp = employeeId, d = date) {
     if (!emp) {
@@ -165,7 +171,10 @@ export default function App() {
     setAsCurrent = false
   ) {
     if (!employeeId) return;
-    if (setAsCurrent) await applyCurrentTask(draft);
+    if (setAsCurrent) {
+      await applyCurrentTask(draft);
+      setClearCurrentOnSave(false); // sæt-også vinder over ryd-efter-gem
+    }
     const editing = editingId ? entries.find((e) => e.id === editingId) ?? null : null;
 
     // Redigering af en enkelt del i en frokost-opdeling: opdatér kun den linje.
@@ -217,6 +226,19 @@ export default function App() {
       now: nowIso,
     });
     await store().addEntries(built);
+
+    // "Afslut og registrér tid": nu hvor tiden ER gemt, ryddes aktuel opgave.
+    if (clearCurrentOnSave && !editingId) {
+      try {
+        await store().clearCurrentTask(employeeId);
+      } catch {
+        // fejler blødt
+      }
+      clearTaskStart(employeeId);
+      setClearCurrentOnSave(false);
+      setCurrentTaskVersion((v) => v + 1);
+    }
+
     await finish();
   }
 
@@ -243,7 +265,8 @@ export default function App() {
   }
 
   function openNew(prefill?: Partial<EntryDraft>) {
-    // Foreslå næste ledige tidspunkt som start/slut.
+    // Normal "Ny registrering": rører ikke aktuel opgave.
+    setClearCurrentOnSave(false);
     const slot = suggestNextSlot(entries);
     setEditor({
       mode: "new",
@@ -257,14 +280,31 @@ export default function App() {
     });
   }
 
-  // Fra "Aktuel opgave": åbn ny registrering forudfyldt (ordre→kunde), så man
-  // ikke skal taste det samme igen. Bruger foreslået tid som normalt.
+  // "Afslut og registrér tid": åbn normal editor forudfyldt fra aktuel opgave.
+  // Start = cirka-starttidspunktet, Slut = nu. Intet gemmes før brugeren trykker
+  // Gem; ved gem ryddes aktuel opgave (clearCurrentOnSave).
   function registerFromCurrentTask(task: CurrentTask) {
-    openNew({
-      categoryId: task.categoryId,
-      subcategoryId: task.subcategoryId,
-      customer: task.orderNumber ?? "",
-      note: task.note ?? "",
+    if (!employeeId) return;
+    const startIso = getTaskStart(employeeId) ?? task.updatedAt;
+    const startTime = isoToHHMM(startIso);
+    const nowHHMM = isoToHHMM(nowIso());
+    // Slut skal være efter start; ellers falder vi tilbage til foreslået slot.
+    const endTime = nowHHMM > startTime ? nowHHMM : suggestNextSlot(entries).endTime;
+
+    setClearCurrentOnSave(true);
+    setEditor({
+      mode: "new",
+      editingId: null,
+      initial: {
+        ...emptyDraft(),
+        startTime,
+        endTime,
+        categoryId: task.categoryId,
+        subcategoryId: task.subcategoryId,
+        customer: task.orderNumber ?? "",
+        note: task.note ?? "",
+      },
+      hint: "Ret tiderne hvis de ikke passer, før du gemmer.",
     });
   }
 
@@ -295,7 +335,7 @@ export default function App() {
             </span>
           </h1>
           <div className="who">
-            Registrerer som: <strong>{employee?.name ?? employeeId}</strong>
+            Du registrerer nu som: <strong>{employee?.name ?? employeeId}</strong>
             <button className="smu-btn-ghost" onClick={switchEmployee}>
               Skift
             </button>
@@ -378,11 +418,15 @@ export default function App() {
           mode={editor.mode}
           workDate={date}
           initial={editor.initial}
+          hint={editor.hint}
           existing={editingExisting}
           onSave={(draft, setAsCurrent) =>
             requestSave(draft, editor.editingId, setAsCurrent)
           }
-          onClose={() => setEditor(null)}
+          onClose={() => {
+            setEditor(null);
+            setClearCurrentOnSave(false); // Annuller → aktuel opgave bevares
+          }}
         />
       )}
 
@@ -390,9 +434,7 @@ export default function App() {
         <LunchSplitDialog
           draft={pending.draft}
           lunch={pending.lunch}
-          onResolve={(split) =>
-            commit(pending.draft, split ? pending.lunch : null, pending.editingId)
-          }
+          onResolve={(lunch) => commit(pending.draft, lunch, pending.editingId)}
           onCancel={() => setPending(null)}
         />
       )}

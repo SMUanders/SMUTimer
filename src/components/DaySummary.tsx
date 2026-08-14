@@ -21,7 +21,7 @@ export default function DaySummary({ summary }: Props) {
           <div className="v">{formatDuration(breakMinutes)}</div>
         </div>
         <div className="summary-cell">
-          <div className="k">Huller</div>
+          <div className="k">Mellemrum</div>
           <div className="v">{formatDuration(gapMinutes)}</div>
         </div>
         <div className="summary-cell">
@@ -39,7 +39,7 @@ export default function DaySummary({ summary }: Props) {
         )}
         {gaps.length > 0 && (
           <span className="smu-badge smu-badge-grey">
-            {gaps.length} hul{gaps.length > 1 ? "ler" : ""}
+            {gaps.length} mellemrum
           </span>
         )}
         {missingMinutes > 0 && (

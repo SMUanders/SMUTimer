@@ -70,7 +70,7 @@ export default function DayOverview({ visiblePeople }: { visiblePeople: Person[]
           <div>Mangler</div>
           <div>Overarbejde</div>
           <div>Status</div>
-          <div>Huller</div>
+          <div>Mellemrum</div>
           <div>Omgøringer</div>
           <div>Sidst opdateret</div>
         </div>
@@ -114,7 +114,7 @@ export default function DayOverview({ visiblePeople }: { visiblePeople: Person[]
                 <span className={`smu-badge ${meta.badge}`}>{meta.label}</span>
               </div>
               <div className="ov-num">
-                <span className="ov-label">Huller</span>
+                <span className="ov-label">Mellemrum</span>
                 {s.gapsCount > 0 ? `${s.gapsCount} (${formatDuration(s.gapsMinutes)})` : "—"}
               </div>
               <div className="ov-num">

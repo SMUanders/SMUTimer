@@ -13,6 +13,7 @@
 import type { TimeEntry } from "../types";
 import { overlaps, toMinutes, toHHMM, type Interval } from "./time";
 import { weekdayOf } from "./time";
+import { isBreakCategory } from "../data/categories";
 
 export interface LunchWindow {
   startTime: string; // "HH:MM"
@@ -70,12 +71,15 @@ export function proposeLunchSplit(
 }
 
 /**
- * Skal dagssedlen vise en *forventet* frokost-placeholder?
+ * Skal dagssedlen vise en *foreslået* frokost-placeholder?
  * Returnerer frokostvinduet hvis ja, ellers null.
  *
- * Vises kun på frokost-dage (man–fre) hvor INGEN registrering (arbejde eller
- * pause) rører frokost-vinduet — dvs. før man har splittet frokosten ud eller
- * har arbejdet henover frokosten. Rent visuelt: tæller ikke i nogen sum.
+ * Frokosten er kun et FORSLAG — den kan i praksis ligge anderledes. Placeholderen
+ * vises derfor kun på frokost-dage (man–fre) hvor medarbejderen endnu ikke har
+ * taget hånd om frokosten, dvs. når:
+ *  - ingen registrering rører det foreslåede frokost-vindue, OG
+ *  - der ikke findes nogen pause/frokost-linje den dag (fx flyttet til 10:30–11:00).
+ * Rent visuelt: tæller ikke i nogen sum.
  */
 export function expectedLunchPlaceholder(
   isoDate: string,
@@ -83,6 +87,11 @@ export function expectedLunchPlaceholder(
 ): LunchWindow | null {
   const lunch = getLunchWindow(isoDate);
   if (!lunch) return null;
+
+  // Har medarbejderen allerede en pause (uanset tidspunkt)? Så er frokosten taget
+  // hånd om — vis ikke et misvisende forslag.
+  const hasBreak = entries.some((e) => e.isBreak || isBreakCategory(e.categoryId));
+  if (hasBreak) return null;
 
   const lunchIv = asInterval(lunch);
   const covered = entries.some((e) =>

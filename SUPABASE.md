@@ -33,10 +33,31 @@ På Netlify sættes de samme to som Environment variables (scope **Builds**).
 `tid_current_tasks` viser "hvad arbejder medarbejderen på lige nu". Den er **helt
 adskilt** fra `tid_time_entries`: tæller **aldrig** som arbejdstid og påvirker
 ingen tal (arbejdstid, pause, mangler, overarbejde, dagsstatus, ugeoverblik).
-**Tidsregistrering sker fortsat manuelt** med start/slut som hidtil. Koden er
+**Tidsregistrering sker fortsat manuelt** med start/slut som hidtil. På
+dagssedlen er kortet bevidst **nedtonet** (et lille status-panel, ikke et primært
+tidsflow/timer); den primære handling er "Registrér tid manuelt". Koden er
 bagudkompatibel: mangler tabellen, viser appen bare "Ingen aktuel opgave" (ingen fejl).
 
+På /oversigt markeres en aktuel opgave der **ikke er opdateret i dag** som
+"Ikke opdateret i dag" og nedtones, så gamle statuser ikke virker troværdige.
+
 Kør i Supabase SQL Editor (eller `supabase db push`).
+
+## Frokost er FORESLÅET — ikke en låst regel
+Standardfrokosten (man–tor 12:00–12:30, fre 10:00–10:30) er kun et **forslag** og
+kan i praksis ligge anderledes. Rammer en registrering det foreslåede vindue,
+**tilbyder** appen at dele omkring frokost (kan fravælges). Registrerer man i
+stedet selv en Pause/Frokost på et andet tidspunkt (fx 10:30–11:00), tæller den
+som rigtig pause — og overblikket laver **ikke** falsk overarbejde/manglende tid.
+Frokost er altid pause, aldrig arbejdstid.
+
+## "Ordre / sag" — forberedt til SMU-numre (ikke krævet endnu)
+Feltet (både på tidsregistrering og aktuel opgave) hedder i UI **"Ordre / sag"**
+og bruges til ordre-/sagsnummer — fx et alm. ordrenummer eller et SMU-nummer
+tastet manuelt (placeholder "Fx 54277 eller SMU-0042"). Det er **valgfrit i beta**.
+DB-feltet hedder fortsat `customer` / `order_number` (ingen migration). Der er
+**ingen** SMU-normalisering og **intet** SMU OS-opslag endnu. **Senere** kan SMU
+Tid slå SMU-nummeret op i SMU OS og auto-udfylde kunde/sagstitel.
 
 ## Login (Supabase Auth)
 

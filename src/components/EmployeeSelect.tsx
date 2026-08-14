@@ -10,7 +10,7 @@ export default function EmployeeSelect({ onSelect }: Props) {
   return (
     <div className="picker">
       <h1 className="picker-title">SMU Tid</h1>
-      <p className="picker-sub">Vælg medarbejder for at åbne dagsseddel</p>
+      <p className="picker-sub">Vælg dig selv for at åbne din dagsseddel</p>
       <div className="picker-grid">
         {people().map((e) => (
           <button key={e.id} className="picker-item" onClick={() => onSelect(e.id)}>

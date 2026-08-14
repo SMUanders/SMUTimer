@@ -22,11 +22,13 @@ export default function LunchPlaceholderRow({ window }: Props) {
             <UtensilsCrossed size={14} /> Frokost
           </span>
         </div>
-        <div className="entry-note">Forventet — registreres når du taster henover frokosten.</div>
+        <div className="entry-note">
+          Foreslået frokost — kan ligge anderledes. Håndteres når du taster henover den.
+        </div>
       </div>
 
       <div className="entry-actions">
-        <span className="smu-badge smu-badge-grey">Forventet</span>
+        <span className="smu-badge smu-badge-grey">Foreslået</span>
       </div>
     </div>
   );

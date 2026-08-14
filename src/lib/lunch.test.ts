@@ -74,6 +74,15 @@ describe("splitAroundLunch", () => {
     expect(parts).toEqual([{ startTime: "10:00", endTime: "12:00", isBreak: false }]);
   });
 
+  it("flyttet frokost 10:30–11:00 → split omkring den faktiske pause", () => {
+    const parts = splitAroundLunch("09:00", "15:00", { startTime: "10:30", endTime: "11:00" });
+    expect(parts).toEqual([
+      { startTime: "09:00", endTime: "10:30", isBreak: false },
+      { startTime: "10:30", endTime: "11:00", isBreak: true },
+      { startTime: "11:00", endTime: "15:00", isBreak: false },
+    ]);
+  });
+
   it("varigheder pr. del er korrekte (10–14 → 120/30/90)", () => {
     const parts = splitAroundLunch("10:00", "14:00", { startTime: "12:00", endTime: "12:30" });
     const mins = (s: string, e: string) =>
@@ -124,6 +133,11 @@ describe("expectedLunchPlaceholder", () => {
 
   it("arbejdet henover frokosten (ingen split) → ingen placeholder", () => {
     expect(expectedLunchPlaceholder(MON, [workEntry("10:00", "14:00")])).toBeNull();
+  });
+
+  it("frokost flyttet til 10:30–11:00 (manuel pause) → ingen misvisende placeholder", () => {
+    // Pausen rører ikke det foreslåede vindue 12:00–12:30, men er stadig en pause.
+    expect(expectedLunchPlaceholder(MON, [breakEntry("10:30", "11:00")])).toBeNull();
   });
 
   it("fredag bruger 10:00–10:30", () => {

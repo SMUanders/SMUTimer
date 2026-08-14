@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { EntryDraft, TimeEntry } from "../types";
 import { CATEGORIES, REDO_REASONS } from "../data/categories";
 import { validateEntry } from "../lib/validation";
+import { getLunchWindow } from "../lib/lunch";
+import { overlaps as intervalsOverlap, toMinutes } from "../lib/time";
 import CategoryPicker from "./CategoryPicker";
 import TimeSelect from "./TimeSelect";
 
@@ -9,6 +11,8 @@ interface Props {
   mode: "new" | "edit";
   workDate: string;
   initial: EntryDraft;
+  /** Valgfri hjælpetekst øverst (fx ved "Afslut og registrér tid"). */
+  hint?: string;
   /** Dagens øvrige linjer (den der redigeres er ekskluderet) — til overlap-tjek. */
   existing: TimeEntry[];
   onSave: (draft: EntryDraft, setAsCurrent: boolean) => void;
@@ -31,7 +35,9 @@ export { emptyDraft };
 
 export default function EntryEditor({
   mode,
+  workDate,
   initial,
+  hint,
   existing,
   onSave,
   onClose,
@@ -42,6 +48,15 @@ export default function EntryEditor({
 
   const v = validateEntry(draft.startTime, draft.endTime, draft.categoryId, existing);
   const canSave = v.errors.length === 0;
+
+  // Rammer registreringen den FORESLÅEDE frokost? (håndteres automatisk ved gem)
+  const lunch = getLunchWindow(workDate);
+  const hitsLunch =
+    !!lunch &&
+    intervalsOverlap(
+      { start: toMinutes(draft.startTime), end: toMinutes(draft.endTime) },
+      { start: toMinutes(lunch.startTime), end: toMinutes(lunch.endTime) }
+    );
 
   function set<K extends keyof EntryDraft>(key: K, value: EntryDraft[K]) {
     setDraft((d) => ({ ...d, [key]: value }));
@@ -61,6 +76,7 @@ export default function EntryEditor({
         </div>
 
         <div className="sheet-body">
+          {hint && <div className="msg info">{hint}</div>}
           {touched && v.errors.length > 0 && (
             <div className="msg error">
               {v.errors.map((e) => (
@@ -87,6 +103,13 @@ export default function EntryEditor({
             </div>
           </div>
 
+          {hitsLunch && lunch && (
+            <div className="msg info">
+              Foreslået frokost {lunch.startTime}–{lunch.endTime} håndteres automatisk,
+              når du gemmer.
+            </div>
+          )}
+
           <div className="field">
             <CategoryPicker
               categoryId={draft.categoryId}
@@ -97,12 +120,14 @@ export default function EntryEditor({
             />
           </div>
 
+          {/* "Ordre / sag": forberedt til SMU-numre. DB-feltet hedder fortsat
+              `customer` (ingen migration); bruges reelt til ordre/sag, ikke kunde. */}
           <div className="field">
-            <label>Kunde</label>
+            <label>Ordre / sag</label>
             <input
               className="smu-input"
               type="text"
-              placeholder="fx Kunde X"
+              placeholder="Fx 54277 eller SMU-0042"
               value={draft.customer}
               onChange={(e) => set("customer", e.target.value)}
             />
@@ -134,7 +159,7 @@ export default function EntryEditor({
               }
             />
             <label htmlFor="redo" style={{ margin: 0 }}>
-              Omgøring
+              Omgøring (arbejde der skal laves om)
             </label>
           </div>
 

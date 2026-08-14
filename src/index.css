@@ -203,6 +203,7 @@ body {
 .msg { border-radius: 10px; padding: 10px 12px; font-size: 13px; font-weight: 600; margin-bottom: 12px; }
 .msg.error { background: var(--color-red-soft); color: var(--color-red-deep); }
 .msg.warn { background: var(--color-orange-soft); color: var(--color-orange-deep); }
+.msg.info { background: var(--color-primary-soft); color: var(--color-primary-deep); }
 
 /* ---------- Lunch split dialog ---------- */
 .dialog { background: var(--color-card); border-radius: 14px; width: 100%; max-width: 440px; box-shadow: 0 20px 48px rgba(33, 55, 70, 0.18); overflow: hidden; }
@@ -307,9 +308,20 @@ body {
 }
 
 /* ================= AKTUEL OPGAVE ================= */
-/* Dagsside-kort */
-.current-task { padding: 16px 18px; margin-bottom: 16px; }
-.ct-title { font-weight: 800; font-size: 15px; color: var(--color-navy); margin-bottom: 12px; }
+/* Dagsside: nedtonet status-panel (IKKE et primært tidsflow/timer). */
+.current-task {
+  padding: 12px 14px; margin-bottom: 16px;
+  background: var(--color-row-bg); border: 1px solid var(--color-border);
+  border-radius: 12px; box-shadow: none;
+}
+.ct-title {
+  font-weight: 800; font-size: 12px; color: var(--color-text-muted);
+  text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px;
+}
+.ct-help { font-size: 12px; color: var(--color-text-muted); font-weight: 600; margin-bottom: 10px; }
+.ct-empty { font-size: 14px; color: var(--color-text-muted); font-weight: 600; }
+.ct-lead { font-size: 12px; font-weight: 700; color: var(--color-text-muted); margin-bottom: 4px; }
+.ct-started { margin-top: 6px; font-size: 13px; font-weight: 700; color: var(--color-navy-soft); }
 .ct-view { font-size: 15px; }
 .ct-cat { font-weight: 800; color: var(--color-navy); }
 .ct-sub { color: var(--color-text-muted); font-weight: 600; }
@@ -343,6 +355,16 @@ body {
 .now-sub { color: var(--color-text-muted); }
 .now-order { color: var(--color-navy); font-weight: 700; }
 .now-lunch { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; color: var(--color-orange-deep); }
+/* Forældet status (ikke opdateret i dag) — nedtonet + badge */
+.now-row.is-stale .now-cat,
+.now-row.is-stale .now-sub,
+.now-row.is-stale .now-order,
+.now-row.is-stale .now-note { color: var(--color-text-muted); font-weight: 600; }
+.now-stale-badge {
+  display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 800; background: var(--color-grey-soft); color: var(--color-grey-deep);
+  white-space: nowrap;
+}
 .now-note { color: var(--color-text-muted); }
 .now-empty { color: var(--color-text-muted); font-weight: 600; }
 .now-when { color: var(--color-text-muted); font-size: 12px; white-space: nowrap; text-align: right; }

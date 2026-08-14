@@ -1,22 +1,15 @@
 import { useEffect, useState } from "react";
-import { UtensilsCrossed } from "lucide-react";
-import {
-  CATEGORIES,
-  getCategory,
-  getSubcategory,
-  isBreakCategory,
-  BREAK_CATEGORY_ID,
-  LUNCH_SUBCATEGORY_ID,
-} from "../data/categories";
+import { CATEGORIES, getCategory, getSubcategory } from "../data/categories";
 import { store, nowIso } from "../lib/storage";
+import { getTaskStart, setTaskStart, clearTaskStart, isoToHHMM } from "../lib/currentTaskStart";
 import type { CurrentTask } from "../types";
 import CategoryPicker from "./CategoryPicker";
 
 interface Props {
   employeeId: string;
-  /** Bumpes udefra (fx når editoren sætter aktuel opgave) for at tvinge genindlæsning. */
+  /** Bumpes udefra (fx efter gem af tid) for at tvinge genindlæsning. */
   refreshSignal?: number;
-  /** Åbn ny registrering forudfyldt fra den aktuelle opgave. */
+  /** "Afslut og registrér tid": åbn normal editor forudfyldt fra aktuel opgave. */
   onRegister?: (task: CurrentTask) => void;
 }
 
@@ -36,9 +29,12 @@ function emptyDraft(): Draft {
   };
 }
 
-// "Aktuel opgave" — status, IKKE tidsregistrering. Opretter ingen time_entries.
+// "Aktuel opgave" = hjælpe-stempelur / kladde. Det er IKKE tidsregistrering:
+// tæller aldrig som arbejdstid. Tiden bliver først rigtig, når man trykker
+// "Afslut og registrér tid" og GEMMER i den normale editor.
 export default function CurrentTaskCard({ employeeId, refreshSignal, onRegister }: Props) {
   const [task, setTask] = useState<CurrentTask | null>(null);
+  const [startedAt, setStartedAt] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +42,7 @@ export default function CurrentTaskCard({ employeeId, refreshSignal, onRegister 
 
   async function refresh() {
     setTask(await store().getCurrentTask(employeeId));
+    setStartedAt(getTaskStart(employeeId));
   }
   useEffect(() => {
     setEditing(false);
@@ -62,20 +59,21 @@ export default function CurrentTaskCard({ employeeId, refreshSignal, onRegister 
   }, [refreshSignal]);
 
   function startEdit() {
-    if (task) {
-      setDraft({
-        categoryId: task.categoryId,
-        subcategoryId: task.subcategoryId,
-        orderNumber: task.orderNumber ?? "",
-        note: task.note ?? "",
-      });
-    } else {
-      setDraft(emptyDraft());
-    }
+    setDraft(
+      task
+        ? {
+            categoryId: task.categoryId,
+            subcategoryId: task.subcategoryId,
+            orderNumber: task.orderNumber ?? "",
+            note: task.note ?? "",
+          }
+        : emptyDraft()
+    );
     setEditing(true);
   }
 
-  async function save() {
+  // Gem aktuel opgave. isStart=true → sæt også cirka-starttidspunkt (nyt stempel).
+  async function persist(isStart: boolean) {
     setBusy(true);
     setError(null);
     try {
@@ -88,6 +86,7 @@ export default function CurrentTaskCard({ employeeId, refreshSignal, onRegister 
         updatedAt: nowIso(),
         updatedBy: null,
       });
+      if (isStart) setTaskStart(employeeId, nowIso());
       setEditing(false);
       await refresh();
     } catch {
@@ -102,6 +101,7 @@ export default function CurrentTaskCard({ employeeId, refreshSignal, onRegister 
     setError(null);
     try {
       await store().clearCurrentTask(employeeId);
+      clearTaskStart(employeeId);
       await refresh();
     } catch {
       setError("Kunne ikke rydde aktuel opgave.");
@@ -110,41 +110,24 @@ export default function CurrentTaskCard({ employeeId, refreshSignal, onRegister 
     }
   }
 
-  // Tjek ind på frokost = sæt aktuel opgave til Pause/Frokost (status, ikke tid).
-  async function goToLunch() {
-    setBusy(true);
-    setError(null);
-    try {
-      await store().setCurrentTask({
-        employeeId,
-        categoryId: BREAK_CATEGORY_ID,
-        subcategoryId: LUNCH_SUBCATEGORY_ID,
-        orderNumber: null,
-        note: null,
-        updatedAt: nowIso(),
-        updatedBy: null,
-      });
-      setEditing(false);
-      await refresh();
-    } catch {
-      setError("Kunne ikke sætte frokost-status.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const showForm = editing || !task;
-  const atLunch = !!task && isBreakCategory(task.categoryId);
+  const startText = startedAt
+    ? isoToHHMM(startedAt)
+    : task
+    ? isoToHHMM(task.updatedAt)
+    : null;
 
   return (
-    <div className="current-task smu-card">
-      <div className="ct-title">
-        {task && !editing ? "Aktuel opgave lige nu" : "Aktuel opgave"}
+    <div className="current-task">
+      <div className="ct-title">Aktuel opgave</div>
+      <div className="ct-help">
+        Aktuel opgave er kun en status. Når du vil registrere tid, opretter du selv en
+        registrering med start og slut.
       </div>
       {error && <div className="msg error">{error}</div>}
 
-      {showForm ? (
+      {editing || !task ? (
         <>
+          {!task && !editing && <div className="ct-lead">Hvad arbejder du på nu?</div>}
           <div className="field" style={{ marginBottom: 12 }}>
             <CategoryPicker
               categoryId={draft.categoryId}
@@ -160,7 +143,7 @@ export default function CurrentTaskCard({ employeeId, refreshSignal, onRegister 
               <input
                 className="smu-input"
                 type="text"
-                placeholder="fx 12345"
+                placeholder="Fx 54277 eller SMU-0042"
                 value={draft.orderNumber}
                 onChange={(e) => setDraft((d) => ({ ...d, orderNumber: e.target.value }))}
               />
@@ -177,14 +160,9 @@ export default function CurrentTaskCard({ employeeId, refreshSignal, onRegister 
             </div>
           </div>
           <div className="ct-actions">
-            <button className="smu-btn-primary" onClick={save} disabled={busy}>
-              {task ? "Opdater" : "Sæt som aktuel opgave"}
+            <button className="smu-btn-primary" onClick={() => persist(!task)} disabled={busy}>
+              {task ? "Gem" : "Start aktuel opgave"}
             </button>
-            {!task && (
-              <button className="smu-btn-secondary" onClick={goToLunch} disabled={busy}>
-                <UtensilsCrossed size={14} /> Til frokost
-              </button>
-            )}
             {task && (
               <button className="smu-btn-secondary" onClick={() => setEditing(false)} disabled={busy}>
                 Annuller
@@ -192,44 +170,29 @@ export default function CurrentTaskCard({ employeeId, refreshSignal, onRegister 
             )}
           </div>
         </>
-      ) : atLunch ? (
-        <>
-          <div className="ct-lunch">
-            <UtensilsCrossed size={18} /> Til frokost
-          </div>
-          <div className="ct-actions">
-            <button className="smu-btn-primary" onClick={clear} disabled={busy}>
-              Tilbage fra frokost
-            </button>
-            <button className="smu-btn-secondary" onClick={startEdit} disabled={busy}>
-              Sæt opgave
-            </button>
-          </div>
-        </>
       ) : (
         <>
+          <div className="ct-lead">Du arbejder på</div>
           <div className="ct-view">
-            <span className="ct-cat">{getCategory(task!.categoryId)?.name ?? "—"}</span>
-            {getSubcategory(task!.categoryId, task!.subcategoryId) && (
-              <span className="ct-sub"> / {getSubcategory(task!.categoryId, task!.subcategoryId)?.name}</span>
+            <span className="ct-cat">{getCategory(task.categoryId)?.name ?? "—"}</span>
+            {getSubcategory(task.categoryId, task.subcategoryId) && (
+              <span className="ct-sub"> / {getSubcategory(task.categoryId, task.subcategoryId)?.name}</span>
             )}
-            {task!.orderNumber && <span className="ct-order"> · {task!.orderNumber}</span>}
+            {task.orderNumber && <span className="ct-order"> · {task.orderNumber}</span>}
           </div>
-          {task!.note && <div className="ct-note">{task!.note}</div>}
+          {task.note && <div className="ct-note">{task.note}</div>}
+          {startText && <div className="ct-started">Startet ca. {startText}</div>}
           <div className="ct-actions">
             {onRegister && (
-              <button className="smu-btn-primary" onClick={() => onRegister(task!)} disabled={busy}>
-                Registrer tid på denne opgave
+              <button className="smu-btn-primary" onClick={() => onRegister(task)} disabled={busy}>
+                Afslut og registrér tid
               </button>
             )}
-            <button className="smu-btn-secondary" onClick={startEdit} disabled={busy}>
-              Opdater
-            </button>
-            <button className="smu-btn-secondary" onClick={goToLunch} disabled={busy}>
-              <UtensilsCrossed size={14} /> Til frokost
+            <button className="smu-btn-ghost" onClick={startEdit} disabled={busy}>
+              Ret aktuel opgave
             </button>
             <button className="smu-btn-ghost ct-clear" onClick={clear} disabled={busy}>
-              Ryd aktuel opgave
+              Ryd
             </button>
           </div>
         </>
