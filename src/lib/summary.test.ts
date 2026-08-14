@@ -80,9 +80,12 @@ describe("summarizeDay", () => {
 });
 
 describe("expectedWorkMinutes", () => {
-  it("hverdag (man–fre) = 450 min", () => {
+  it("mandag–torsdag = 450 min (7,5 t)", () => {
     expect(expectedWorkMinutes("2026-08-10")).toBe(450); // mandag
-    expect(expectedWorkMinutes("2026-08-14")).toBe(450); // fredag
+    expect(expectedWorkMinutes("2026-08-13")).toBe(450); // torsdag
+  });
+  it("fredag = 420 min (7 t)", () => {
+    expect(expectedWorkMinutes("2026-08-14")).toBe(420); // fredag
   });
   it("weekend = 0 (ingen automatisk forventning)", () => {
     expect(expectedWorkMinutes("2026-08-15")).toBe(0); // lørdag

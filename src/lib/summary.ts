@@ -2,7 +2,7 @@
 // Ren TS, ingen UI.
 
 import type { TimeEntry } from "../types";
-import { toMinutes, overlaps, isWeekend } from "./time";
+import { toMinutes, overlaps, weekdayOf } from "./time";
 import { isBreakCategory } from "../data/categories";
 
 /**
@@ -14,15 +14,22 @@ export function isPauseEntry(e: TimeEntry): boolean {
   return e.isBreak || isBreakCategory(e.categoryId);
 }
 
-/** Forventet arbejdstid på en hverdag (minutter). 7,5 t = 450 min. */
+/** Forventet arbejdstid mandag–torsdag (minutter). 7,5 t = 450 min. */
 export const EXPECTED_WORK_MINUTES = 450;
+/** Forventet arbejdstid fredag (minutter). 7 t = 420 min. */
+export const FRIDAY_WORK_MINUTES = 420;
 
 /**
- * Forventet arbejdstid for en given dato. Mandag–fredag = 450 min.
- * Weekend forventer 0 (ingen automatisk forventning om 7,5 t).
+ * Forventet arbejdstid for en given dato:
+ *  - mandag–torsdag = 450 min (7,5 t)
+ *  - fredag         = 420 min (7 t)
+ *  - weekend        = 0 (ingen automatisk forventning)
  */
 export function expectedWorkMinutes(isoDate: string): number {
-  return isWeekend(isoDate) ? 0 : EXPECTED_WORK_MINUTES;
+  const wd = weekdayOf(isoDate); // 0=søn .. 6=lør
+  if (wd === 0 || wd === 6) return 0; // weekend
+  if (wd === 5) return FRIDAY_WORK_MINUTES; // fredag
+  return EXPECTED_WORK_MINUTES; // man–tor
 }
 
 export interface Gap {

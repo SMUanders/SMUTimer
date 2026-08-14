@@ -17,6 +17,7 @@ function e(start: string, end: string, opts: Partial<TimeEntry> = {}): TimeEntry
 }
 
 const MON = "2026-08-10";
+const FRI = "2026-08-14";
 const SAT = "2026-08-15";
 
 describe("employeeDaySummary", () => {
@@ -68,6 +69,31 @@ describe("employeeDaySummary", () => {
     expect(s.status).toBe("fri");
     expect(s.expectedMinutes).toBe(0);
     expect(s.missingMinutes).toBe(0);
+  });
+
+  it("fredag: forventet 7 t (420 min)", () => {
+    const s = employeeDaySummary("anders", [], FRI);
+    expect(s.expectedMinutes).toBe(420);
+  });
+
+  it("fredag 7:00 arbejdstid → udfyldt", () => {
+    const s = employeeDaySummary("anders", [e("07:30", "14:30")], FRI); // 420
+    expect(s.status).toBe("udfyldt");
+    expect(s.missingMinutes).toBe(0);
+    expect(s.overtimeMinutes).toBe(0);
+  });
+
+  it("fredag 7:30 arbejdstid → 0:30 overarbejde", () => {
+    const s = employeeDaySummary("anders", [e("07:30", "15:00")], FRI); // 450
+    expect(s.status).toBe("overarbejde");
+    expect(s.overtimeMinutes).toBe(30);
+    expect(s.missingMinutes).toBe(0);
+  });
+
+  it("mandag 7:30 arbejdstid → udfyldt (fredags-regel rammer ikke man–tor)", () => {
+    const s = employeeDaySummary("anders", [e("07:30", "15:00")], MON); // 450
+    expect(s.status).toBe("udfyldt");
+    expect(s.overtimeMinutes).toBe(0);
   });
 
   it("pause tæller ikke; omgøring tælles", () => {
