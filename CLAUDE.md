@@ -1,5 +1,10 @@
 # SMU Tid — satellit-app i SMU/Signmeup-universet
 
+> **SMU Platform.** Dette repo er en del af SMU Platform. Fælles platform-sandhed og sandhedshierarki ligger i
+> `smu-os-v2`'s Truth Reset-dokumenter (`PROJECT_OVERVIEW`/`DOMAIN_MODEL`/`DESIGNKATALOG`/`ROADMAP`/`NEXT_STEPS`/`PLANNING`),
+> `SMU_APP_STANDARD.md` og det globale Claude Code-lag. Ved konflikt vinder platformens sandhedshierarki.
+> Denne fil beskriver kun app-specifikke forhold.
+
 **SMU Tid** (digital dagsseddel) er en lille, fokuseret app i SMU-familien. Den
 **deler Supabase-projekt, auth og designunivers** med resten. Navet og den
 kanoniske kilde er **`smu-os-v2`**.
