@@ -11,15 +11,13 @@ interface Props {
 export default function LunchPlaceholderRow({ window }: Props) {
   return (
     <div className="entry-row is-break is-placeholder">
-      <div className="entry-time">
-        {window.startTime}
-        <small>{window.endTime}</small>
-      </div>
-
-      <div className="entry-main">
-        <div>
+      <div className="entry-body">
+        <div className="entry-line">
+          <span className="entry-interval">{window.startTime}–{window.endTime}</span>
+        </div>
+        <div className="entry-catline">
           <span className="entry-cat">
-            <UtensilsCrossed size={14} /> Frokost
+            <UtensilsCrossed size={13} /> Frokost
           </span>
         </div>
         <div className="entry-note">

@@ -11,8 +11,14 @@ interface Props {
   mode: "new" | "edit";
   workDate: string;
   initial: EntryDraft;
-  /** Valgfri hjælpetekst øverst (fx ved "Afslut og registrér tid"). */
+  /** Valgfri hjælpetekst øverst (fx ved "Afslut og gem tid"). */
   hint?: string;
+  /** Valgfri modal-titel (fx "Gem tid for aktuel opgave"). */
+  title?: string;
+  /** Valgfri tekst på gem-knappen (default "Gem"). */
+  saveLabel?: string;
+  /** Vis "Sæt også som aktuel opgave"-flueben. Skjules i afslut-opgave-flowet. */
+  allowSetAsCurrent?: boolean;
   /** Dagens øvrige linjer (den der redigeres er ekskluderet) — til overlap-tjek. */
   existing: TimeEntry[];
   onSave: (draft: EntryDraft, setAsCurrent: boolean) => void;
@@ -38,6 +44,9 @@ export default function EntryEditor({
   workDate,
   initial,
   hint,
+  title,
+  saveLabel = "Gem",
+  allowSetAsCurrent = true,
   existing,
   onSave,
   onClose,
@@ -72,7 +81,7 @@ export default function EntryEditor({
     <div className="overlay" onMouseDown={onClose}>
       <div className="sheet" onMouseDown={(e) => e.stopPropagation()}>
         <div className="sheet-header">
-          {mode === "new" ? "Ny registrering" : "Rediger registrering"}
+          {title ?? (mode === "new" ? "Ny registrering" : "Rediger registrering")}
         </div>
 
         <div className="sheet-body">
@@ -191,18 +200,21 @@ export default function EntryEditor({
             </div>
           )}
 
-          {/* Sæt også denne kategori/kunde som "Aktuel opgave" (status — ikke tidsregistrering) */}
-          <div className="field toggle" style={{ marginTop: 4 }}>
-            <input
-              id="set-current"
-              type="checkbox"
-              checked={setAsCurrent}
-              onChange={(e) => setSetAsCurrent(e.target.checked)}
-            />
-            <label htmlFor="set-current" style={{ margin: 0 }}>
-              Sæt også som aktuel opgave
-            </label>
-          </div>
+          {/* Sæt også denne kategori/kunde som "Aktuel opgave" (status — ikke
+              tidsregistrering). Skjules i afslut-opgave-flowet (dobbelt/forvirrende). */}
+          {allowSetAsCurrent && (
+            <div className="field toggle" style={{ marginTop: 4 }}>
+              <input
+                id="set-current"
+                type="checkbox"
+                checked={setAsCurrent}
+                onChange={(e) => setSetAsCurrent(e.target.checked)}
+              />
+              <label htmlFor="set-current" style={{ margin: 0 }}>
+                Sæt også som aktuel opgave
+              </label>
+            </div>
+          )}
         </div>
 
         {/* Sticky footer — Gem altid synlig, også ved lange formularer/små skærme */}
@@ -215,7 +227,7 @@ export default function EntryEditor({
             onClick={handleSave}
             disabled={touched && !canSave}
           >
-            Gem
+            {saveLabel}
           </button>
         </div>
       </div>

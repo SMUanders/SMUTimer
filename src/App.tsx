@@ -6,8 +6,8 @@ import { getPerson, loadPeople } from "./lib/people";
 import { initStore, store, newId, nowIso } from "./lib/storage";
 import { buildEntries } from "./lib/entries";
 import { proposeLunchSplit, expectedLunchPlaceholder, type LunchWindow } from "./lib/lunch";
-import { summarizeDay, expectedWorkMinutes } from "./lib/summary";
-import { suggestNextSlot } from "./lib/suggest";
+import { summarizeDay, expectedWorkMinutes, missingInputSegments, type Gap } from "./lib/summary";
+import { suggestNextSlot, DAY_START, DAY_END } from "./lib/suggest";
 import { getTaskStart, clearTaskStart, isoToHHMM } from "./lib/currentTaskStart";
 import { durationMinutes, toMinutes, toHHMM, floorTo15, ceilTo15 } from "./lib/time";
 import { todayIso, addDays, formatDanishDate } from "./lib/dates";
@@ -19,6 +19,7 @@ import EntryEditor, { emptyDraft } from "./components/EntryEditor";
 import EmployeeSelect from "./components/EmployeeSelect";
 import LunchSplitDialog from "./components/LunchSplitDialog";
 import LunchPlaceholderRow from "./components/LunchPlaceholderRow";
+import GapRow from "./components/GapRow";
 import CurrentTaskCard from "./components/CurrentTaskCard";
 import UpdateBanner from "./components/UpdateBanner";
 import { appVersionShort } from "./lib/version";
@@ -43,8 +44,14 @@ interface EditorState {
   mode: "new" | "edit";
   editingId: string | null;
   initial: EntryDraft;
-  /** Valgfri hjælpetekst i editoren (fx ved "Afslut og registrér tid"). */
+  /** Valgfri hjælpetekst i editoren (fx ved "Afslut og gem tid"). */
   hint?: string;
+  /** Skjul "Sæt også som aktuel opgave"-flueben (afslut-opgave-flowet). */
+  allowSetAsCurrent?: boolean;
+  /** Valgfri modal-titel (fx afslut-opgave-kontekst). */
+  title?: string;
+  /** Valgfri tekst på gem-knappen (fx "Gem tid"). */
+  saveLabel?: string;
 }
 
 interface PendingSplit {
@@ -117,10 +124,27 @@ export default function App() {
     [entries, date]
   );
 
-  // Dagssedlens rækker: registreringer + en evt. "forventet frokost"-placeholder,
-  // sorteret efter starttid. Placeholderen er rent visuel (ingen sum, ingen DB).
+  // Evt. "forventet frokost"-placeholder (kun når intet dækker frokosten).
+  const lunchPlaceholder = useMemo(
+    () => expectedLunchPlaceholder(date, entries),
+    [entries, date]
+  );
+
+  // "Indtastning mangler" — udækket tid inden for den normale arbejdsdag
+  // (man–tor 07:30–15:30, fre 07:30–15:00, weekend ingen). Frokost-placeholderen
+  // reserveres, så samme vindue ikke vises både som frokost OG manglende indtastning.
+  const missing = useMemo(() => {
+    const reserved = lunchPlaceholder
+      ? [{ startTime: lunchPlaceholder.startTime, endTime: lunchPlaceholder.endTime }]
+      : [];
+    return missingInputSegments(entries, date, reserved);
+  }, [entries, date, lunchPlaceholder]);
+
+  // Dagssedlens rækker: registreringer + "Indtastning mangler" + evt. frokost.
+  // Alt andet end registreringer er rent visuelt (ingen sum, ingen DB).
   type DayRow =
     | { kind: "entry"; start: number; entry: TimeEntry }
+    | { kind: "gap"; start: number; gap: Gap }
     | { kind: "lunch"; start: number; lunch: LunchWindow };
   const dayRows = useMemo<DayRow[]>(() => {
     const rows: DayRow[] = entries.map((e) => ({
@@ -128,10 +152,14 @@ export default function App() {
       start: toMinutes(e.startTime),
       entry: e,
     }));
-    const lunch = expectedLunchPlaceholder(date, entries);
-    if (lunch) rows.push({ kind: "lunch", start: toMinutes(lunch.startTime), lunch });
+    for (const g of missing) {
+      rows.push({ kind: "gap", start: toMinutes(g.startTime), gap: g });
+    }
+    if (lunchPlaceholder) {
+      rows.push({ kind: "lunch", start: toMinutes(lunchPlaceholder.startTime), lunch: lunchPlaceholder });
+    }
     return rows.sort((a, b) => a.start - b.start);
-  }, [entries, date]);
+  }, [entries, missing, lunchPlaceholder]);
 
   const employee = getPerson(employeeId);
 
@@ -267,9 +295,10 @@ export default function App() {
   }
 
   function openNew(prefill?: Partial<EntryDraft>) {
-    // Normal "Ny registrering": rører ikke aktuel opgave.
+    // "Tilføj færdig tid": rører ikke aktuel opgave. Foreslå start = seneste
+    // sluttid (eller første mellemrum) og slut = start + 15 min (15-min rytme).
     setClearCurrentOnSave(false);
-    const slot = suggestNextSlot(entries);
+    const slot = suggestNextSlot(entries, DAY_START, DAY_END, 15);
     setEditor({
       mode: "new",
       editingId: null,
@@ -310,6 +339,10 @@ export default function App() {
         note: task.note ?? "",
       },
       hint: "Tiden er foreslået i 15-minutters intervaller. Ret start og slut hvis det ikke passer.",
+      // Afslut-opgave-flow: klar kontekst, ingen "sæt som aktuel opgave".
+      allowSetAsCurrent: false,
+      title: "Gem tid for aktuel opgave",
+      saveLabel: "Gem tid",
     });
   }
 
@@ -385,11 +418,11 @@ export default function App() {
         onRegister={registerFromCurrentTask}
       />
 
-      <DaySummary summary={summary} />
+      <DaySummary summary={summary} missing={missing} />
 
       <div className="entry-list">
         {dayRows.length === 0 ? (
-          <div className="empty">Ingen registreringer endnu. Tryk “+ Ny registrering”.</div>
+          <div className="empty">Ingen registreringer endnu. Tryk “+ Udfyld dagsseddel”.</div>
         ) : (
           dayRows.map((r) =>
             r.kind === "entry" ? (
@@ -405,6 +438,12 @@ export default function App() {
                 }
                 onDelete={handleDelete}
               />
+            ) : r.kind === "gap" ? (
+              <GapRow
+                key={`gap-${r.gap.startTime}`}
+                gap={r.gap}
+                onAdd={(gap) => openNew({ startTime: gap.startTime, endTime: gap.endTime })}
+              />
             ) : (
               <LunchPlaceholderRow key="lunch-placeholder" window={r.lunch} />
             )
@@ -414,7 +453,7 @@ export default function App() {
 
       <div className="add-bar">
         <button className="smu-btn-secondary" onClick={() => openNew()}>
-          <Plus size={16} /> Ny manuel registrering
+          <Plus size={16} /> Udfyld dagsseddel
         </button>
       </div>
 
@@ -424,6 +463,9 @@ export default function App() {
           workDate={date}
           initial={editor.initial}
           hint={editor.hint}
+          title={editor.title}
+          saveLabel={editor.saveLabel}
+          allowSetAsCurrent={editor.allowSetAsCurrent ?? true}
           existing={editingExisting}
           onSave={(draft, setAsCurrent) =>
             requestSave(draft, editor.editingId, setAsCurrent)

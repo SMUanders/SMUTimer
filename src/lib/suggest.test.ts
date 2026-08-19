@@ -45,4 +45,11 @@ describe("suggestNextSlot", () => {
       endTime: "11:00",
     });
   });
+
+  it("'Tilføj færdig tid': slut = start + 15 min (seneste slut 10:00 → 10:00–10:15)", () => {
+    expect(suggestNextSlot([e("07:30", "10:00")], "07:30", "18:00", 15)).toEqual({
+      startTime: "10:00",
+      endTime: "10:15",
+    });
+  });
 });

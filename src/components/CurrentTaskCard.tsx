@@ -119,10 +119,6 @@ export default function CurrentTaskCard({ employeeId, refreshSignal, onRegister 
   return (
     <div className="current-task">
       <div className="ct-title">Aktuel opgave</div>
-      <div className="ct-help">
-        Aktuel opgave er kun en status. Når du vil registrere tid, opretter du selv en
-        registrering med start og slut.
-      </div>
       {error && <div className="msg error">{error}</div>}
 
       {editing || !task ? (
@@ -176,20 +172,22 @@ export default function CurrentTaskCard({ employeeId, refreshSignal, onRegister 
           <div className="ct-view">
             <span className="ct-cat">{getCategory(task.categoryId)?.name ?? "—"}</span>
             {getSubcategory(task.categoryId, task.subcategoryId) && (
-              <span className="ct-sub"> / {getSubcategory(task.categoryId, task.subcategoryId)?.name}</span>
+              <span className="ct-sub"> · {getSubcategory(task.categoryId, task.subcategoryId)?.name}</span>
             )}
             {task.orderNumber && <span className="ct-order"> · {task.orderNumber}</span>}
           </div>
           {task.note && <div className="ct-note">{task.note}</div>}
-          {startText && <div className="ct-started">Startet ca. {startText}</div>}
+          {startText && (
+            <div className="ct-started">Startet ca. {startText} · tiden kan rettes før gem.</div>
+          )}
           <div className="ct-actions">
             {onRegister && (
               <button className="smu-btn-primary" onClick={() => onRegister(task)} disabled={busy}>
-                Afslut og registrér tid
+                Afslut og gem tid
               </button>
             )}
             <button className="smu-btn-ghost" onClick={startEdit} disabled={busy}>
-              Ret aktuel opgave
+              Ret
             </button>
             <button className="smu-btn-ghost ct-clear" onClick={clear} disabled={busy}>
               Ryd

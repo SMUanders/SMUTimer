@@ -2,7 +2,7 @@
 // Ren TS, ingen UI.
 
 import type { TimeEntry } from "../types";
-import { toMinutes, overlaps, weekdayOf } from "./time";
+import { toMinutes, toHHMM, overlaps, weekdayOf } from "./time";
 import { isBreakCategory } from "../data/categories";
 
 /**
@@ -36,6 +36,72 @@ export interface Gap {
   startTime: string;
   endTime: string;
   minutes: number;
+}
+
+// ----- Normal arbejdsdag (ramme for "Indtastning mangler") -----
+// Man–tor 07:30–15:30, fre 07:30–15:00, weekend ingen. Blokerer INTET — bruges
+// kun til at ramme visningen af manglende indtastning ind. Tid før/efter kan
+// stadig registreres og vises som normal tid.
+const WORKDAY_START = "07:30";
+const WORKDAY_END_MON_THU = "15:30";
+const WORKDAY_END_FRI = "15:00";
+
+/** Normal arbejdsdags-vindue for en dato, eller null (weekend). */
+export function workdayWindow(
+  isoDate: string
+): { startTime: string; endTime: string } | null {
+  const wd = weekdayOf(isoDate); // 0=søn .. 6=lør
+  if (wd === 0 || wd === 6) return null; // weekend
+  return { startTime: WORKDAY_START, endTime: wd === 5 ? WORKDAY_END_FRI : WORKDAY_END_MON_THU };
+}
+
+/**
+ * "Indtastning mangler": de dele af den normale arbejdsdag der IKKE er dækket af
+ * en registrering. Rammes ind af workdayWindow (weekend → ingen). Rent visuelt:
+ * påvirker ikke arbejdstid/pause/mangler/overarbejde og gemmes ikke.
+ *
+ * @param reserved Ekstra "dækket" tid (fx en foreslået frokost-placeholder), så
+ *   samme vindue ikke både vises som frokost OG manglende indtastning.
+ */
+export function missingInputSegments(
+  entries: TimeEntry[],
+  isoDate: string,
+  reserved: { startTime: string; endTime: string }[] = []
+): Gap[] {
+  const win = workdayWindow(isoDate);
+  if (!win) return [];
+  const winStart = toMinutes(win.startTime);
+  const winEnd = toMinutes(win.endTime);
+
+  // Dækkede intervaller (alle linjer + reserverede), klippet til vinduet.
+  const covered = [
+    ...entries.map((e) => ({ start: toMinutes(e.startTime), end: toMinutes(e.endTime) })),
+    ...reserved.map((r) => ({ start: toMinutes(r.startTime), end: toMinutes(r.endTime) })),
+  ]
+    .map((iv) => ({ start: Math.max(iv.start, winStart), end: Math.min(iv.end, winEnd) }))
+    .filter((iv) => iv.end > iv.start)
+    .sort((a, b) => a.start - b.start);
+
+  const segments: Gap[] = [];
+  let cursor = winStart;
+  for (const iv of covered) {
+    if (iv.start > cursor) {
+      segments.push({
+        startTime: toHHMM(cursor),
+        endTime: toHHMM(iv.start),
+        minutes: iv.start - cursor,
+      });
+    }
+    cursor = Math.max(cursor, iv.end);
+  }
+  if (cursor < winEnd) {
+    segments.push({
+      startTime: toHHMM(cursor),
+      endTime: toHHMM(winEnd),
+      minutes: winEnd - cursor,
+    });
+  }
+  return segments;
 }
 
 export interface OverlapPair {
