@@ -1,8 +1,38 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { TimeEntry, CurrentTask } from "../../types";
+import type { TimeEntry, CurrentTask, Absence } from "../../types";
 import type { TimeEntryStore } from "./types";
 
 const TASKS_TABLE = "tid_current_tasks";
+const ABSENCES_TABLE = "tid_absences";
+
+interface AbsenceRow {
+  id: string;
+  employee_id: string;
+  work_date: string;
+  start_time: string;
+  expected_end: string | null;
+  ended: string | null;
+  absence_type: string;
+  note: string;
+  slettet: boolean;
+  created_at: string;
+  updated_at: string;
+}
+function absenceFromRow(r: AbsenceRow): Absence {
+  return {
+    id: r.id,
+    employeeId: r.employee_id,
+    workDate: r.work_date,
+    startTime: r.start_time,
+    expectedEnd: r.expected_end,
+    ended: r.ended,
+    absenceType: r.absence_type,
+    note: r.note,
+    slettet: r.slettet,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
 
 interface TaskRow {
   employee_id: string;
@@ -245,6 +275,75 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
         .from(TASKS_TABLE)
         .delete()
         .eq("employee_id", employeeId);
+      if (error) throw error;
+    },
+
+    // ---- Fravær ----
+    // Læsninger fejler blødt (returnerer null/[]), så appen IKKE knækker før
+    // migration 0006 (tid_absences) er kørt. Skrivninger kaster (UI viser fejl).
+    async getAbsencesForDate(employeeId, isoDate) {
+      try {
+        const { data, error } = await client
+          .from(ABSENCES_TABLE)
+          .select("*")
+          .eq("employee_id", employeeId)
+          .eq("work_date", isoDate)
+          .eq("slettet", false);
+        if (error || !data) return [];
+        return (data as AbsenceRow[]).map(absenceFromRow);
+      } catch {
+        return [];
+      }
+    },
+
+    async getAbsencesForDateAll(isoDate) {
+      try {
+        const { data, error } = await client
+          .from(ABSENCES_TABLE)
+          .select("*")
+          .eq("work_date", isoDate)
+          .eq("slettet", false);
+        if (error || !data) return [];
+        return (data as AbsenceRow[]).map(absenceFromRow);
+      } catch {
+        return [];
+      }
+    },
+
+    async getActiveAbsence(employeeId) {
+      try {
+        const { data, error } = await client
+          .from(ABSENCES_TABLE)
+          .select("*")
+          .eq("employee_id", employeeId)
+          .is("ended", null) // aktivt fravær = ended IS NULL
+          .eq("slettet", false)
+          .maybeSingle();
+        if (error || !data) return null;
+        return absenceFromRow(data as AbsenceRow);
+      } catch {
+        return null;
+      }
+    },
+
+    async addAbsence(absence) {
+      const row = {
+        id: absence.id,
+        employee_id: absence.employeeId,
+        work_date: absence.workDate,
+        start_time: absence.startTime,
+        expected_end: absence.expectedEnd,
+        ended: absence.ended,
+        absence_type: absence.absenceType,
+        note: absence.note,
+        slettet: absence.slettet,
+      };
+      const { error } = await client.from(ABSENCES_TABLE).insert(row);
+      if (error) throw error;
+    },
+
+    async endAbsence(id, ended) {
+      const { error } = await client.from(ABSENCES_TABLE).update({ ended }).eq("id", id);
       if (error) throw error;
     },
   };

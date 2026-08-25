@@ -1,6 +1,19 @@
-import type { TimeEntry, CurrentTask } from "../../types";
+import type { TimeEntry, CurrentTask, Absence } from "../../types";
 import type { TimeEntryStore } from "./types";
 import { nowIso } from "./types";
+
+const ABSENCES_KEY = "smu-tid.absences.v1";
+function loadAbsences(): Absence[] {
+  try {
+    const raw = localStorage.getItem(ABSENCES_KEY);
+    return raw ? (JSON.parse(raw) as Absence[]) : [];
+  } catch {
+    return [];
+  }
+}
+function saveAbsences(a: Absence[]): void {
+  localStorage.setItem(ABSENCES_KEY, JSON.stringify(a));
+}
 
 const TASKS_KEY = "smu-tid.current-tasks.v1";
 function loadTasks(): CurrentTask[] {
@@ -108,5 +121,39 @@ export const localAdapter: TimeEntryStore = {
 
   async clearCurrentTask(employeeId) {
     saveTasks(loadTasks().filter((t) => t.employeeId !== employeeId));
+  },
+
+  // ---- Fravær ----
+  async getAbsencesForDate(employeeId, isoDate) {
+    return loadAbsences().filter(
+      (a) => !a.slettet && a.employeeId === employeeId && a.workDate === isoDate
+    );
+  },
+
+  async getAbsencesForDateAll(isoDate) {
+    return loadAbsences().filter((a) => !a.slettet && a.workDate === isoDate);
+  },
+
+  async getActiveAbsence(employeeId) {
+    return (
+      loadAbsences().find(
+        (a) => !a.slettet && a.ended === null && a.employeeId === employeeId
+      ) ?? null
+    );
+  },
+
+  async addAbsence(absence) {
+    const all = loadAbsences();
+    all.push(absence);
+    saveAbsences(all);
+  },
+
+  // "Jeg er tilbage": sæt faktisk retur (ended). ended !== null ⇒ ikke aktiv.
+  async endAbsence(id, ended) {
+    const all = loadAbsences();
+    const idx = all.findIndex((a) => a.id === id);
+    if (idx === -1) return;
+    all[idx] = { ...all[idx], ended, updatedAt: nowIso() };
+    saveAbsences(all);
   },
 };

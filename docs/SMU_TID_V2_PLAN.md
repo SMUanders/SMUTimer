@@ -1,7 +1,18 @@
 # SMU Tid — medarbejderflow v2 (implementeringsplan)
 
-> Bygger på `docs/SMU_TID_PRODUCT_DECISION.md` (**dagssedlen er historik, ikke input**).
-> Dette er en **plan** — ingen kode, ingen DB-ændring, intet committet endnu.
+> **STATUS: IMPLEMENTERET som vNext — RELEASEKLAR / AFVENTER BRUGERBRIEFING (ikke live).**
+> Den faktiske sandhed står i `docs/SMU_TID_PRODUCT_DECISION.md` → afsnittet
+> **"Aktuel sandhed (vNext releasekandidat)"**. Denne plan er beholdt som historik.
+>
+> **Vigtige afvigelser fra planen som faktisk blev bygget:**
+> - "Skift opgave / Tilbage til arbejde" blev **ikke** bygget. I stedet: Start opgave →
+>   Gå til afslutning (justerbare tider) → Gem; samt **Hjælp på anden opgave** og
+>   **Omgøring** (begge splitter tiden ud og genoptager egen opgave automatisk), **Pause**,
+>   og **Fravær** (`tid_absences`, delt drifts-status).
+> - Der blev lavet **én DB-ændring** (godkendt): tabellen `tid_absences` (schema + RLS via
+>   `har_app_adgang`/`har_app_rolle`) — applied i live DB, kanonisk i `smu-os-v2`.
+> - vNext-appkoden er **lokalt committed, ikke pushet/deployet** (push = Netlify-produktion).
+>
 > Referencepunkt: stabil main. Parkeret UI-eksperiment ligger på lokal branch
 > `parkering/mobil-ux-eksperiment` (ikke pushet).
 
@@ -87,20 +98,57 @@ slut=nu)` og sætter næste tilstand.
 | Handling | Fra tilstand | Effekt |
 |---|---|---|
 | **Start opgave** | ingen aktiv | `setCurrentTask(opgave)` + starttid = nu. Ingen linje endnu. |
-| **Skift opgave** | arbejde | Luk segment → arbejds-linje. Vælg ny opgave → ny aktuel + ny starttid. |
-| **Start pause** | arbejde | Luk segment → arbejds-linje. `setCurrentTask(Pause/Frokost)` + starttid = nu. |
-| **Tilbage til arbejde** | pause | Luk segment → **pause-linje (is_break=true)**. Genoptag (vælg opgave, evt. forudfyldt med den forrige). |
-| **Slut dag** | arbejde/pause | Luk segment → linje. `clearCurrentTask` + ryd starttid. Dagen er nu ren historik. |
+| **Afslut opgave** | arbejde | Luk segment → arbejds-linje. `clearCurrentTask` + ryd starttid → **ingen aktiv opgave** (næste: Start opgave). Reducer-handling `close`. |
+| **Skift opgave** | arbejde | Genvej: luk segment → arbejds-linje, og start straks ny opgave (vælg felter). |
+| **Start pause** | arbejde | **Én handling:** luk segment → arbejds-linje + `setCurrentTask(Pause/Frokost)` + starttid = nu. (Ikke Afslut → derefter Pause.) |
+| **Tilbage til arbejde** | pause | Luk segment → **pause-linje (is_break=true)**. Forudfyld seneste arbejdsopgave, men medarbejderen **bekræfter/tilpasser** før arbejdssegmentet starter. |
+| **Slut dag / markér resten af dagen** | arbejde/pause | Færdig for dagen (evt. med årsag: kort dag/fravær). **Kræver DB** for at persistere/vise til kolleger — se "Kort dag / fravær" nedenfor. |
 
+- **Afslut vs. Skift vs. Slut dag:** "Afslut opgave" er den **normale** måde at afslutte
+  en opgave på (man står derefter i "ingen aktiv opgave" — det er ikke en fejl).
+  "Skift opgave" er en genvej (afslut + start ny). "Slut dag" bruges **kun** når man er
+  færdig for dagen.
 - **Frokost:** pause er en **eksplicit handling** — ikke auto-split. Foreslået frokost
   bevares som blidt påmindelsessignal (produktvalg, se nederst).
-- **Recovery:** glemt "Slut dag" → åbent segment fra i går skal opdages ved næste
+- **Recovery:** glemt afslutning → åbent segment fra i går skal opdages ved næste
   åbning og tilbydes afsluttet (leder/korrektion kan rette).
 - **Tid uden for normal arbejdstid** kan stadig ligge i et segment; rammen
   (man–tor 07:30–15:30, fre 07:30–15:00, weekend 0) bruges **kun** til
   "Indtastning mangler"-signalet — blokerer intet.
 
 ---
+
+## "I gang"-status (arbejdsstatus, ikke stempelur)
+
+Når medarbejderen er aktiv på en opgave, skal det være **visuelt tydeligt** at opgaven
+kører — men det skal føles som **arbejdsstatus**, ikke et hårdt kontrol-stempelur.
+
+- **Ingen** loadingbar/progressbar (en opgave har ikke kendt slutprocent).
+- Brug: diskret **aktiv prik**/lille ur-ikon + tydelig tekst **"I gang nu"**.
+- Løbende tid: **"Startet 08:52 · 0:38 i gang"**.
+- Evt. **rolig farvet kant** (topkant/kant), ikke en accent-stripe.
+
+## Kort dag / fravær (driftsstatus — ikke løn)
+
+> **Låst formulering:** "SMU Tid skal kunne vise enkel dags-/tilstedeværelsesstatus,
+> så kort dag, fravær eller aftaler ikke ligner manglende tidsregistrering. Statussen
+> er driftsinformation og kollegaoverblik — ikke lønsystem."
+
+SMU Tid skal kunne skelne **"indtastning mangler"** fra **"dagen er kortere/anderledes
+med årsag"** (gået tidligt, læge/aftale, afspadsering, syg, fri, møde/ude af huset,
+andet). Formål: ro i overblikket + vise kolleger/leder hvorfor nogen ikke er på arbejde.
+
+**Ikke** løn, ferie-, sygdoms- eller afspadseringssaldo.
+
+**Vurdering (denne runde):** kan **ikke** laves meningsfuldt uden DB. En status, der skal
+**vises til kolleger/leder** (fx på /oversigt), skal ligge i delt lagring — localStorage
+kun-lokalt opfylder ikke formålet. Derfor **ikke bygget nu**; dokumenteret som en lille
+fremtidig DB-tilføjelse.
+
+**Foreslået mindste datamodel (senere):** en `tid_dagsstatus`-tabel (eller kolonne):
+`employee_id`, `dato`, `status` (enum: gaaet_tidligt / aftale / afspadsering / syg / fri
+/ moede_ude / andet), valgfri `note`, `updated_at`/`updated_by`. Additiv, nullable,
+fejler blødt. Ingen lønberegning, ingen saldo, ingen rapport.
 
 ## Aktiv opgave må redigeres af medarbejderen
 
@@ -133,6 +181,21 @@ Dette gør v2 fleksibel uden at gøre dagssedlen til manuel input igen.
 > rettelser er leder-/korrektionsflow."
 
 ---
+
+## Historisk læseadgang (præcisering)
+
+Medarbejderen må gerne se egne dagssedler historisk som read-only. Begrænsningen
+gælder **ændring** af historik, ikke **adgang til at læse** historik.
+
+Konkret må medarbejderen i normalflow:
+- vælge tidligere datoer og se sin historik for dagen,
+- se interval, varighed, kategori, underpunkt, ordre/sag/kunde og pause,
+- se en rolig opsummering for dagen.
+
+Medarbejderen må **ikke** i normalflow redigere/slette historiske linjer, oprette
+manuelle linjer, udfylde huller eller rette omgøring/bagudrettede fejl — det er
+leder-/korrektionsflow. (WorkNow forbliver på "i dag"; kun historik-sektionen har
+dato-navigation.)
 
 ## Kan v2 bygges uden migration?
 

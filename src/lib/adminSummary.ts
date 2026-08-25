@@ -1,6 +1,6 @@
 // Pr. medarbejder pr. dag: nøgletal + status til admin-overblik. Ren TS.
 
-import type { TimeEntry } from "../types";
+import type { TimeEntry, Absence } from "../types";
 import { summarizeDay, expectedWorkMinutes } from "./summary";
 
 export type DayStatus =
@@ -13,6 +13,9 @@ export type DayStatus =
 export interface EmployeeDaySummary {
   employeeId: string;
   workedMinutes: number;
+  breakMinutes: number;
+  absenceMinutes: number;
+  absenceTypes: string[];
   expectedMinutes: number;
   missingMinutes: number;
   overtimeMinutes: number;
@@ -28,10 +31,11 @@ export interface EmployeeDaySummary {
 export function employeeDaySummary(
   employeeId: string,
   entries: TimeEntry[],
-  isoDate: string
+  isoDate: string,
+  absences: Absence[] = []
 ): EmployeeDaySummary {
   const expected = expectedWorkMinutes(isoDate);
-  const s = summarizeDay(entries, expected);
+  const s = summarizeDay(entries, expected, absences);
   const worked = s.workedMinutes;
   const overtime = Math.max(0, worked - expected);
 
@@ -42,6 +46,8 @@ export function employeeDaySummary(
   else if (worked >= expected) status = "udfyldt";
   else status = "delvist";
 
+  const absenceTypes = [...new Set(absences.filter((a) => !a.slettet).map((a) => a.absenceType))];
+
   const lastUpdated = entries.reduce<string | null>(
     (max, e) => (max === null || e.updatedAt > max ? e.updatedAt : max),
     null
@@ -50,6 +56,9 @@ export function employeeDaySummary(
   return {
     employeeId,
     workedMinutes: worked,
+    breakMinutes: s.breakMinutes,
+    absenceMinutes: s.absenceMinutes,
+    absenceTypes,
     expectedMinutes: expected,
     missingMinutes: s.missingMinutes,
     overtimeMinutes: overtime,

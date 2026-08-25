@@ -1,9 +1,10 @@
 // Dagsoverblik: registreret arbejdstid, pause, huller, overlap, manglende tid.
 // Ren TS, ingen UI.
 
-import type { TimeEntry } from "../types";
+import type { TimeEntry, Absence } from "../types";
 import { toMinutes, overlaps, weekdayOf } from "./time";
 import { isBreakCategory } from "../data/categories";
+import { effectiveEnd } from "./absence";
 
 /**
  * En linje tæller som PAUSE (ikke arbejdstid) hvis den enten er markeret isBreak
@@ -46,21 +47,31 @@ export interface OverlapPair {
 export interface DaySummary {
   workedMinutes: number;
   breakMinutes: number;
+  /** Registreret fravær (tæller ALDRIG som arbejde/pause; dækker sit tidsrum). */
+  absenceMinutes: number;
   gaps: Gap[];
   overlaps: OverlapPair[];
-  /** Positiv = der mangler tid ift. forventet arbejdsdag. */
+  /** Positiv = der mangler tid ift. forventet arbejdsdag (minus fravær). */
   missingMinutes: number;
 }
 
 export function summarizeDay(
   entries: TimeEntry[],
-  expectedMinutes = EXPECTED_WORK_MINUTES
+  expectedMinutes = EXPECTED_WORK_MINUTES,
+  absences: Absence[] = []
 ): DaySummary {
   const work = entries.filter((e) => !isPauseEntry(e));
   const breaks = entries.filter((e) => isPauseEntry(e));
 
   const workedMinutes = work.reduce((sum, e) => sum + e.durationMinutes, 0);
   const breakMinutes = breaks.reduce((sum, e) => sum + e.durationMinutes, 0);
+
+  // Fravær med kendt (faktisk/forventet) sluttid: dækker tidsrum + reducerer "mangler".
+  const absenceIvs = absences
+    .filter((a) => !a.slettet && effectiveEnd(a))
+    .map((a) => ({ start: toMinutes(a.startTime), end: toMinutes(effectiveEnd(a) as string) }))
+    .filter((iv) => iv.end > iv.start);
+  const absenceMinutes = absenceIvs.reduce((sum, iv) => sum + (iv.end - iv.start), 0);
 
   // Overlap: par af ARBEJDS-linjer der overlapper (pause ekskluderet).
   const overlapPairs: OverlapPair[] = [];
@@ -79,29 +90,26 @@ export function summarizeDay(
     }
   }
 
-  // Huller: uregistrerede mellemrum mellem på hinanden følgende linjer
-  // (alle linjer inkl. pause tæller som "dækket" tid, så pause laver ikke hul).
-  const sorted = [...entries].sort(
-    (a, b) => toMinutes(a.startTime) - toMinutes(b.startTime)
-  );
+  // Huller: uregistrerede mellemrum mellem på hinanden følgende dækkede tidsrum.
+  // Alle linjer inkl. pause OG fravær tæller som "dækket" tid, så hverken pause
+  // eller fravær laver hul.
+  const covered = [
+    ...entries.map((e) => ({ s: toMinutes(e.startTime), en: toMinutes(e.endTime) })),
+    ...absenceIvs.map((iv) => ({ s: iv.start, en: iv.end })),
+  ].sort((a, b) => a.s - b.s);
   const gaps: Gap[] = [];
   let cursor: number | null = null;
-  for (const e of sorted) {
-    const s = toMinutes(e.startTime);
-    const en = toMinutes(e.endTime);
-    if (cursor !== null && s > cursor) {
-      gaps.push({
-        startTime: sorted.length ? minutesToHHMM(cursor) : e.startTime,
-        endTime: e.startTime,
-        minutes: s - cursor,
-      });
+  for (const iv of covered) {
+    if (cursor !== null && iv.s > cursor) {
+      gaps.push({ startTime: minutesToHHMM(cursor), endTime: minutesToHHMM(iv.s), minutes: iv.s - cursor });
     }
-    cursor = cursor === null ? en : Math.max(cursor, en);
+    cursor = cursor === null ? iv.en : Math.max(cursor, iv.en);
   }
 
-  const missingMinutes = Math.max(0, expectedMinutes - workedMinutes);
+  // Fravær reducerer det tidsrum der forventes dækket af arbejde (ikke løn/saldo).
+  const missingMinutes = Math.max(0, expectedMinutes - workedMinutes - absenceMinutes);
 
-  return { workedMinutes, breakMinutes, gaps, overlaps: overlapPairs, missingMinutes };
+  return { workedMinutes, breakMinutes, absenceMinutes, gaps, overlaps: overlapPairs, missingMinutes };
 }
 
 function minutesToHHMM(m: number): string {

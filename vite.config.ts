@@ -19,7 +19,8 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(APP_VERSION),
   },
   server: {
-    port: 5173,
+    // Brug den tildelte PORT (autoPort) hvis sat; ellers 5173 som standard.
+    port: Number(process.env.PORT) || 5173,
   },
   test: {
     globals: true,

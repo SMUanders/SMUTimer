@@ -264,6 +264,36 @@ body {
 .ov-open { color: var(--color-primary-deep); font-weight: 800; text-align: right; display: inline-flex; align-items: center; gap: 4px; justify-content: flex-end; }
 .ov-label { display: none; }
 
+/* Sektionsoverskrifter på /oversigt (Arbejder på nu / Dagens registrering) */
+.ov-section { margin-top: 18px; }
+.ov-section-title { font-size: 15px; font-weight: 800; color: var(--color-navy); margin: 0 0 10px; }
+
+/* Dagens registrering — 7-kolonne variant */
+.ov-table-2 .ov-head,
+.ov-table-2 .ov-row { grid-template-columns: 1.4fr 0.8fr 0.8fr 0.8fr 0.9fr 1.5fr 0.9fr; }
+.ov-muted-num { color: var(--color-text-muted); font-weight: 700; }
+.ov-afvig { min-width: 0; }
+.ov-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.ov-chip {
+  display: inline-flex; align-items: center; gap: 3px; padding: 1px 8px; border-radius: 999px;
+  background: var(--color-grey-soft); color: var(--color-navy-soft); font-size: 12px; font-weight: 700;
+}
+.ov-chip.is-warn { background: var(--color-orange-soft); color: var(--color-orange-deep); }
+.ov-chip.is-fravaer { background: var(--color-navy); color: var(--color-text-on-navy); }
+
+/* Arbejder på nu — kompakt drifts-tabel */
+.wn-table { background: var(--color-card); border: 1px solid var(--color-border); border-radius: 14px; box-shadow: 0 8px 24px rgba(33, 55, 70, 0.06); overflow: hidden; }
+.wn-head, .wn-row { display: grid; grid-template-columns: 1.1fr 1fr 1.5fr 0.7fr 0.7fr 1.5fr; gap: 8px; align-items: center; padding: 10px 14px; }
+.wn-head { background: var(--color-navy); color: var(--color-text-on-navy); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; }
+.wn-row { border-top: 1px solid var(--color-border); cursor: pointer; font-size: 14px; font-weight: 600; }
+.wn-row:hover { background: var(--color-row-bg); }
+.wn-row.is-idle { color: var(--color-text-muted); }
+.wn-name { font-weight: 800; color: var(--color-navy); }
+.wn-num { font-variant-numeric: tabular-nums; }
+.wn-order { font-weight: 800; color: var(--color-navy); min-width: 0; overflow-wrap: anywhere; }
+.wn-type { color: var(--color-text-muted); font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.wn-label { display: none; }
+
 .week-grid { background: var(--color-card); border: 1px solid var(--color-border); border-radius: 14px; box-shadow: 0 8px 24px rgba(33, 55, 70, 0.06); overflow-x: auto; }
 .week-inner { min-width: 620px; }
 .week-row { display: grid; grid-template-columns: 1.2fr repeat(5, 1fr); border-top: 1px solid var(--color-border); }
@@ -324,6 +354,15 @@ body {
   .ov-name { grid-column: 1 / -1; font-size: 16px; }
   .ov-label { display: inline; color: var(--color-text-muted); font-size: 12px; font-weight: 700; }
   .ov-open { grid-column: 1 / -1; justify-content: flex-start; }
+  .ov-table-2 .ov-row { grid-template-columns: 1fr 1fr; }
+
+  .wn-head { display: none; }
+  .wn-row { grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 12px 14px; }
+  .wn-row > div { display: flex; justify-content: space-between; gap: 8px; }
+  .wn-name { grid-column: 1 / -1; font-size: 16px; }
+  .wn-order { grid-column: 1 / -1; }
+  .wn-type { grid-column: 1 / -1; }
+  .wn-label { display: inline; color: var(--color-text-muted); font-size: 12px; font-weight: 700; }
 }
 
 /* ================= AKTUEL OPGAVE ================= */
@@ -391,4 +430,160 @@ body {
 @media (max-width: 560px) {
   .now-row { grid-template-columns: 1fr auto; }
   .now-name { grid-column: 1 / -1; }
+}
+
+/* ================= MEDARBEJDERFLOW vNext — DayScreen ================= */
+.day-screen { padding: 18px; margin-bottom: 18px; }
+.day-screen.is-work { border-color: var(--color-teal); }
+.day-screen.is-pause { border-color: var(--color-orange); }
+.ds-title { font-weight: 800; font-size: 18px; color: var(--color-navy); margin-bottom: 12px; }
+.ds-help { font-size: 13px; color: var(--color-text-muted); font-weight: 600; margin-bottom: 12px; }
+
+/* HVAD NU? — tre tydelige fuld-bredde valg */
+.ds-hvadnu { display: flex; flex-direction: column; gap: 10px; }
+.ds-big {
+  width: 100%; padding: 13px 16px; font-size: 15px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+}
+.ds-pause { color: var(--color-orange-deep); border-color: var(--color-orange); }
+.ds-pause:hover { background: var(--color-orange-soft); }
+
+/* "I gang nu" / "På pause" */
+.ds-live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; color: var(--color-teal-deep); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+.ds-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-teal); display: inline-block; }
+.ds-state { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 18px; color: var(--color-orange-deep); margin-bottom: 4px; }
+.ds-task { font-size: 18px; margin-top: 2px; }
+.ds-cat { font-weight: 800; color: var(--color-navy); }
+.ds-sub { color: var(--color-text-muted); font-weight: 700; }
+.ds-order { color: var(--color-navy); font-weight: 700; }
+.ds-note { color: var(--color-text-muted); font-weight: 600; margin-top: 4px; font-size: 14px; }
+.ds-timer { margin-top: 8px; font-size: 14px; font-weight: 700; color: var(--color-navy-soft); font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; gap: 5px; }
+.ds-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+.ds-actions .smu-btn-primary,
+.ds-actions .smu-btn-secondary { display: inline-flex; align-items: center; gap: 6px; padding: 11px 16px; }
+.ds-primary { font-size: 15px; }
+.ds-secondary { margin-top: 10px; }
+
+/* Hjælp på anden opgave — violet accent (adskilt fra arbejde/pause) */
+.day-screen.is-help { border-color: var(--color-violet-deep); }
+.ds-live-help { color: var(--color-violet-deep); }
+.ds-suggest { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.ds-suggest-label { font-size: 12px; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin: 4px 0; }
+.ds-suggest-btn {
+  display: inline-flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 10px;
+  background: var(--color-surface); color: var(--color-navy); font-weight: 700; font-size: 14px; cursor: pointer;
+}
+.ds-suggest-btn:hover { background: var(--color-violet-soft); border-color: var(--color-violet-deep); }
+.ds-resume-hint {
+  margin-top: 10px; padding: 9px 12px; border-radius: 10px; background: var(--color-violet-soft);
+  color: var(--color-navy); font-size: 13px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+
+/* Omgøring — blå accent (adskilt fra arbejde/pause/hjælp, ikke fejl-rød) */
+.day-screen.is-redo { border-color: var(--color-primary-deep); }
+.ds-live-redo { color: var(--color-primary-deep); }
+.ds-reason { margin-top: 4px; font-size: 14px; font-weight: 700; color: var(--color-primary-deep); }
+.is-redo .ds-resume-hint { background: var(--color-primary-soft); }
+/* Samme/anden opgave-toggle i start omgøring */
+.ds-toggle { display: flex; gap: 8px; margin-bottom: 12px; }
+.ds-toggle-btn {
+  flex: 1; padding: 9px 12px; border: 1px solid var(--color-border); border-radius: 10px;
+  background: var(--color-surface); color: var(--color-navy); font-weight: 700; font-size: 14px; cursor: pointer;
+}
+.ds-toggle-btn.is-active { background: var(--color-primary-soft); border-color: var(--color-primary-deep); color: var(--color-primary-deep); }
+
+/* Fravær — navy/neutral accent (adskilt fra arbejde/pause/hjælp/omgøring) */
+.day-screen.is-fravaer { border-color: var(--color-navy); }
+.ds-live-fravaer { color: var(--color-navy); }
+.ds-field-hint { display: block; margin-top: 4px; font-size: 12px; color: var(--color-text-muted); font-weight: 600; }
+
+/* Min dag — read-only historik */
+.history { margin-top: 4px; }
+.history-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.history-title { font-weight: 800; font-size: 15px; color: var(--color-navy); }
+.history-datebar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.history-datebar input[type="date"] {
+  border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-card);
+  font: inherit; font-weight: 700; font-size: 13px; color: var(--color-navy); padding: 5px 8px;
+}
+.icon-btn.sm { width: 30px; height: 30px; border-radius: 8px; }
+.history-date-full { font-size: 12px; font-weight: 600; color: var(--color-text-muted); margin: 2px 0 6px; }
+.history-summary { font-size: 13px; font-weight: 700; color: var(--color-text-muted); margin-bottom: 10px; font-variant-numeric: tabular-nums; }
+
+.hist-list { display: flex; flex-direction: column; gap: 6px; }
+.hist-row {
+  background: var(--color-card); border: 1px solid var(--color-border); border-radius: 10px;
+  display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 10px; padding: 9px 12px; align-items: start;
+}
+.hist-row.is-break { background: var(--color-grey-soft); }
+.hist-row.is-help { border-left: 3px solid var(--color-violet-deep); }
+.hist-help-tag {
+  display: inline-block; margin-right: 6px; padding: 1px 7px; border-radius: 6px;
+  background: var(--color-violet-soft); color: var(--color-violet-deep);
+  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em;
+  vertical-align: 1px;
+}
+.hist-time { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--color-navy); }
+.hist-dur { display: block; margin-top: 2px; font-size: 12px; font-weight: 700; color: var(--color-text-muted); }
+.hist-main { min-width: 0; font-size: 14px; }
+.hist-cat { font-weight: 700; color: var(--color-navy); }
+.hist-sub { color: var(--color-text-muted); font-weight: 600; }
+.hist-order { font-size: 12px; margin-top: 2px; font-weight: 600; color: var(--color-text-muted); }
+.hist-note { font-size: 12px; margin-top: 2px; font-weight: 600; color: var(--color-text-muted); overflow-wrap: anywhere; }
+
+@media (max-width: 560px) {
+  .hist-row { grid-template-columns: 96px minmax(0, 1fr); }
+}
+
+/* ================= MIN DAG — lodret tidslinje (read-only) ================= */
+.timeline { display: flex; flex-direction: column; margin-top: 4px; }
+.tl-row { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 10px; align-items: stretch; }
+.tl-time {
+  text-align: right; padding-top: 6px; font-size: 12px; font-weight: 800;
+  color: var(--color-navy); font-variant-numeric: tabular-nums; line-height: 1.2;
+}
+.tl-time small { display: block; font-weight: 600; color: var(--color-text-muted); }
+.tl-block {
+  border: 1px solid var(--color-border); border-left: 4px solid var(--color-border);
+  border-radius: 10px; background: var(--color-card); padding: 8px 12px; margin-bottom: 6px;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.tl-work .tl-block { border-left-color: var(--color-teal); }
+.tl-pause .tl-block { border-left-color: var(--color-orange); background: var(--color-orange-soft); }
+.tl-help .tl-block { border-left-color: var(--color-violet-deep); background: var(--color-violet-soft); }
+.tl-redo .tl-block { border-left-color: var(--color-primary-deep); background: var(--color-primary-soft); }
+.tl-fravaer .tl-block { border-left-color: var(--color-navy); background: var(--color-grey-soft); }
+.tl-gap .tl-block {
+  border-style: dashed; background: var(--color-grey-soft);
+  border-left-color: var(--color-grey-deep);
+}
+/* Overlap/konflikt — tydelig amber kant (rød er reserveret til fejl) */
+.tl-conflict .tl-block {
+  border-color: var(--color-orange-deep); border-left-color: var(--color-orange-deep);
+  background: var(--color-orange-soft);
+}
+
+.tl-main { min-width: 0; }
+.tl-line1 { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 14px; }
+.tl-cat { font-weight: 800; color: var(--color-navy); }
+.tl-sub { color: var(--color-text-muted); font-weight: 700; margin-left: -2px; }
+.tl-order { font-size: 12px; margin-top: 2px; font-weight: 700; color: var(--color-navy-soft); }
+.tl-dur { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.tl-gap-label { font-weight: 700; font-style: italic; color: var(--color-grey-deep); font-size: 13px; }
+
+.tl-tag {
+  display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 6px;
+  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em;
+}
+.tl-tag-help { background: var(--color-violet-soft); color: var(--color-violet-deep); }
+.tl-tag-redo { background: var(--color-primary-soft); color: var(--color-primary-deep); }
+.tl-tag-fravaer { background: var(--color-navy); color: var(--color-text-on-navy); }
+.tl-tag-pause { background: var(--color-orange-soft); color: var(--color-orange-deep); }
+.tl-tag-conflict { background: var(--color-orange-deep); color: #fff; }
+.tl-reason { font-size: 12px; margin-top: 2px; font-weight: 700; color: var(--color-primary-deep); }
+
+@media (max-width: 560px) {
+  .tl-row { grid-template-columns: 48px minmax(0, 1fr); gap: 8px; }
 }

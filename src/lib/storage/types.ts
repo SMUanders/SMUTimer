@@ -1,4 +1,4 @@
-import type { TimeEntry, CurrentTask } from "../../types";
+import type { TimeEntry, CurrentTask, Absence } from "../../types";
 
 // Fælles storage-interface. Al persistering går gennem dette — resten af appen
 // kender ikke til om data ligger i localStorage eller Supabase.
@@ -20,6 +20,17 @@ export interface TimeEntryStore {
   getAllCurrentTasks(): Promise<CurrentTask[]>;
   setCurrentTask(task: CurrentTask): Promise<void>;
   clearCurrentTask(employeeId: string): Promise<void>;
+
+  // "Fravær i arbejdsdagen" — delt status, adskilt fra time entries (tæller
+  // aldrig som arbejdstid/pause). Kræver tabellen tid_absences (migration 0006).
+  getAbsencesForDate(employeeId: string, isoDate: string): Promise<Absence[]>;
+  /** Alle medarbejderes fravær på én dato (til admin-overblik). */
+  getAbsencesForDateAll(isoDate: string): Promise<Absence[]>;
+  /** Aktivt fravær (ude nu) for én medarbejder, hvis noget. */
+  getActiveAbsence(employeeId: string): Promise<Absence | null>;
+  addAbsence(absence: Absence): Promise<void>;
+  /** Afslut fravær ("Jeg er tilbage"): sæt active=false + faktisk sluttid. */
+  endAbsence(id: string, endTime: string): Promise<void>;
 }
 
 // ID/tidsstempel — bruges når nye entries bygges. crypto.randomUUID giver et

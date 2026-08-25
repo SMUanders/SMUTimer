@@ -4,7 +4,8 @@ import { toHHMM, toMinutes } from "../lib/time";
 interface Props {
   value: string;
   onChange: (value: string) => void;
-  /** Interval-grænser for forslagene. Default 06:00–18:00. */
+  /** Interval-grænser for forslagene. Default 05:00–18:00 (tidlige møder, fx Sascha
+   *  kl. 05:00). Ingen hard grænse — enhver gyldig HH:MM kan altid indtastes manuelt. */
   from?: string;
   to?: string;
 }
@@ -23,7 +24,7 @@ function quarters(from: string, to: string): string[] {
   return list;
 }
 
-export default function TimeSelect({ value, onChange, from = "06:00", to = "18:00" }: Props) {
+export default function TimeSelect({ value, onChange, from = "05:00", to = "18:00" }: Props) {
   const options = useMemo(() => quarters(from, to), [from, to]);
   return (
     <>

@@ -1,8 +1,35 @@
 # SMU Tid produktbeslutning
 
-> Status: **besluttet** (afløser den seneste lokale UX-runde, som ikke blev godkendt).
-> Denne fil er retningsgivende for næste medarbejder-build. Ingen kode er ændret ud
-> over denne dokumentation.
+> Status: **vNext er BYGGET og RELEASEKLAR / AFVENTER BRUGERBRIEFING** (ikke live).
+> Medarbejderne briefes om det nye flow, før vi skifter fra den nuværende live-version.
+> Afsnittene "Faseplan (forslag)" og "Relevante komponenter" længere nede er
+> **historiske** (den oprindelige plan) — den faktiske sandhed står i "Aktuel sandhed"
+> nedenfor. Fase 1's "Skift opgave / Tilbage til arbejde" blev IKKE bygget; i stedet
+> Afslut/Start + Hjælp + Omgøring + Fravær med automatisk genoptagelse.
+
+## Aktuel sandhed (vNext releasekandidat)
+
+- **Aktiv opgave er medarbejderens primære arbejdsstatus** ("● I gang nu"), ikke et kort oven på en dagsseddel.
+- **Almindelig afslutning har justerbare tider:** "Gå til afslutning" åbner en form med redigerbar start/slut; kun den endelige "Gem afsluttet opgave" gemmer.
+- **Hjælp på anden opgave** splitter tiden ud: egen opgave lukkes frem til hjælpens start, hjælp køres som mini-stopur (5-min-regel, min. 5 min), og egen opgave **genoptages automatisk** fra hjælpens sluttid. Intet overlap.
+- **Omgøring** er særskilt struktureret tid med **årsag** (`isRedo`/`redoReason`/`redoNote`); trækkes ud af normal opgave; egen opgave genoptages automatisk. Vises i Min dag + som afvigelse i /oversigt.
+- **Pause** tæller **ikke** som arbejdstid.
+- **Fravær** (`tid_absences`) er drifts-/tilstedeværelsesstatus — **ikke** løn-/ferie-/sygdoms-/saldomodel. Aktivt = `ended IS NULL`; `expected_end` (forventet) og `ended` (faktisk) er adskilte. Tæller ikke som arbejde/pause; reducerer "Mangler".
+- **Min dag** er en **read-only** lodret tidslinje (arbejde/hjælp/omgøring/pause/fravær/hul/overlap). Ingen Rediger/Slet/Ny/Udfyld på medarbejderskærmen.
+- **/oversigt** er lederens drifts-/dagsoverblik: "Arbejder på nu" + "Dagens registrering".
+- **Lederkorrektion** er separat (deep-link `?medarbejder=…` → gammel dagsseddel med rediger/slet).
+- **Normtid:** man–tor = 7,5 t · fredag = 7 t · weekend = 0.
+- **Sammenhængende tidslinje:** systemets default-forslag skaber aldrig hul/overlap (næste start = seneste sluttid). Tidlige møder (fx Sascha kl. 05:00) understøttes (forslag fra 05:00; ingen hard grænse).
+
+## Backlog (ikke bygget — bevidst)
+
+1. **Henriette / Afbrydelser** — generel afbrydelsesmekanisme (Telefon/Anders/Natasha/Ida, typisk 5–10 min) med hurtigknapper/hotkeys der trækker tiden ud af aktiv opgave (samme princip som Hjælp). Må **ikke** hardcodes som Henriette-specialløsning.
+2. **Tid-identitet / owner-scope** — "vælg medarbejder"-modellen betyder at RLS ikke er bundet til `employee_id = auth.uid()`. Kendt adgangsbegrænsning; senere samlet produkt-/platformbeslutning.
+3. **Autoritativ `started_at`** til lederoverblik (i dag bruger "Startet/I gang" `updated_at` som proxy). Ingen DB-ændring nu.
+4. **Rapport/CSV** og videre analyse — senere.
+5. **Resterende UX-finpudsning** af vNext efter brugerbriefing/feedback.
+
+---
 
 **Dagssedlen er historik, ikke input.**
 
