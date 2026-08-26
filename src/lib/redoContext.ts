@@ -11,8 +11,11 @@ import type { OwnTask } from "./helpContext";
 const KEY = "smu-tid.redo-context.v1";
 
 export interface RedoContext {
-  ownTask: OwnTask;
+  /** Oprindelig opgave der genoptages efter omgøring. null = SELVSTÆNDIG omgøring
+   *  (startet fra "Hvad nu?" uden aktiv opgave) → ingen auto-genoptagelse. */
+  ownTask: OwnTask | null;
   reason: string; // REDO_REASONS-id
+  note: string; // valgfri omgørings-note (redoNote)
 }
 
 type Store = Record<string, RedoContext>;

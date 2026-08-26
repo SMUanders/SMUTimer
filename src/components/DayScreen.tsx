@@ -107,7 +107,9 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
   // "Omgøring": oprindelig opgave (til genoptag) + valgt årsag.
   const [redoCtx, setRedoCtx] = useState<RedoContext | null>(null);
   const [redoReason, setRedoReason] = useState<string>(REDO_REASONS[0].id);
-  const [redoSame, setRedoSame] = useState<boolean>(true);
+  const [redoNote, setRedoNote] = useState<string>("");
+  // true = selvstændig omgøring fra "Hvad nu?" (vælg opgave); false = fra aktiv opgave.
+  const [redoStandalone, setRedoStandalone] = useState<boolean>(false);
   // Fravær i arbejdsdagen (delt status via tid_absences).
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [absType, setAbsType] = useState<string>(ABSENCE_TYPES[0].id);
@@ -383,42 +385,45 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
     });
   }
 
-  // ---- Omgøring ----
-  // Start omgøring: luk oprindelig opgave frem til omgøringens start, husk den til
-  // genoptag, og gør omgøringen aktiv. Kun ÉN aktiv registrering ad gangen.
+  // ---- Omgøring (to veje) ----
+  // A: fra AKTIV opgave → omgøring på SAMME opgave, luk normal opgave frem til
+  //    omgøringens start, husk den til auto-genoptag.
+  // B: fra "Hvad nu?" (ingen aktiv opgave) → SELVSTÆNDIG omgøring på en valgt
+  //    opgave, ingen normal opgave at lukke, ingen genoptagelse.
   function startRedoSubmit() {
-    if (!task) return;
     guarded(async () => {
-      const rs = redoStartHHMM(nowIso(), lastEnd); // omgøringens start (aldrig før seneste sluttid)
-      const own = redoOwnCloseTimes(startedAt ?? task.updatedAt, rs, lastEnd);
-      if (own) {
-        const ownClose = buildEntry({
-          employeeId,
-          workDate: today,
-          startTime: own.startTime,
-          endTime: own.endTime,
-          categoryId: task.categoryId,
-          subcategoryId: task.subcategoryId,
-          orderNumber: task.orderNumber ?? "",
-          note: task.note ?? "",
-          newId,
-          nowIso: nowIso(),
-        });
-        if (!isExactDuplicate(ownClose, entries)) {
-          await store().addEntries([ownClose]);
+      const rs = redoStartHHMM(nowIso(), lastEnd); // aldrig før seneste sluttid
+      let ownTask: OwnTask | null = null;
+      if (task) {
+        // Vej A: luk den aktive opgave frem til omgøringens start (rører, intet overlap).
+        const own = redoOwnCloseTimes(startedAt ?? task.updatedAt, rs, lastEnd);
+        if (own) {
+          const ownClose = buildEntry({
+            employeeId,
+            workDate: today,
+            startTime: own.startTime,
+            endTime: own.endTime,
+            categoryId: task.categoryId,
+            subcategoryId: task.subcategoryId,
+            orderNumber: task.orderNumber ?? "",
+            note: task.note ?? "",
+            newId,
+            nowIso: nowIso(),
+          });
+          if (!isExactDuplicate(ownClose, entries)) {
+            await store().addEntries([ownClose]);
+          }
         }
-      }
-      // Husk oprindelig opgave + årsag (til genoptag / aktiv-visning).
-      setRedo(employeeId, {
-        ownTask: {
+        ownTask = {
           categoryId: task.categoryId,
           subcategoryId: task.subcategoryId,
           orderNumber: task.orderNumber ?? "",
           note: task.note ?? "",
-        },
-        reason: redoReason,
-      });
-      // Omgøringen bliver den aktive opgave; gem RS som starttidspunkt.
+        };
+      }
+      // Husk omgørings-kontekst (ownTask=null ⇒ selvstændig, ingen genoptag).
+      setRedo(employeeId, { ownTask, reason: redoReason, note: redoNote.trim() });
+      // Omgøringen bliver den aktive opgave (A: samme opgave; B: valgt opgave).
       await store().setCurrentTask({
         employeeId,
         categoryId: draft.categoryId,
@@ -429,15 +434,15 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         updatedBy: null,
       });
       setTaskStart(employeeId, hhmmToIsoToday(rs));
+      clearHelp(employeeId); // omgøring er ikke en hjælp-session
       setFormMode(null);
       await refresh();
       onChanged();
     });
   }
 
-  // Afslut omgøring: gem omgøringslinje (isRedo + årsag), ryd aktiv omgøring, og
-  // GENOPTAG automatisk den oprindelige opgave fra omgøringens registrerede
-  // sluttid (ingen "Omgøring gemt"-mellemskærm, intet ekstra Start opgave-trin).
+  // Afslut omgøring: gem struktureret omgøring (isRedo + årsag + note). Vej A →
+  // auto-genoptag oprindelig opgave fra sluttid; vej B → tilbage til "Hvad nu?".
   function finishRedoSubmit() {
     if (!task || !redoCtx) return;
     guarded(async () => {
@@ -461,17 +466,23 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         return;
       }
       await store().addEntries([entry]);
-      // Genoptag oprindelig opgave automatisk fra omgøringens sluttid (intet overlap).
-      await store().setCurrentTask({
-        employeeId,
-        categoryId: redoCtx.ownTask.categoryId,
-        subcategoryId: redoCtx.ownTask.subcategoryId,
-        orderNumber: redoCtx.ownTask.orderNumber.trim() || null,
-        note: redoCtx.ownTask.note.trim() || null,
-        updatedAt: nowIso(),
-        updatedBy: null,
-      });
-      setTaskStart(employeeId, hhmmToIsoToday(finish.endTime));
+      if (redoCtx.ownTask) {
+        // Vej A: genoptag oprindelig opgave automatisk fra omgøringens sluttid.
+        await store().setCurrentTask({
+          employeeId,
+          categoryId: redoCtx.ownTask.categoryId,
+          subcategoryId: redoCtx.ownTask.subcategoryId,
+          orderNumber: redoCtx.ownTask.orderNumber.trim() || null,
+          note: redoCtx.ownTask.note.trim() || null,
+          updatedAt: nowIso(),
+          updatedBy: null,
+        });
+        setTaskStart(employeeId, hhmmToIsoToday(finish.endTime));
+      } else {
+        // Vej B: ingen tidligere opgave → tilbage til "Hvad nu?".
+        await store().clearCurrentTask(employeeId);
+        clearTaskStart(employeeId);
+      }
       clearRedo(employeeId);
       setFormMode(null);
       await refresh();
@@ -580,20 +591,26 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
       note: c.note ?? "",
     });
   }
-  function openStartRedo() {
+  // Vej A: omgøring fra AKTIV opgave — gælder ALTID den aktuelle opgave (arves).
+  function openStartRedoFromActive() {
     if (!task) return;
-    setRedoSame(true);
-    setDraft(draftFromTask(task)); // "Samme opgave" som udgangspunkt
+    setRedoStandalone(false);
+    setDraft(draftFromTask(task)); // arves fra aktiv opgave (vises read-only)
     setRedoReason(REDO_REASONS[0].id);
+    setRedoNote("");
     setFormMode("startRedo");
   }
-  function setRedoTarget(same: boolean) {
-    setRedoSame(same);
-    setDraft(same && task ? draftFromTask(task) : emptyDraft());
+  // Vej B: selvstændig omgøring fra "Hvad nu?" — medarbejderen vælger opgaven.
+  function openStartRedoStandalone() {
+    setRedoStandalone(true);
+    setDraft(emptyDraft());
+    setRedoReason(REDO_REASONS[0].id);
+    setRedoNote("");
+    setFormMode("startRedo");
   }
   function openFinishRedo() {
     const t = suggestFinishTimes(startedAt ?? task?.updatedAt ?? nowIso(), nowIso());
-    setFinish((f) => ({ ...f, startTime: t.startTime, endTime: t.endTime, note: "" }));
+    setFinish((f) => ({ ...f, startTime: t.startTime, endTime: t.endTime, note: redoCtx?.note ?? "" }));
     setRedoReason(redoCtx?.reason ?? REDO_REASONS[0].id);
     setFormMode("finishRedo");
   }
@@ -845,40 +862,58 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
           </div>
         </>
       ) : formMode === "startRedo" ? (
-        /* ---------- START OMGØRING ---------- */
+        /* ---------- START OMGØRING (A: aktiv opgave · B: selvstændig) ---------- */
         <>
           <div className="ds-title">Start omgøring</div>
-          {task && (
-            <div className="ds-help">
-              Din nuværende opgave:{" "}
-              <strong>
-                {getCategory(task.categoryId)?.name}
-                {task.orderNumber ? ` · ${task.orderNumber}` : ""}
-              </strong>{" "}
-              lukkes nu og kan genoptages bagefter.
-            </div>
+          {!redoStandalone && task ? (
+            /* Vej A: gælder ALTID den aktive opgave (arves, read-only). Ingen toggle. */
+            <>
+              <div className="ds-suggest-label">Opgave</div>
+              <div className="ds-task" style={{ marginBottom: 8 }}>
+                <span className="ds-cat">{getCategory(task.categoryId)?.name ?? "—"}</span>
+                {getSubcategory(task.categoryId, task.subcategoryId) && (
+                  <span className="ds-sub"> · {getSubcategory(task.categoryId, task.subcategoryId)?.name}</span>
+                )}
+                {task.orderNumber && <span className="ds-order"> · {task.orderNumber}</span>}
+              </div>
+              <div className="ds-help">
+                Den aktive opgave lukkes og genoptages automatisk efter omgøringen.
+              </div>
+            </>
+          ) : (
+            /* Vej B: selvstændig omgøring — vælg selv opgave/kategori/underpunkt. */
+            <>
+              <div className="ds-suggest-label">Opgave du laver om</div>
+              <div className="field" style={{ marginBottom: 12 }}>
+                <CategoryPicker
+                  categoryId={draft.categoryId}
+                  subcategoryId={draft.subcategoryId}
+                  onChange={(cat, sub) => setDraft((d) => ({ ...d, categoryId: cat, subcategoryId: sub }))}
+                />
+              </div>
+              <div className="field">
+                <label>Ordre / sag / kunde</label>
+                <input
+                  className="smu-input"
+                  type="text"
+                  placeholder="Fx 54277, SMU-0042 eller kundenavn"
+                  value={draft.orderNumber}
+                  onChange={(e) => setDraft((d) => ({ ...d, orderNumber: e.target.value }))}
+                />
+              </div>
+            </>
           )}
-          <div className="ds-suggest-label">Hvad laves om?</div>
-          <div className="ds-toggle">
-            <button
-              type="button"
-              className={"ds-toggle-btn" + (redoSame ? " is-active" : "")}
-              onClick={() => setRedoTarget(true)}
-              disabled={busy}
-            >
-              Samme opgave
-            </button>
-            <button
-              type="button"
-              className={"ds-toggle-btn" + (!redoSame ? " is-active" : "")}
-              onClick={() => setRedoTarget(false)}
-              disabled={busy}
-            >
-              Anden opgave
-            </button>
-          </div>
-          {workFields}
           {redoReasonSelect}
+          <div className="field">
+            <label>Note (valgfri)</label>
+            <input
+              className="smu-input"
+              type="text"
+              value={redoNote}
+              onChange={(e) => setRedoNote(e.target.value)}
+              placeholder="Valgfri"
+            />
+          </div>
           <div className="ds-actions">
             <button className="smu-btn-primary ds-primary" onClick={startRedoSubmit} disabled={busy}>
               <RotateCcw size={16} /> Start omgøring
@@ -1004,6 +1039,9 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
               <button className="smu-btn-primary ds-big" onClick={openStartWork} disabled={busy}>
                 <Play size={16} /> Start opgave
               </button>
+              <button className="smu-btn-secondary ds-big" onClick={openStartRedoStandalone} disabled={busy}>
+                <RotateCcw size={16} /> Start omgøring
+              </button>
               <button className="smu-btn-secondary ds-big ds-pause" onClick={openStartPause} disabled={busy}>
                 <Coffee size={16} /> Start pause
               </button>
@@ -1100,9 +1138,9 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
               {elapsedText ? ` · ${elapsedText} i gang` : ""}
             </div>
           )}
-          {redoCtx && (
+          {redoCtx?.ownTask && (
             <div className="ds-resume-hint">
-              <RotateCcw size={13} /> Din tidligere opgave kan genoptages bagefter:{" "}
+              <RotateCcw size={13} /> Din oprindelige opgave genoptages bagefter:{" "}
               <strong>
                 {getCategory(redoCtx.ownTask.categoryId)?.name}
                 {redoCtx.ownTask.orderNumber ? ` · ${redoCtx.ownTask.orderNumber}` : ""}
@@ -1147,7 +1185,7 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
             <button className="smu-btn-secondary" onClick={openStartHelp} disabled={busy}>
               <Users size={15} /> Hjælp på anden opgave
             </button>
-            <button className="smu-btn-secondary" onClick={openStartRedo} disabled={busy}>
+            <button className="smu-btn-secondary" onClick={openStartRedoFromActive} disabled={busy}>
               <RotateCcw size={15} /> Start omgøring
             </button>
           </div>

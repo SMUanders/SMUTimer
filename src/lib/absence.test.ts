@@ -18,7 +18,7 @@ function abs(o: Partial<Absence> = {}): Absence {
     startTime: "09:30",
     expectedEnd: "11:30",
     ended: "11:30",
-    absenceType: "laege-tandlaege",
+    absenceType: "syg",
     note: "",
     slettet: false,
     createdAt: "2026-08-25T07:00:00Z",

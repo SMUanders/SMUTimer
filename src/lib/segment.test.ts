@@ -190,6 +190,19 @@ describe("omgøring — split uden overlap + markering", () => {
     expect(day.some((b) => b.kind === "redo")).toBe(true);
     expect(day.filter((b) => b.kind === "work")).toHaveLength(2); // egen før + efter, IKKE omgøring
   });
+
+  it("selvstændig omgøring (vej B): kæder efter seneste linje, ingen own-close, intet hul/overlap", () => {
+    // Ingen aktiv opgave → ingen own-close. Omgøring starter ved seneste sluttid.
+    const rs = redoStartHHMM(hhmmToIsoToday("09:03"), "09:00"); // klampet til 09:00
+    expect(rs).toBe("09:00");
+    const day = buildDayTimeline([
+      teLine("08:00", "09:00", "montage-ude", ""), // tidligere sag
+      te({ startTime: rs, endTime: "09:15", categoryId: "montage-ude", isRedo: true, redoReason: "tegnestuefejl", redoNote: "rettet mål" }),
+    ]);
+    expect(day.map((b) => b.kind)).toEqual(["work", "redo"]); // intet hul imellem
+    expect(day.every((b) => !b.conflict)).toBe(true); // intet overlap
+    expect(day[1].entry?.redoReason).toBe("tegnestuefejl");
+  });
 });
 
 describe("sammenhængende startforslag = seneste sluttid", () => {
