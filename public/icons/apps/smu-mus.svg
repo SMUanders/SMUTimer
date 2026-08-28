@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- SMU MUS — to samtalebobler på navy. Ingen gradient, kun designsystemets farver. -->
+  <rect width="64" height="64" rx="14" fill="#213746"/>
+  <path d="M14 18h24a5 5 0 0 1 5 5v12a5 5 0 0 1-5 5H24l-8 6v-6h-2a5 5 0 0 1-5-5V23a5 5 0 0 1 5-5z" fill="#3f9ed3"/>
+  <path d="M32 26h18a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4h-1v5l-6-5H32a4 4 0 0 1-4-4V30a4 4 0 0 1 4-4z" fill="#b8c8d1"/>
+</svg>

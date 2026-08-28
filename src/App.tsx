@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus, LogOut, LayoutGrid } from "lucide-react";
 import type { CurrentTask, EntryDraft, TimeEntry } from "./types";
+import { getSupabaseClient } from "./lib/supabaseClient";
+import { AppSwitcher } from "./platform-nav/AppSwitcher";
 import { isBreakCategory } from "./data/categories";
 import { getPerson, loadPeople } from "./lib/people";
 import { initStore, store, newId, nowIso } from "./lib/storage";
@@ -347,6 +349,10 @@ export default function App() {
           </div>
         </div>
         <div className="header-actions">
+          {/* Diskret skift til Hub og brugerens oevrige SMU-apps */}
+          {getSupabaseClient() && (
+            <AppSwitcher supabase={getSupabaseClient()!} currentAppKey="tid" />
+          )}
           <a className="smu-btn-secondary link-btn" href="/oversigt">
             <LayoutGrid size={15} /> Overblik
           </a>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="SMU Hub">
+  <!-- SMU Hub — to overlappende app-flader: platformens indgang til SMU-apps.
+       Navy #213746 / platformblå #3f9ed3 / hvid, jf. SMU-designsystemet. -->
+  <rect width="512" height="512" rx="112" fill="#213746"/>
+  <rect x="112" y="112" width="184" height="184" rx="44" fill="#ffffff"/>
+  <rect x="204" y="204" width="208" height="208" rx="52" fill="#213746"/>
+  <rect x="216" y="216" width="184" height="184" rx="44" fill="#3f9ed3"/>
+</svg>

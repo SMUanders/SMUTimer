@@ -4,6 +4,8 @@ import { initStore } from "../lib/storage";
 import { loadPeople, people } from "../lib/people";
 import { loadHidden, saveHidden } from "../lib/overblikFilter";
 import { isSupabaseConfigured } from "../lib/supabaseClient";
+import { getSupabaseClient } from "../lib/supabaseClient";
+import { AppSwitcher } from "../platform-nav/AppSwitcher";
 import { signOut } from "../lib/auth";
 import DayOverview from "./admin/DayOverview";
 import WeekOverview from "./admin/WeekOverview";
@@ -49,6 +51,10 @@ export default function Admin() {
           </span>
         </h1>
         <div className="header-actions">
+          {/* Diskret skift til Hub og brugerens oevrige SMU-apps */}
+          {getSupabaseClient() && (
+            <AppSwitcher supabase={getSupabaseClient()!} currentAppKey="tid" />
+          )}
           <a className="admin-back" href="/">
             <ArrowLeft size={15} /> Til dagsseddel
           </a>

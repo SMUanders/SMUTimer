@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { LogOut, LayoutGrid, ChevronLeft, ChevronRight } from "lucide-react";
 import type { TimeEntry, Absence } from "../types";
+import { getSupabaseClient } from "../lib/supabaseClient";
+import { AppSwitcher } from "../platform-nav/AppSwitcher";
 import { getPerson, loadPeople } from "../lib/people";
 import { initStore, store } from "../lib/storage";
 import { summarizeDay, expectedWorkMinutes } from "../lib/summary";
@@ -123,6 +125,10 @@ export default function EmployeeApp() {
           </div>
         </div>
         <div className="header-actions">
+          {/* Diskret skift til Hub og brugerens oevrige SMU-apps */}
+          {getSupabaseClient() && (
+            <AppSwitcher supabase={getSupabaseClient()!} currentAppKey="tid" />
+          )}
           <a className="smu-btn-secondary link-btn" href="/oversigt">
             <LayoutGrid size={15} /> Overblik
           </a>
