@@ -38,12 +38,9 @@ export function useAuth(): AuthState {
   return { loading, session };
 }
 
-export async function signIn(email: string, password: string): Promise<void> {
-  const client = getSupabaseClient();
-  if (!client) throw new Error("Supabase er ikke konfigureret.");
-  const { error } = await client.auth.signInWithPassword({ email, password });
-  if (error) throw error;
-}
+// signIn() er fjernet 28. aug. 2026. SMU Tid har ikke længere sin egen loginvej:
+// login sker på SMU Hub (smu.signmeup.dk), og sessionen deles via platform-cookien
+// på `.smu.signmeup.dk`. Supabase Auth er uændret identitetsejer.
 
 export async function signOut(): Promise<void> {
   const client = getSupabaseClient();
