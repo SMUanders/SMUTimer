@@ -4,6 +4,7 @@ import type { TimeEntry, Absence } from "../types";
 import { getSupabaseClient } from "../lib/supabaseClient";
 import { AppSwitcher } from "../platform-nav/AppSwitcher";
 import { getPerson, loadPeople } from "../lib/people";
+import { resolveEmployeeIdentity } from "../lib/identity";
 import { initStore, store } from "../lib/storage";
 import { summarizeDay, expectedWorkMinutes } from "../lib/summary";
 import { todayIso, addDays, formatDanishDate } from "../lib/dates";
@@ -22,9 +23,11 @@ const EMPLOYEE_KEY = "smu-tid.employee";
 // SMU Tid vNext — medarbejderskærm. Default-route. Den gamle dagsseddel (App)
 // bevares til leder-detalje/korrektion via deep-link ?medarbejder=…
 export default function EmployeeApp() {
-  const [employeeId, setEmployeeId] = useState<string | null>(
-    localStorage.getItem(EMPLOYEE_KEY)
-  );
+  const [employeeId, setEmployeeId] = useState<string | null>(null);
+  // I produktion bindes medarbejderen til den AUTENTIFICEREDE bruger (auth.uid =
+  // profiler.id). Så kan man kun registrere på sig selv (håndhæves også af RLS).
+  // Kun i lokal dev (ingen Supabase) bruges medarbejder-vælgeren som fallback.
+  const [authBound, setAuthBound] = useState(false);
   const [ready, setReady] = useState(false);
   const [storageName, setStorageName] = useState<"local" | "supabase">("local");
 
@@ -47,7 +50,22 @@ export default function EmployeeApp() {
       const name = await initStore();
       setStorageName(name);
       await loadPeople();
-      setEmployeeId((cur) => (cur && !getPerson(cur) ? null : cur));
+      const client = getSupabaseClient();
+      const authUserId =
+        isSupabaseConfigured && client ? (await client.auth.getUser()).data.user?.id ?? null : null;
+      const legacyStored = localStorage.getItem(EMPLOYEE_KEY);
+      const id = resolveEmployeeIdentity({
+        supabaseConfigured: isSupabaseConfigured && !!client,
+        authUserId,
+        legacyStored,
+      });
+      // Produktion: ryd legacy-værdi så gamle browserværdier aldrig kan skrive som en anden.
+      if (id.clearLegacy) localStorage.removeItem(EMPLOYEE_KEY);
+      // I dev: kun behold gemt id hvis det peger på en kendt person.
+      const resolved =
+        id.pickerAllowed && id.employeeId && !getPerson(id.employeeId) ? null : id.employeeId;
+      setEmployeeId(resolved);
+      setAuthBound(!id.pickerAllowed);
       setReady(true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -101,6 +119,17 @@ export default function EmployeeApp() {
     );
   }
   if (!employeeId) {
+    // Produktion: aldrig medarbejder-vælger — man er bundet til sin egen bruger.
+    if (authBound) {
+      return (
+        <div className="picker">
+          <p className="picker-sub">
+            Kunne ikke bestemme din bruger. Genindlæs siden, eller log ind igen via SMU Hub.
+          </p>
+        </div>
+      );
+    }
+    // Kun lokal dev.
     return <EmployeeSelect onSelect={selectEmployee} />;
   }
 
