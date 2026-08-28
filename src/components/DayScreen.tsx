@@ -583,7 +583,9 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
     }
     setFormMode("startHelp");
   }
-  function chooseColleague(c: CurrentTask) {
+  // Klik på en aktiv opgave i listen prefiller arbejdsreference + aktivitet.
+  // Listen er KUN en genvej — man kan altid indtaste referencen manuelt nedenfor.
+  function prefillFromTask(c: CurrentTask) {
     setDraft({
       categoryId: c.categoryId,
       subcategoryId: c.subcategoryId,
@@ -835,22 +837,34 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
           )}
           {colleagues.length > 0 && (
             <div className="ds-suggest">
-              <div className="ds-suggest-label">Kollegaer i gang lige nu</div>
-              {colleagues.map((c) => (
-                <button
-                  key={c.employeeId}
-                  type="button"
-                  className="ds-suggest-btn"
-                  onClick={() => chooseColleague(c)}
-                >
-                  <Users size={14} /> {getPersonName(c.employeeId)}:{" "}
-                  {getCategory(c.categoryId)?.name}
-                  {c.orderNumber ? ` · ${c.orderNumber}` : ""}
-                </button>
-              ))}
+              <div className="ds-suggest-label">Opgaver i gang lige nu</div>
+              {colleagues.map((c) => {
+                const ref = c.orderNumber?.trim();
+                const cat = getCategory(c.categoryId)?.name ?? "—";
+                const sub = getSubcategory(c.categoryId, c.subcategoryId)?.name;
+                const activity = cat + (sub ? ` · ${sub}` : "");
+                return (
+                  <button
+                    key={c.employeeId}
+                    type="button"
+                    className="ds-taskcard"
+                    onClick={() => prefillFromTask(c)}
+                  >
+                    <span className="ds-taskcard-ref">{ref || activity}</span>
+                    {ref && <span className="ds-taskcard-act">{activity}</span>}
+                    <span className="ds-taskcard-emp">
+                      <Users size={12} /> {getPersonName(c.employeeId)} arbejder på opgaven
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           )}
           <div className="ds-suggest-label">Opgave du hjælper på</div>
+          <div className="ds-field-hint" style={{ marginBottom: 10 }}>
+            Vælg fra listen ovenfor, eller indtast selv arbejdsreferencen (fx SMU-sag,
+            ordrenummer, stelnummer eller kunde).
+          </div>
           {workFields}
           <div className="ds-actions">
             <button className="smu-btn-primary ds-primary" onClick={startHelpSubmit} disabled={busy}>

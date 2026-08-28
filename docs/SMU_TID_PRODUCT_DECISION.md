@@ -1,17 +1,19 @@
 # SMU Tid produktbeslutning
 
-> Status: **vNext er BYGGET og RELEASEKLAR / AFVENTER BRUGERBRIEFING** (ikke live).
-> Medarbejderne briefes om det nye flow, før vi skifter fra den nuværende live-version.
+> Status: **SMU Tid v2 er BYGGET og i FØR-LIVE TEST / AFVENTER BRUGERBRIEFING** (ikke live).
+> (Produktnavnet er nu "SMU Tid v2"; "vNext" var det tidligere internt navn — historiske
+> git-/branchnavne omdøbes ikke.) Medarbejderne briefes om det nye flow, før vi skifter
+> fra den nuværende live-version.
 > Afsnittene "Faseplan (forslag)" og "Relevante komponenter" længere nede er
 > **historiske** (den oprindelige plan) — den faktiske sandhed står i "Aktuel sandhed"
 > nedenfor. Fase 1's "Skift opgave / Tilbage til arbejde" blev IKKE bygget; i stedet
 > Afslut/Start + Hjælp + Omgøring + Fravær med automatisk genoptagelse.
 
-## Aktuel sandhed (vNext releasekandidat)
+## Aktuel sandhed (SMU Tid v2 releasekandidat)
 
 - **Aktiv opgave er medarbejderens primære arbejdsstatus** ("● I gang nu"), ikke et kort oven på en dagsseddel.
 - **Almindelig afslutning har justerbare tider:** "Gå til afslutning" åbner en form med redigerbar start/slut; kun den endelige "Gem afsluttet opgave" gemmer.
-- **Hjælp på anden opgave** splitter tiden ud: egen opgave lukkes frem til hjælpens start, hjælp køres som mini-stopur (5-min-regel, min. 5 min), og egen opgave **genoptages automatisk** fra hjælpens sluttid. Intet overlap.
+- **Hjælp på anden opgave er OPGAVE-FØRST.** Man vælger/indtaster den **arbejdsreference** (SMU-sag, ordre, stelnummer, kunde — fri tekst i det eksisterende ordre/sag/kunde-felt) man hjælper på, + aktivitet (kategori/underpunkt, fx **Montage internt · Trucking**). "Opgaver i gang lige nu" viser aktive opgaver **opgave-først** (reference primær, aktivitet sekundær, medarbejder som metadata) — kun en **genvej** til prefilling; den relevante opgave behøver ikke være på listen, referencen kan altid indtastes manuelt. Tiden lander på **den anden opgave**, ikke på ens egen. Teknisk: egen opgave lukkes frem til hjælpens start, hjælp køres som mini-stopur (start/stop autoritativ, 5-min-regel, min. 5 min), og egen opgave **genoptages automatisk** fra hjælpens sluttid. Intet overlap.
 - **Omgøring** er særskilt struktureret tid med **årsag** (`isRedo`/`redoReason`/`redoNote`); trækkes ud af normal opgave; egen opgave genoptages automatisk. Vises i Min dag + som afvigelse i /oversigt.
 - **Pause** tæller **ikke** som arbejdstid.
 - **Fravær** (`tid_absences`) er drifts-/tilstedeværelsesstatus — **ikke** løn-/ferie-/sygdoms-/saldomodel. Aktivt = `ended IS NULL`; `expected_end` (forventet) og `ended` (faktisk) er adskilte. Tæller ikke som arbejde/pause; reducerer "Mangler".
@@ -27,7 +29,15 @@
 2. **Tid-identitet / owner-scope** — "vælg medarbejder"-modellen betyder at RLS ikke er bundet til `employee_id = auth.uid()`. Kendt adgangsbegrænsning; senere samlet produkt-/platformbeslutning.
 3. **Autoritativ `started_at`** til lederoverblik (i dag bruger "Startet/I gang" `updated_at` som proxy). Ingen DB-ændring nu.
 4. **Rapport/CSV** og videre analyse — senere.
-5. **Resterende UX-finpudsning** af vNext efter brugerbriefing/feedback.
+5. **Resterende UX-finpudsning** af SMU Tid v2 efter brugerbriefing/feedback.
+
+## Før-live status & næste skridt (Reality Sync)
+
+- **Hjælp opgave-først + manuel arbejdsreference + Trucking:** implementeret og testet (før-live).
+- **SMU Tid v2 er i før-live test.** Produktion/live er urørt.
+- **Ingen flere nye funktioner før go-live**, medmindre der findes en reel blocker.
+- **Næste fase:** Anders' localhost-smoketest → brugerbriefing → **eksplicit go-live-godkendelse** fra Anders (merge/push til main = Netlify-deploy sker først da).
+- Kanonisk `NEXT_STEPS` (Truth Reset i `smu-os-v2`) bør synkes af platform-sporet; hub-migrationshistorik for APV/Color/Tid er endnu ikke reconcilet → **ingen migration køres fra smu-tid** før det er afklaret.
 
 ---
 

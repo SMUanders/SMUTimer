@@ -475,6 +475,16 @@ body {
   background: var(--color-surface); color: var(--color-navy); font-weight: 700; font-size: 14px; cursor: pointer;
 }
 .ds-suggest-btn:hover { background: var(--color-violet-soft); border-color: var(--color-violet-deep); }
+/* Opgave-først-kort i hjælp-flowet: reference primær, aktivitet + medarbejder sekundær */
+.ds-taskcard {
+  display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left;
+  padding: 11px 13px; border: 1px solid var(--color-border); border-radius: 12px;
+  background: var(--color-surface); cursor: pointer;
+}
+.ds-taskcard:hover { background: var(--color-violet-soft); border-color: var(--color-violet-deep); }
+.ds-taskcard-ref { font-size: 15px; font-weight: 800; color: var(--color-navy); }
+.ds-taskcard-act { font-size: 13px; font-weight: 700; color: var(--color-text-muted); }
+.ds-taskcard-emp { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--color-text-muted); margin-top: 2px; }
 .ds-resume-hint {
   margin-top: 10px; padding: 9px 12px; border-radius: 10px; background: var(--color-violet-soft);
   color: var(--color-navy); font-size: 13px; font-weight: 600;

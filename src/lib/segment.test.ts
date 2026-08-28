@@ -130,6 +130,37 @@ describe("hjælp-split — egen opgave lukkes uden overlap", () => {
     const hs = helpStartHHMM(hhmmToIsoToday("13:41"));
     expect(helpOwnCloseTimes(hhmmToIsoToday("13:40"), hs)).toBeNull();
   });
+
+  it("opgave-først: hjælpetid + Trucking lander på reference B (manuel/prefilled), ikke sag A", () => {
+    const ownStart = hhmmToIsoToday("13:30"); // Sag A aktiv (customer 54277)
+    const hs = helpStartHHMM(hhmmToIsoToday("13:34")); // 13:35
+    const own = helpOwnCloseTimes(ownStart, hs)!; // A: 13:30–13:35
+    const he = helpStopEndHHMM(hs, hhmmToIsoToday("13:38")); // 13:40
+
+    // Hjælp-linjen registreres på DEN ANDEN arbejdsreference (fx stelnummer) + Trucking.
+    const help = buildEntry({
+      ...ctx,
+      startTime: hs,
+      endTime: he,
+      categoryId: "montage-internt",
+      subcategoryId: "montage-internt__trucking",
+      orderNumber: "STELNR-12345",
+      note: HELP_NOTE,
+    });
+    expect(help.customer).toBe("STELNR-12345"); // tiden på sag B, ikke sag A (54277)
+    expect(help.categoryId).toBe("montage-internt");
+    expect(help.subcategoryId).toBe("montage-internt__trucking");
+    expect(help.isBreak).toBe(false); // Trucking = arbejdstid, ikke pause
+
+    // Sag A → hjælp/Trucking på B → Sag A genoptaget: rører, intet overlap.
+    const day = buildDayTimeline([
+      teLine(own.startTime, own.endTime, "montage-ude", ""), // Sag A
+      help, // Hjælp/Trucking på reference B
+      teLine(he, "14:00", "montage-ude", ""), // Sag A genoptaget
+    ]);
+    expect(day.filter((b) => b.kind !== "gap").every((b) => !b.conflict)).toBe(true);
+    expect(day.some((b) => b.kind === "help")).toBe(true);
+  });
 });
 
 function teLine(startTime: string, endTime: string, categoryId: string, note: string): TimeEntry {
