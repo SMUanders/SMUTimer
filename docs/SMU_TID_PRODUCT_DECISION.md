@@ -1,6 +1,6 @@
 # SMU Tid produktbeslutning
 
-> Status: **SMU Tid v2 er BYGGET, FEATURE-FROZEN og RELEASE-KLAR / AFVENTER BRUGERBRIEFING + go-live-godkendelse** (ikke live).
+> Status: **SMU Tid v2 er PRODUCTION-LIVE på https://smutimer.netlify.app** (feature-frozen, main = go-live-commit). Custom-domain (`tid.smu.signmeup.dk`) + TLS + Supabase Auth URL + **SSO-cutover er PENDING** (ikke live endnu). Hub peger fortsat på `smutimer.netlify.app`.
 > (Produktnavnet er nu "SMU Tid v2"; "vNext" var det tidligere internt navn — historiske
 > git-/branchnavne omdøbes ikke.) Medarbejderne briefes om det nye flow, før vi skifter
 > fra den nuværende live-version.
@@ -34,14 +34,13 @@ Vurderes først **efter reel brug** af v2. Ingen af dem blokerer go-live.
 5. **Tid-identitet / owner-scope** — "vælg medarbejder"-modellen betyder at RLS ikke er bundet til `employee_id = auth.uid()`. Kendt adgangsbegrænsning; senere samlet produkt-/platformbeslutning.
 6. **Rapport / CSV / analyse** — senere.
 
-## Før-live status & næste skridt (Reality Sync)
+## Production-live status & næste gate (Reality Sync)
 
-- **SMU Tid v2 er FEATURE-FROZEN.** Der bygges ikke flere funktioner før reel brug af v2; kendte forbedringer (backlog ovenfor) hører efter go-live.
+- **SMU Tid v2 er PRODUCTION-LIVE** på `https://smutimer.netlify.app` (main = go-live-commit; Netlify auto-deploy verificeret grøn: app loader, platform-nav/AppSwitcher renderer, ingen runtime-fejl).
+- **SMU Tid v2 er FEATURE-FROZEN.** Der bygges ikke flere funktioner før reel brug af v2; kendte forbedringer (backlog ovenfor) hører efter drift-feedback.
 - **Ingen krav om perfekt minutpræcision.** Hjælp/omgøring bruger 5-min-afrunding, og registreringer under overgang/briefing (fx fredag) behøver ikke være perfekte — Signmeup accepterer det.
-- **Hjælp opgave-først + manuel arbejdsreference + Trucking:** implementeret og testet (før-live).
-- **Produktion/live er urørt.** Go-live kræver Anders' **eksplicitte "gå live"** (merge/push `release/vnext-candidate` → main = Netlify-deploy sker først da).
-- **Næste fase:** Anders' localhost-smoketest → brugerbriefing → go-live-godkendelse.
-- Kanonisk `NEXT_STEPS` (Truth Reset i `smu-os-v2`) synkes af platform-/Hub-sporet; hub-migrationshistorik for APV/Color/Tid er endnu ikke reconcilet → **ingen migration køres fra smu-tid** før det er afklaret. (Fravær-tabellen `tid_absences` er allerede live og uafhængig af dette.)
+- **Custom-domain / SSO-cutover er PENDING (endnu ikke live):** næste gate er `tid.smu.signmeup.dk` + TLS + opdateret **Supabase Auth URL** + SSO. På `smutimer.netlify.app` bruges fortsat localStorage-login — det er korrekt og **ikke** en SSO-fejl. Hub peger fortsat på `smutimer.netlify.app`.
+- Kanonisk `NEXT_STEPS` (Truth Reset i `smu-os-v2`) synkes af platform-/Hub-sporet; hub-migrationshistorik for APV/Color/Tid reconciles i Hub-sporet → **ingen migration køres fra smu-tid** (fravær-tabellen `tid_absences` er allerede live og uafhængig af dette).
 
 ---
 
