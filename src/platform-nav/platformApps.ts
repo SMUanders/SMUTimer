@@ -22,8 +22,8 @@
  *             Udeladt for apps uden besluttet subdomæne — den gættes aldrig.
  * Cutover og live-verificeret 20. aug. 2026: Hub (smu.signmeup.dk), OS (os.smu.signmeup.dk),
  * APV (apv.smu.signmeup.dk) og Wiki (wiki.smu.signmeup.dk); 21. aug. 2026: MUS (mus.smu.signmeup.dk);
- * 26. aug. 2026: Arkiv (arkiv.smu.signmeup.dk).
- * Tid, Color og Source kører fortsat på Netlify, og den delte cookie-session (SSO) virker KUN på
+ * 26. aug. 2026: Arkiv (arkiv.smu.signmeup.dk); 28. aug. 2026: Tid (tid.smu.signmeup.dk).
+ * Color og Source kører fortsat på Netlify, og den delte cookie-session (SSO) virker KUN på
  * *.smu.signmeup.dk — så et hop til en netlify.app-adresse kan kræve nyt login.
  */
 
@@ -95,7 +95,11 @@ export const PLATFORM_APPS: Record<string, AppMeta> = {
     appKey: 'tid',
     displayName: 'SMU Tid',
     description: 'Tidsregistrering / digital dagsseddel',
-    url: 'https://smutimer.netlify.app',
+    // Cutover gennemført: SMU Tid v2 er production-live, og fælles session (SSO) er
+    // live-verificeret 28. aug. 2026 — login i Hub åbner Tid uden nyt login.
+    // https://smutimer.netlify.app består som hosting-origin, men er ikke længere
+    // brugerens canonical indgang: den deler ikke platform-cookien og linkes ikke herfra.
+    url: 'https://tid.smu.signmeup.dk',
     maalUrl: 'https://tid.smu.signmeup.dk',
     icon: '/icons/apps/smu-tid.svg',
     sortOrder: 20,
