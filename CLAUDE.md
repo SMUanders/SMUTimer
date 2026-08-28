@@ -39,7 +39,12 @@ ligne SMU":
 - **Stack-version:** React 18 + Vite 5 (standarden/`smu-os-v2` er på React 19 +
   Vite 8). Fungerer; kan opgraderes.
 - **Ingen append-only aktivitetslog** endnu (har soft-delete + audit-kolonner).
-- **Ingen roller** (bevidst V1) — alle indloggede ser/redigerer alt.
+- **Roller + owner-scope (individuelt login):** SELECT = alle med `har_app_adgang('tid')`
+  ser alt. **Skrivning er owner-scopet:** en `medarbejder` kan kun oprette/ændre/slette
+  **egne** rækker (`employee_id = auth.uid()`); `leder`/`admin` må korrigere andre;
+  `observatoer` er read-only. Håndhæves af RLS (smu-os-v2 migration `20260828140001`)
+  og frontend binder `employee_id` til `auth.uid` (`src/lib/identity.ts`). Ingen fælles
+  værksteds-PC — individuelt login er en forudsætning.
 
 ## Domæne-noter (SMU Tid-specifikt)
 - Frokost-split: man–tor 12:00–12:30, fre 10:00–10:30, weekend intet. Pause tælles

@@ -59,8 +59,9 @@ function taskFromRow(r: TaskRow): CurrentTask {
 // VITE_SUPABASE_ANON_KEY er sat (se index.ts). Uden credentials importeres
 // dette modul slet ikke (dynamisk import), og local-adapteren bruges i stedet.
 //
-// employee_id sættes i V1 fra den valgte medarbejder (ingen login endnu).
-// Når rigtig auth tilføjes, kan RLS binde employee_id til auth.uid().
+// employee_id = den autentificerede bruger (auth.uid). En medarbejder kan kun skrive
+// egne rækker; RLS owner-scope håndhæver det (smu-os-v2 migration 20260828140001), og
+// frontend binder identiteten i src/lib/identity.ts. Leder/admin må korrigere andre.
 // Se supabase/migrations for schema + policies.
 
 const TABLE = "tid_time_entries";

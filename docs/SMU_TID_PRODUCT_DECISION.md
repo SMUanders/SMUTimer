@@ -20,6 +20,7 @@
 - **Min dag** er en **read-only** lodret tidslinje (arbejde/hjælp/omgøring/pause/fravær/hul/overlap). Ingen Rediger/Slet/Ny/Udfyld på medarbejderskærmen.
 - **/oversigt** er lederens drifts-/dagsoverblik: "Arbejder på nu" + "Dagens registrering".
 - **Lederkorrektion** er separat (deep-link `?medarbejder=…` → gammel dagsseddel med rediger/slet).
+- **Identitet & owner-scope (individuelt login):** SMU Tid bruges med **individuelt login** — ingen fælles værksteds-PC/tablet. En almindelig medarbejder kan **kun** oprette/ændre/slette **egne** tid-data. `employee_id` bindes til den autentificerede bruger (`auth.uid`), aldrig til en dropdown/localStorage/query-param; medarbejder-vælgeren er fjernet fra det almindelige flow (kun lokal-dev-fallback). **Backend/RLS er den reelle grænse:** owner-scope-policies på `tid_time_entries`/`tid_current_tasks`/`tid_absences` = `har_app_rolle('tid','leder')` ELLER (`medarbejder` OG `employee_id = auth.uid()`) (smu-os-v2 migration `20260828140001`, live 28. aug. 2026). **Leder/admin** bevarer bred korrektionsadgang til andre; **observatør** er read-only.
 - **Normtid:** man–tor = 7,5 t · fredag = 7 t · weekend = 0.
 - **Sammenhængende tidslinje:** systemets default-forslag skaber aldrig hul/overlap (næste start = seneste sluttid). Tidlige møder (fx Sascha kl. 05:00) understøttes (forslag fra 05:00; ingen hard grænse).
 
@@ -31,7 +32,7 @@ Vurderes først **efter reel brug** af v2. Ingen af dem blokerer go-live.
 2. **Trucking-quick action** — dedikeret hurtigknap, hvis reel drift viser behov. (I v2 vælges Trucking via kategori-vælgeren: Montage internt · Trucking.)
 3. **Justering af hjælpetid ved afslutning** — hvis reel drift viser behov. (I v2 er start/stop autoritativt; **ingen redigering af hjælpetiden i afslutningsøjeblikket** er bevidst accepteret.)
 4. **Autoritativ `started_at`** til lederoverblik (i dag bruger "Startet/I gang" `updated_at` som proxy). Ingen DB-ændring nu.
-5. **Tid-identitet / owner-scope** — "vælg medarbejder"-modellen betyder at RLS ikke er bundet til `employee_id = auth.uid()`. Kendt adgangsbegrænsning; senere samlet produkt-/platformbeslutning.
+5. ~~**Tid-identitet / owner-scope**~~ — **LØST 28. aug. 2026** (var: "vælg medarbejder"-modellen betød at RLS ikke var bundet til `employee_id = auth.uid()`, så en medarbejder kunne skrive som en anden). Produktbeslutning: **individuelt login** (ingen fælles værksteds-PC). RLS owner-scope er nu live (smu-os-v2 migration `20260828140001`) og frontend binder `employee_id` til `auth.uid` (`resolveEmployeeIdentity`). Se "Identitet & owner-scope" under Aktuel sandhed.
 6. **Rapport / CSV / analyse** — senere.
 
 ## Production-live status & næste gate (Reality Sync)
