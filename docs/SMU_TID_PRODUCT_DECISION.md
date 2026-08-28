@@ -1,6 +1,6 @@
 # SMU Tid produktbeslutning
 
-> Status: **SMU Tid v2 er BYGGET og i FØR-LIVE TEST / AFVENTER BRUGERBRIEFING** (ikke live).
+> Status: **SMU Tid v2 er BYGGET, FEATURE-FROZEN og RELEASE-KLAR / AFVENTER BRUGERBRIEFING + go-live-godkendelse** (ikke live).
 > (Produktnavnet er nu "SMU Tid v2"; "vNext" var det tidligere internt navn — historiske
 > git-/branchnavne omdøbes ikke.) Medarbejderne briefes om det nye flow, før vi skifter
 > fra den nuværende live-version.
@@ -23,21 +23,25 @@
 - **Normtid:** man–tor = 7,5 t · fredag = 7 t · weekend = 0.
 - **Sammenhængende tidslinje:** systemets default-forslag skaber aldrig hul/overlap (næste start = seneste sluttid). Tidlige møder (fx Sascha kl. 05:00) understøttes (forslag fra 05:00; ingen hard grænse).
 
-## Backlog (ikke bygget — bevidst)
+## Backlog — POST-v2 (ikke bygget · IKKE blockers for v2)
 
-1. **Henriette / Afbrydelser** — generel afbrydelsesmekanisme (Telefon/Anders/Natasha/Ida, typisk 5–10 min) med hurtigknapper/hotkeys der trækker tiden ud af aktiv opgave (samme princip som Hjælp). Må **ikke** hardcodes som Henriette-specialløsning.
-2. **Tid-identitet / owner-scope** — "vælg medarbejder"-modellen betyder at RLS ikke er bundet til `employee_id = auth.uid()`. Kendt adgangsbegrænsning; senere samlet produkt-/platformbeslutning.
-3. **Autoritativ `started_at`** til lederoverblik (i dag bruger "Startet/I gang" `updated_at` som proxy). Ingen DB-ændring nu.
-4. **Rapport/CSV** og videre analyse — senere.
-5. **Resterende UX-finpudsning** af SMU Tid v2 efter brugerbriefing/feedback.
+Vurderes først **efter reel brug** af v2. Ingen af dem blokerer go-live.
+
+1. **Afbrydelse / Telefon / Kundepleje / andet ikke-sagsarbejde** — generel afbrydelsesmekanisme (typisk 5–10 min) der trækker tiden ud af aktiv opgave, når tiden **ikke** hører til en anden sag. Selvstændig produktbeslutning; må **ikke** hardcodes som en persons specialløsning.
+2. **Trucking-quick action** — dedikeret hurtigknap, hvis reel drift viser behov. (I v2 vælges Trucking via kategori-vælgeren: Montage internt · Trucking.)
+3. **Justering af hjælpetid ved afslutning** — hvis reel drift viser behov. (I v2 er start/stop autoritativt; **ingen redigering af hjælpetiden i afslutningsøjeblikket** er bevidst accepteret.)
+4. **Autoritativ `started_at`** til lederoverblik (i dag bruger "Startet/I gang" `updated_at` som proxy). Ingen DB-ændring nu.
+5. **Tid-identitet / owner-scope** — "vælg medarbejder"-modellen betyder at RLS ikke er bundet til `employee_id = auth.uid()`. Kendt adgangsbegrænsning; senere samlet produkt-/platformbeslutning.
+6. **Rapport / CSV / analyse** — senere.
 
 ## Før-live status & næste skridt (Reality Sync)
 
+- **SMU Tid v2 er FEATURE-FROZEN.** Der bygges ikke flere funktioner før reel brug af v2; kendte forbedringer (backlog ovenfor) hører efter go-live.
+- **Ingen krav om perfekt minutpræcision.** Hjælp/omgøring bruger 5-min-afrunding, og registreringer under overgang/briefing (fx fredag) behøver ikke være perfekte — Signmeup accepterer det.
 - **Hjælp opgave-først + manuel arbejdsreference + Trucking:** implementeret og testet (før-live).
-- **SMU Tid v2 er i før-live test.** Produktion/live er urørt.
-- **Ingen flere nye funktioner før go-live**, medmindre der findes en reel blocker.
-- **Næste fase:** Anders' localhost-smoketest → brugerbriefing → **eksplicit go-live-godkendelse** fra Anders (merge/push til main = Netlify-deploy sker først da).
-- Kanonisk `NEXT_STEPS` (Truth Reset i `smu-os-v2`) bør synkes af platform-sporet; hub-migrationshistorik for APV/Color/Tid er endnu ikke reconcilet → **ingen migration køres fra smu-tid** før det er afklaret.
+- **Produktion/live er urørt.** Go-live kræver Anders' **eksplicitte "gå live"** (merge/push `release/vnext-candidate` → main = Netlify-deploy sker først da).
+- **Næste fase:** Anders' localhost-smoketest → brugerbriefing → go-live-godkendelse.
+- Kanonisk `NEXT_STEPS` (Truth Reset i `smu-os-v2`) synkes af platform-/Hub-sporet; hub-migrationshistorik for APV/Color/Tid er endnu ikke reconcilet → **ingen migration køres fra smu-tid** før det er afklaret. (Fravær-tabellen `tid_absences` er allerede live og uafhængig af dette.)
 
 ---
 

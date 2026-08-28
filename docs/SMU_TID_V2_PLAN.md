@@ -1,17 +1,20 @@
 # SMU Tid — medarbejderflow v2 (implementeringsplan)
 
-> **STATUS: IMPLEMENTERET som vNext — RELEASEKLAR / AFVENTER BRUGERBRIEFING (ikke live).**
+> **STATUS: IMPLEMENTERET som SMU Tid v2 — FEATURE-FROZEN / RELEASE-KLAR / AFVENTER GO-LIVE (ikke live).**
+> (Produktnavnet er "SMU Tid v2"; "vNext" var det tidligere interne navn — historiske
+> git-/branchnavne, fx `release/vnext-candidate`, omdøbes ikke.)
 > Den faktiske sandhed står i `docs/SMU_TID_PRODUCT_DECISION.md` → afsnittet
-> **"Aktuel sandhed (vNext releasekandidat)"**. Denne plan er beholdt som historik.
+> **"Aktuel sandhed (SMU Tid v2 releasekandidat)"**. Denne plan er beholdt som historik.
 >
 > **Vigtige afvigelser fra planen som faktisk blev bygget:**
 > - "Skift opgave / Tilbage til arbejde" blev **ikke** bygget. I stedet: Start opgave →
->   Gå til afslutning (justerbare tider) → Gem; samt **Hjælp på anden opgave** og
->   **Omgøring** (begge splitter tiden ud og genoptager egen opgave automatisk), **Pause**,
+>   Gå til afslutning (justerbare tider) → Gem; samt **Hjælp på anden opgave** (opgave-først)
+>   og **Omgøring** (begge splitter tiden ud og genoptager egen opgave automatisk), **Pause**,
 >   og **Fravær** (`tid_absences`, delt drifts-status).
 > - Der blev lavet **én DB-ændring** (godkendt): tabellen `tid_absences` (schema + RLS via
->   `har_app_adgang`/`har_app_rolle`) — applied i live DB, kanonisk i `smu-os-v2`.
-> - vNext-appkoden er **lokalt committed, ikke pushet/deployet** (push = Netlify-produktion).
+>   `har_app_adgang`/`har_app_rolle`) — applied i live DB.
+> - Kandidaten er **committed + pushet til `origin/release/vnext-candidate`** (backup), men
+>   **IKKE** merget/pushet til main og **ikke deployet** (push til main = Netlify-produktion).
 >
 > Referencepunkt: stabil main. Parkeret UI-eksperiment ligger på lokal branch
 > `parkering/mobil-ux-eksperiment` (ikke pushet).
