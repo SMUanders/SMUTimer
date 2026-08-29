@@ -17,12 +17,13 @@ import { isBreakCategory, getCategory, getSubcategory } from "../data/categories
 import { getPerson, loadPeople } from "../lib/people";
 import { initStore, store, newId, nowIso } from "../lib/storage";
 import { buildEntries } from "../lib/entries";
+import { suggestFinishTimes } from "../lib/segment";
 import { buildDayTimeline } from "../lib/dayTimeline";
 import { proposeLunchSplit, type LunchWindow } from "../lib/lunch";
 import { summarizeDay, expectedWorkMinutes } from "../lib/summary";
 import { suggestNextSlot } from "../lib/suggest";
 import { getTaskStart, clearTaskStart, isoToHHMM } from "../lib/currentTaskStart";
-import { durationMinutes, toMinutes, toHHMM, floorTo15, ceilTo15 } from "../lib/time";
+import { durationMinutes } from "../lib/time";
 import { todayIso, addDays, formatDanishDate } from "../lib/dates";
 import { signOut } from "../lib/auth";
 import { useTidRole, canLeaderCorrect } from "../lib/tidRole";
@@ -254,12 +255,10 @@ export default function LeaderDay() {
   // GÆTTER ikke et endeligt sluttidspunkt; lederen bekræfter/retter og gemmer.
   function endActiveTask(task: CurrentTask) {
     if (!employeeId) return;
+    // Samme afrundingsregel som medarbejderens egen afslutning (nærmeste kvarter +
+    // guard), via den fælles helper — så lederflow og medarbejderflow er konsistente.
     const startIso = getTaskStart(employeeId) ?? task.updatedAt;
-    const startTime = floorTo15(isoToHHMM(startIso));
-    let endTime = ceilTo15(isoToHHMM(nowIso()));
-    if (toMinutes(endTime) <= toMinutes(startTime)) {
-      endTime = toHHMM(toMinutes(startTime) + 15);
-    }
+    const { startTime, endTime } = suggestFinishTimes(startIso, nowIso());
     setClearCurrentOnSave(true);
     setEditor({
       mode: "new",

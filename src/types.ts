@@ -10,6 +10,8 @@ export interface Category {
   name: string;
   /** true for Pause-kategorien — pause tælles aldrig som arbejdstid. */
   isBreak?: boolean;
+  /** Forvalgt underpunkt når kategorien vælges (ellers bruges første underpunkt). */
+  defaultSubcategoryId?: string;
   subcategories: Subcategory[];
 }
 

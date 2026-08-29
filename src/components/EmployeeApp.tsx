@@ -148,9 +148,13 @@ export default function EmployeeApp() {
           </h1>
           <div className="who">
             Du registrerer nu som: <strong>{employee?.name ?? employeeId}</strong>
-            <button className="smu-btn-ghost" onClick={() => setEmployeeId(null)}>
-              Skift
-            </button>
+            {/* "Skift" giver kun mening i lokal dev (vælger-fallback). I production er
+                identiteten bundet til den autentificerede bruger — ingen skift. */}
+            {!authBound && (
+              <button className="smu-btn-ghost" onClick={() => setEmployeeId(null)}>
+                Skift
+              </button>
+            )}
           </div>
         </div>
         <div className="header-actions">

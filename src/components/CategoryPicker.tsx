@@ -1,4 +1,4 @@
-import { CATEGORIES, getCategory } from "../data/categories";
+import { CATEGORIES, getCategory, defaultSubcategoryFor } from "../data/categories";
 
 interface Props {
   categoryId: string;
@@ -20,10 +20,8 @@ export default function CategoryPicker({ categoryId, subcategoryId, onChange }: 
           className="smu-input"
           value={categoryId}
           onChange={(e) => {
-            const nextCat = getCategory(e.target.value);
-            // vælg første underpunkt automatisk hvis der findes ét
-            const nextSub = nextCat?.subcategories[0]?.id ?? null;
-            onChange(e.target.value, nextSub);
+            // Forvalgt underpunkt (montage → Montering, ellers første) — kun et default.
+            onChange(e.target.value, defaultSubcategoryFor(e.target.value));
           }}
         >
           {CATEGORIES.map((c) => (

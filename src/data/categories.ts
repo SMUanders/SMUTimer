@@ -51,6 +51,7 @@ export const CATEGORIES: Category[] = [
     subcategories: subs("uproduktiv-tid", [
       ["morgenmoede", "Morgenmøde"],
       ["oprydning", "Oprydning"],
+      ["rengoering", "Rengøring"],
       ["lager", "Lager"],
       ["vedligehold", "Vedligehold"],
     ]),
@@ -58,6 +59,8 @@ export const CATEGORIES: Category[] = [
   {
     id: "montage-internt",
     name: "Montage internt",
+    // Default-aktivitet = Montering (brugeren kan frit vælge Trucking/Vask/… bagefter).
+    defaultSubcategoryId: "montage-internt__montering",
     subcategories: subs("montage-internt", [
       ["trucking", "Trucking"],
       ["vask-ekstra", "Vask (ekstra)"],
@@ -70,6 +73,8 @@ export const CATEGORIES: Category[] = [
   {
     id: "montage-ude",
     name: "Montage ude",
+    // Default-aktivitet = Montering (brugeren kan frit vælge Kørsel/Vask/… bagefter).
+    defaultSubcategoryId: "montage-ude__montering",
     subcategories: subs("montage-ude", [
       ["koersel", "Kørsel"],
       ["vask-ekstra", "Vask (ekstra)"],
@@ -124,6 +129,19 @@ export function getCategory(id: string): Category | undefined {
 export function getSubcategory(categoryId: string, subId: string | null) {
   if (!subId) return undefined;
   return byId.get(categoryId)?.subcategories.find((s) => s.id === subId);
+}
+
+/**
+ * Forvalgt underpunkt for en kategori: kategoriens eksplicitte `defaultSubcategoryId`
+ * (fx Montering for montage), ellers første underpunkt. Kun et default — brugeren
+ * kan altid vælge et andet.
+ */
+export function defaultSubcategoryFor(categoryId: string): string | null {
+  const c = byId.get(categoryId);
+  if (!c) return null;
+  const explicit = c.defaultSubcategoryId;
+  if (explicit && c.subcategories.some((s) => s.id === explicit)) return explicit;
+  return c.subcategories[0]?.id ?? null;
 }
 
 export function isBreakCategory(categoryId: string): boolean {
