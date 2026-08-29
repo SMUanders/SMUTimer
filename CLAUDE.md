@@ -52,8 +52,12 @@ ligne SMU":
 - Overlap blokeres (`src/lib/validation.ts`). Forventet arbejdsdag 7,5 t (weekend 0).
 - Storage bag interface: `src/lib/storage/` (localAdapter dev-fallback +
   supabaseAdapter). Én delt klient `src/lib/supabaseClient.ts`.
-- Routing: simpel sti-switch i `main.tsx` (`/oversigt` = admin). Deep-link
-  `?medarbejder=<id>&dato=<YYYY-MM-DD>`.
+- Routing: simpel sti-switch i `main.tsx`. `/` = medarbejderens egen v2-dag
+  (`EmployeeApp`); `/oversigt` = `Admin`/Overblik; deep-link
+  `?medarbejder=<id>&dato=<YYYY-MM-DD>` = **leder-visning** af medarbejderens v2-dag
+  (`LeaderDay` — "Andreas' dag", rolle-gatede korrektioner, ikke "registrér som").
+  Den gamle v1-dagsseddel (`App.tsx`) + `CurrentTaskCard`/`EntryRow`/`LunchPlaceholderRow`
+  er fjernet.
 
 ## Kommandoer
 `npm run dev` · `npm test` · `npm run build`. Kør tsc/tests/build efter ændringer;
