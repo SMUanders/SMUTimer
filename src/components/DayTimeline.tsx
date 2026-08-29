@@ -1,10 +1,14 @@
-import { AlertTriangle, Coffee, Users, RotateCcw, UserMinus } from "lucide-react";
+import type React from "react";
+import { AlertTriangle, Coffee, Users, RotateCcw, UserMinus, Pencil, Plus } from "lucide-react";
+import type { TimeEntry } from "../types";
 import type { TimelineBlock } from "../lib/dayTimeline";
 import { getCategory, getSubcategory, getRedoReason } from "../data/categories";
 import { absenceTypeName } from "../data/absences";
 import { formatDuration } from "../lib/time";
 
-// Lodret dags-tidslinje ("Min dag"). READ-ONLY: ingen Rediger/Slet/Ny/Udfyld.
+// Lodret dags-tidslinje ("Min dag"). Samme visning for medarbejder og leder.
+// Medarbejder: READ-ONLY (ingen handlers). Leder: hvis onEditEntry/onFillGap gives,
+// bliver registrerings-blokke klikbare til korrektion og hul-blokke til "udfyld her".
 // Blokke fylder fysisk efter varighed, så dagen kan læses som en tidsplan.
 const PX_PER_MIN = 1.5;
 const MIN_H = 34;
@@ -77,20 +81,56 @@ function BlockBody({ b }: { b: TimelineBlock }) {
   );
 }
 
-export default function DayTimeline({ blocks }: { blocks: TimelineBlock[] }) {
+interface Props {
+  blocks: TimelineBlock[];
+  /** Leder-korrektion: klik på en registrerings-blok for at rette den. */
+  onEditEntry?: (entry: TimeEntry) => void;
+  /** Leder-korrektion: klik på et hul for at udfylde det (start/slut prefilles). */
+  onFillGap?: (startTime: string, endTime: string) => void;
+}
+
+export default function DayTimeline({ blocks, onEditEntry, onFillGap }: Props) {
   return (
     <div className="timeline">
-      {blocks.map((b, i) => (
-        <div key={i} className={`tl-row tl-${b.kind}${b.conflict ? " tl-conflict" : ""}`}>
-          <div className="tl-time">
-            {b.startTime}
-            <small>{b.endTime}</small>
+      {blocks.map((b, i) => {
+        const editable = !!onEditEntry && !!b.entry; // arbejde/hjælp/omgøring/pause
+        const fillable = !!onFillGap && b.kind === "gap";
+        const interactive = editable || fillable;
+        const activate = () => {
+          if (editable && b.entry) onEditEntry!(b.entry);
+          else if (fillable) onFillGap!(b.startTime, b.endTime);
+        };
+        return (
+          <div key={i} className={`tl-row tl-${b.kind}${b.conflict ? " tl-conflict" : ""}`}>
+            <div className="tl-time">
+              {b.startTime}
+              <small>{b.endTime}</small>
+            </div>
+            <div
+              className={`tl-block${interactive ? " tl-editable" : ""}`}
+              style={{ minHeight: blockHeight(b.durationMin) }}
+              {...(interactive
+                ? {
+                    role: "button",
+                    tabIndex: 0,
+                    onClick: activate,
+                    onKeyDown: (ev: React.KeyboardEvent) => {
+                      if (ev.key === "Enter" || ev.key === " ") {
+                        ev.preventDefault();
+                        activate();
+                      }
+                    },
+                    title: editable ? "Ret registrering" : "Udfyld hul",
+                  }
+                : {})}
+            >
+              <BlockBody b={b} />
+              {editable && <Pencil className="tl-edit-ic" size={13} />}
+              {fillable && <Plus className="tl-edit-ic" size={13} />}
+            </div>
           </div>
-          <div className="tl-block" style={{ minHeight: blockHeight(b.durationMin) }}>
-            <BlockBody b={b} />
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

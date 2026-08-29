@@ -1,31 +1,46 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Plus, LogOut, LayoutGrid } from "lucide-react";
-import type { CurrentTask, EntryDraft, TimeEntry } from "./types";
-import { getSupabaseClient } from "./lib/supabaseClient";
-import { AppSwitcher } from "./platform-nav/AppSwitcher";
-import { isBreakCategory } from "./data/categories";
-import { getPerson, loadPeople } from "./lib/people";
-import { initStore, store, newId, nowIso } from "./lib/storage";
-import { buildEntries } from "./lib/entries";
-import { proposeLunchSplit, expectedLunchPlaceholder, type LunchWindow } from "./lib/lunch";
-import { summarizeDay, expectedWorkMinutes } from "./lib/summary";
-import { suggestNextSlot } from "./lib/suggest";
-import { getTaskStart, clearTaskStart, isoToHHMM } from "./lib/currentTaskStart";
-import { durationMinutes, toMinutes, toHHMM, floorTo15, ceilTo15 } from "./lib/time";
-import { todayIso, addDays, formatDanishDate } from "./lib/dates";
-import { isSupabaseConfigured } from "./lib/supabaseClient";
-import { signOut } from "./lib/auth";
-import DaySummary from "./components/DaySummary";
-import EntryRow from "./components/EntryRow";
-import EntryEditor, { emptyDraft } from "./components/EntryEditor";
-import EmployeeSelect from "./components/EmployeeSelect";
-import LunchSplitDialog from "./components/LunchSplitDialog";
-import LunchPlaceholderRow from "./components/LunchPlaceholderRow";
-import CurrentTaskCard from "./components/CurrentTaskCard";
-import UpdateBanner from "./components/UpdateBanner";
-import { appVersionShort } from "./lib/version";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  LogOut,
+  LayoutGrid,
+  ShieldCheck,
+  Eye,
+  Clock,
+  StopCircle,
+} from "lucide-react";
+import type { CurrentTask, EntryDraft, TimeEntry, Absence } from "../types";
+import { getSupabaseClient, isSupabaseConfigured } from "../lib/supabaseClient";
+import { AppSwitcher } from "../platform-nav/AppSwitcher";
+import { isBreakCategory, getCategory, getSubcategory } from "../data/categories";
+import { getPerson, loadPeople } from "../lib/people";
+import { initStore, store, newId, nowIso } from "../lib/storage";
+import { buildEntries } from "../lib/entries";
+import { buildDayTimeline } from "../lib/dayTimeline";
+import { proposeLunchSplit, type LunchWindow } from "../lib/lunch";
+import { summarizeDay, expectedWorkMinutes } from "../lib/summary";
+import { suggestNextSlot } from "../lib/suggest";
+import { getTaskStart, clearTaskStart, isoToHHMM } from "../lib/currentTaskStart";
+import { durationMinutes, toMinutes, toHHMM, floorTo15, ceilTo15 } from "../lib/time";
+import { todayIso, addDays, formatDanishDate } from "../lib/dates";
+import { signOut } from "../lib/auth";
+import { useTidRole, canLeaderCorrect } from "../lib/tidRole";
+import DaySummary from "./DaySummary";
+import DayTimeline from "./DayTimeline";
+import EntryEditor, { emptyDraft } from "./EntryEditor";
+import LunchSplitDialog from "./LunchSplitDialog";
+import UpdateBanner from "./UpdateBanner";
+import { appVersionShort } from "../lib/version";
 
-const EMPLOYEE_KEY = "smu-tid.employee";
+// SMU Tid v2 — LEDER-VISNING af én medarbejders dag ("Andreas' dag").
+//
+// Dette er IKKE "registrér som medarbejderen". Viewer (den autentificerede leder/admin)
+// beholder sin egen identitet; medarbejderen er blot SUBJECT for visningen. Skrivninger
+// på subjectets dag lykkes kun fordi RLS tillader leder/admin at korrigere andre
+// (smu-os-v2 20260828140001). Read-only for medarbejder/observatør (canLeaderCorrect).
+//
+// Nås via deep-link fra Overblik: ?medarbejder=<id>&dato=<YYYY-MM-DD>.
 
 function draftFromEntry(e: TimeEntry): EntryDraft {
   return {
@@ -41,21 +56,23 @@ function draftFromEntry(e: TimeEntry): EntryDraft {
   };
 }
 
+// Dansk ejefald: "Andreas' dag", "Idas dag".
+function subjectDayTitle(name: string): string {
+  return `${name}${/[sxzSXZ]$/.test(name) ? "'" : "s"} dag`;
+}
+
 interface EditorState {
   mode: "new" | "edit";
   editingId: string | null;
   initial: EntryDraft;
-  /** Valgfri hjælpetekst i editoren (fx ved "Afslut og registrér tid"). */
   hint?: string;
 }
-
 interface PendingSplit {
   draft: EntryDraft;
   lunch: LunchWindow;
   editingId: string | null;
 }
 
-// Deep-link: ?medarbejder=<id>&dato=<YYYY-MM-DD> (fx admin/ugeoverblik).
 function readDeepLink(): { employeeId: string | null; date: string | null } {
   try {
     const p = new URLSearchParams(window.location.search);
@@ -70,118 +87,70 @@ function readDeepLink(): { employeeId: string | null; date: string | null } {
   }
 }
 
-export default function App() {
+export default function LeaderDay() {
   const link = readDeepLink();
-  const [employeeId, setEmployeeId] = useState<string | null>(
-    link.employeeId ?? localStorage.getItem(EMPLOYEE_KEY)
-  );
+  // SUBJECT = medarbejderen hvis dag vi ser. Kommer KUN fra deep-linket — aldrig fra
+  // localStorage/vælger. Viewer-identiteten (auth) berøres ikke.
+  const [employeeId, setEmployeeId] = useState<string | null>(link.employeeId);
   const [date, setDate] = useState<string>(link.date ?? todayIso());
   const [entries, setEntries] = useState<TimeEntry[]>([]);
+  const [absences, setAbsences] = useState<Absence[]>([]);
+  const [currentTask, setCurrentTask] = useState<CurrentTask | null>(null);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [pending, setPending] = useState<PendingSplit | null>(null);
   const [storageName, setStorageName] = useState<"local" | "supabase">("local");
   const [ready, setReady] = useState(false);
-  // Bumpes når aktuel opgave sættes fra editoren, så CurrentTaskCard genindlæser.
-  const [currentTaskVersion, setCurrentTaskVersion] = useState(0);
-  // Sandt når editoren blev åbnet via "Afslut og registrér tid" — så ryddes
-  // aktuel opgave efter et vellykket gem (men ikke ved Annuller).
+  // Sandt når editoren blev åbnet via "Afslut opgave" — ryd aktuel opgave efter gem.
   const [clearCurrentOnSave, setClearCurrentOnSave] = useState(false);
+
+  const { role } = useTidRole(getSupabaseClient(), isSupabaseConfigured);
+  const canCorrect = canLeaderCorrect({ supabaseConfigured: isSupabaseConfigured, role });
 
   async function refresh(emp = employeeId, d = date) {
     if (!emp) {
       setEntries([]);
+      setAbsences([]);
+      setCurrentTask(null);
       return;
     }
     setEntries(await store().getEntriesForDate(emp, d));
+    setAbsences(await store().getAbsencesForDate(emp, d));
+    try {
+      setCurrentTask(await store().getCurrentTask(emp));
+    } catch {
+      setCurrentTask(null);
+    }
   }
 
-  // Initialiser storage + hent medarbejdere (profiler) én gang.
   useEffect(() => {
     (async () => {
       const name = await initStore();
       setStorageName(name);
       await loadPeople();
-      // Ryd et gemt/deep-linket valg der ikke findes i profiler (fx gammel slug).
+      // Kun et gyldigt subject fra profiler er brugbart (fx gammel slug → null).
       setEmployeeId((cur) => (cur && !getPerson(cur) ? null : cur));
       setReady(true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Genindlæs når medarbejder eller dato ændres.
   useEffect(() => {
     if (ready) refresh(employeeId, date);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employeeId, date, ready]);
 
   const summary = useMemo(
-    () => summarizeDay(entries, expectedWorkMinutes(date)),
-    [entries, date]
+    () => summarizeDay(entries, expectedWorkMinutes(date), absences),
+    [entries, absences, date]
   );
-
-  // Dagssedlens rækker: registreringer + en evt. "forventet frokost"-placeholder,
-  // sorteret efter starttid. Placeholderen er rent visuel (ingen sum, ingen DB).
-  type DayRow =
-    | { kind: "entry"; start: number; entry: TimeEntry }
-    | { kind: "lunch"; start: number; lunch: LunchWindow };
-  const dayRows = useMemo<DayRow[]>(() => {
-    const rows: DayRow[] = entries.map((e) => ({
-      kind: "entry",
-      start: toMinutes(e.startTime),
-      entry: e,
-    }));
-    const lunch = expectedLunchPlaceholder(date, entries);
-    if (lunch) rows.push({ kind: "lunch", start: toMinutes(lunch.startTime), lunch });
-    return rows.sort((a, b) => a.start - b.start);
-  }, [entries, date]);
-
+  const timeline = useMemo(() => buildDayTimeline(entries, absences), [entries, absences]);
   const employee = getPerson(employeeId);
 
-  // ---------- medarbejder ----------
-  function selectEmployee(id: string) {
-    localStorage.setItem(EMPLOYEE_KEY, id);
-    setEmployeeId(id);
-  }
-  function switchEmployee() {
-    setEditor(null);
-    setPending(null);
-    setEmployeeId(null);
-  }
-
-  // ---------- gem-flow ----------
-  // Aktuel opgave = STATUS, ikke tidsregistrering. Sætter kun en separat række
-  // i tid_current_tasks — rører aldrig time_entries eller nogen beregning.
-  async function applyCurrentTask(draft: EntryDraft) {
+  // ---------- gem-flow (leder-korrektion) ----------
+  async function requestSave(draft: EntryDraft, editingId: string | null) {
     if (!employeeId) return;
-    try {
-      await store().setCurrentTask({
-        employeeId,
-        categoryId: draft.categoryId,
-        subcategoryId: draft.subcategoryId,
-        orderNumber: draft.customer.trim() || null,
-        note: draft.note.trim() || null,
-        updatedAt: nowIso(),
-        updatedBy: null,
-      });
-      setCurrentTaskVersion((v) => v + 1);
-    } catch {
-      // Fejler blødt (tabellen mangler måske endnu) — blokerer ikke gem af tid.
-    }
-  }
-
-  async function requestSave(
-    draft: EntryDraft,
-    editingId: string | null,
-    setAsCurrent = false
-  ) {
-    if (!employeeId) return;
-    if (setAsCurrent) {
-      await applyCurrentTask(draft);
-      setClearCurrentOnSave(false); // sæt-også vinder over ryd-efter-gem
-    }
     const editing = editingId ? entries.find((e) => e.id === editingId) ?? null : null;
 
-    // Redigering af en enkelt del i en frokost-opdeling: opdatér kun den linje.
     if (editing && editing.splitGroupId) {
       await store().updateEntry(editing.id, {
         startTime: draft.startTime,
@@ -212,37 +181,26 @@ export default function App() {
     }
   }
 
-  async function commit(
-    draft: EntryDraft,
-    lunch: LunchWindow | null,
-    editingId: string | null
-  ) {
+  async function commit(draft: EntryDraft, lunch: LunchWindow | null, editingId: string | null) {
     if (!employeeId) return;
     if (editingId) {
       const e = entries.find((x) => x.id === editingId);
       if (e?.splitGroupId) await store().deleteSplitGroup(e.splitGroupId);
       else await store().deleteEntry(editingId);
     }
-    const built = buildEntries(draft, date, {
-      employeeId,
-      lunch,
-      newId,
-      now: nowIso,
-    });
+    const built = buildEntries(draft, date, { employeeId, lunch, newId, now: nowIso });
     await store().addEntries(built);
 
-    // "Afslut og registrér tid": nu hvor tiden ER gemt, ryddes aktuel opgave.
+    // "Afslut opgave": nu hvor tiden ER gemt, ryddes medarbejderens aktuelle opgave.
     if (clearCurrentOnSave && !editingId) {
       try {
         await store().clearCurrentTask(employeeId);
       } catch {
-        // fejler blødt
+        /* fejler blødt */
       }
       clearTaskStart(employeeId);
       setClearCurrentOnSave(false);
-      setCurrentTaskVersion((v) => v + 1);
     }
-
     await finish();
   }
 
@@ -252,52 +210,56 @@ export default function App() {
     await refresh();
   }
 
-  // ---------- slet ----------
-  async function handleDelete(entry: TimeEntry) {
+  async function handleDelete(entry: TimeEntry): Promise<boolean> {
     if (entry.splitGroupId) {
       const ok = window.confirm(
         "Denne linje er en del af en frokost-opdeling. Dette sletter hele den splittede registrering (alle dele). Fortsæt?"
       );
-      if (!ok) return;
+      if (!ok) return false;
       await store().deleteSplitGroup(entry.splitGroupId);
     } else {
       const ok = window.confirm("Slet denne registrering?");
-      if (!ok) return;
+      if (!ok) return false;
       await store().deleteEntry(entry.id);
     }
     await refresh();
+    return true;
+  }
+
+  async function deleteEditing() {
+    const id = editor?.editingId;
+    if (!id) return;
+    const entry = entries.find((e) => e.id === id);
+    if (!entry) return;
+    if (await handleDelete(entry)) setEditor(null);
+  }
+
+  function openEdit(entry: TimeEntry) {
+    setClearCurrentOnSave(false);
+    setEditor({ mode: "edit", editingId: entry.id, initial: draftFromEntry(entry) });
   }
 
   function openNew(prefill?: Partial<EntryDraft>) {
-    // Normal "Ny registrering": rører ikke aktuel opgave.
     setClearCurrentOnSave(false);
     const slot = suggestNextSlot(entries);
     setEditor({
       mode: "new",
       editingId: null,
-      initial: {
-        ...emptyDraft(),
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        ...prefill,
-      },
+      initial: { ...emptyDraft(), startTime: slot.startTime, endTime: slot.endTime, ...prefill },
     });
   }
 
-  // "Afslut og registrér tid": åbn normal editor forudfyldt fra aktuel opgave.
-  // Start = cirka-starttidspunktet, Slut = nu. Intet gemmes før brugeren trykker
-  // Gem; ved gem ryddes aktuel opgave (clearCurrentOnSave).
-  function registerFromCurrentTask(task: CurrentTask) {
+  // "Afslut opgave": åbn editor forudfyldt fra medarbejderens aktuelle opgave.
+  // Start = cirka-start (task.updatedAt), slut = nu — begge redigerbare. Systemet
+  // GÆTTER ikke et endeligt sluttidspunkt; lederen bekræfter/retter og gemmer.
+  function endActiveTask(task: CurrentTask) {
     if (!employeeId) return;
     const startIso = getTaskStart(employeeId) ?? task.updatedAt;
-    // Start rundes NED, slut (nu) rundes OP til nærmeste kvarter. Kun forslag —
-    // intet gemmes før brugeren trykker Gem, og tiderne kan altid rettes.
     const startTime = floorTo15(isoToHHMM(startIso));
     let endTime = ceilTo15(isoToHHMM(nowIso()));
     if (toMinutes(endTime) <= toMinutes(startTime)) {
       endTime = toHHMM(toMinutes(startTime) + 15);
     }
-
     setClearCurrentOnSave(true);
     setEditor({
       mode: "new",
@@ -311,7 +273,7 @@ export default function App() {
         customer: task.orderNumber ?? "",
         note: task.note ?? "",
       },
-      hint: "Tiden er foreslået i 15-minutters intervaller. Ret start og slut hvis det ikke passer.",
+      hint: "Bekræft eller ret start og slut. Intet gemmes før du trykker Gem — herefter fjernes den aktive opgave.",
     });
   }
 
@@ -324,32 +286,49 @@ export default function App() {
     );
   }
   if (!employeeId) {
-    return <EmployeeSelect onSelect={selectEmployee} />;
+    return (
+      <div className="picker">
+        <p className="picker-sub">
+          Ingen medarbejder valgt. Gå til Overblik og klik på en medarbejder for at se dagen.
+        </p>
+        <a className="smu-btn-primary link-btn" href="/oversigt">
+          <LayoutGrid size={15} /> Til Overblik
+        </a>
+      </div>
+    );
   }
 
   const editingExisting = editor?.editingId
     ? entries.filter((e) => e.id !== editor.editingId)
     : entries;
+  const activeTaskStart = currentTask ? isoToHHMM(currentTask.updatedAt) : null;
 
   return (
     <div className="app">
       <header className="app-header">
         <div>
           <h1 className="app-title">
-            SMU Tid{" "}
+            {subjectDayTitle(employee?.name ?? "Medarbejder")}{" "}
             <span className="storage-tag" title="Aktiv datalagring">
               {storageName === "supabase" ? "Supabase" : "Lokalt (dev)"}
             </span>
           </h1>
           <div className="who">
-            Du registrerer nu som: <strong>{employee?.name ?? employeeId}</strong>
-            <button className="smu-btn-ghost" onClick={switchEmployee}>
-              Skift
-            </button>
+            {canCorrect ? (
+              <span className="smu-badge smu-badge-blue">
+                <ShieldCheck size={13} /> Leder-korrektion
+              </span>
+            ) : (
+              <span className="smu-badge smu-badge-grey">
+                <Eye size={13} /> Kun visning
+              </span>
+            )}
+            <span className="who-sub">
+              Du ser dagen for {employee?.name ?? "medarbejderen"} — din egen bruger ændres ikke.
+            </span>
           </div>
         </div>
         <div className="header-actions">
-          {/* Diskret skift til Hub og brugerens oevrige SMU-apps */}
           {getSupabaseClient() && (
             <AppSwitcher supabase={getSupabaseClient()!} currentAppKey="tid" />
           )}
@@ -385,44 +364,53 @@ export default function App() {
         </button>
       </div>
 
-      <CurrentTaskCard
-        employeeId={employeeId}
-        refreshSignal={currentTaskVersion}
-        onRegister={registerFromCurrentTask}
-      />
+      {/* Aktiv opgave (status). Vises hvis medarbejderen har en igangværende opgave. */}
+      {currentTask && (
+        <div className="current-task ld-active">
+          <div className="ct-title">
+            <Clock size={14} /> Aktiv opgave lige nu
+          </div>
+          <div className="ct-view">
+            <span className="ct-cat">{getCategory(currentTask.categoryId)?.name ?? "—"}</span>
+            {getSubcategory(currentTask.categoryId, currentTask.subcategoryId) && (
+              <span className="ct-sub">
+                {" / "}
+                {getSubcategory(currentTask.categoryId, currentTask.subcategoryId)?.name}
+              </span>
+            )}
+            {currentTask.orderNumber && <span className="ct-order"> · {currentTask.orderNumber}</span>}
+          </div>
+          {currentTask.note && <div className="ct-note">{currentTask.note}</div>}
+          {activeTaskStart && <div className="ct-started">Startet ca. {activeTaskStart}</div>}
+          {canCorrect && (
+            <div className="ct-actions">
+              <button className="smu-btn-primary" onClick={() => endActiveTask(currentTask)}>
+                <StopCircle size={15} /> Afslut opgave (angiv sluttid)
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <DaySummary summary={summary} />
 
-      <div className="entry-list">
-        {dayRows.length === 0 ? (
-          <div className="empty">Ingen registreringer endnu. Tryk “+ Ny registrering”.</div>
-        ) : (
-          dayRows.map((r) =>
-            r.kind === "entry" ? (
-              <EntryRow
-                key={r.entry.id}
-                entry={r.entry}
-                onEdit={(entry) =>
-                  setEditor({
-                    mode: "edit",
-                    editingId: entry.id,
-                    initial: draftFromEntry(entry),
-                  })
-                }
-                onDelete={handleDelete}
-              />
-            ) : (
-              <LunchPlaceholderRow key="lunch-placeholder" window={r.lunch} />
-            )
-          )
-        )}
-      </div>
+      {timeline.length === 0 ? (
+        <div className="empty">Ingen registreringer denne dag.</div>
+      ) : (
+        <DayTimeline
+          blocks={timeline}
+          onEditEntry={canCorrect ? openEdit : undefined}
+          onFillGap={canCorrect ? (s, e) => openNew({ startTime: s, endTime: e }) : undefined}
+        />
+      )}
 
-      <div className="add-bar">
-        <button className="smu-btn-secondary" onClick={() => openNew()}>
-          <Plus size={16} /> Ny manuel registrering
-        </button>
-      </div>
+      {canCorrect && (
+        <div className="add-bar">
+          <button className="smu-btn-secondary" onClick={() => openNew()}>
+            <Plus size={16} /> Tilføj registrering
+          </button>
+        </div>
+      )}
 
       {editor && (
         <EntryEditor
@@ -431,12 +419,12 @@ export default function App() {
           initial={editor.initial}
           hint={editor.hint}
           existing={editingExisting}
-          onSave={(draft, setAsCurrent) =>
-            requestSave(draft, editor.editingId, setAsCurrent)
-          }
+          allowSetAsCurrent={false}
+          onDelete={editor.mode === "edit" ? deleteEditing : undefined}
+          onSave={(draft) => requestSave(draft, editor.editingId)}
           onClose={() => {
             setEditor(null);
-            setClearCurrentOnSave(false); // Annuller → aktuel opgave bevares
+            setClearCurrentOnSave(false);
           }}
         />
       )}
@@ -451,8 +439,6 @@ export default function App() {
       )}
 
       <div className="app-version">SMU Tid · v{appVersionShort()}</div>
-
-      {/* Udskydes mens en registrering redigeres/splittes (rører ikke gem). */}
       <UpdateBanner defer={!!editor || !!pending} />
     </div>
   );

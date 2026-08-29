@@ -15,6 +15,10 @@ interface Props {
   hint?: string;
   /** Dagens øvrige linjer (den der redigeres er ekskluderet) — til overlap-tjek. */
   existing: TimeEntry[];
+  /** Vis "Sæt også som aktuel opgave" (default true). Skjules i leder-korrektion. */
+  allowSetAsCurrent?: boolean;
+  /** Leder-korrektion (edit): vis "Slet registrering". Håndterer selv bekræftelse. */
+  onDelete?: () => void;
   onSave: (draft: EntryDraft, setAsCurrent: boolean) => void;
   onClose: () => void;
 }
@@ -39,6 +43,8 @@ export default function EntryEditor({
   initial,
   hint,
   existing,
+  allowSetAsCurrent = true,
+  onDelete,
   onSave,
   onClose,
 }: Props) {
@@ -192,21 +198,32 @@ export default function EntryEditor({
           )}
 
           {/* Sæt også denne kategori/kunde som "Aktuel opgave" (status — ikke tidsregistrering) */}
-          <div className="field toggle" style={{ marginTop: 4 }}>
-            <input
-              id="set-current"
-              type="checkbox"
-              checked={setAsCurrent}
-              onChange={(e) => setSetAsCurrent(e.target.checked)}
-            />
-            <label htmlFor="set-current" style={{ margin: 0 }}>
-              Sæt også som aktuel opgave
-            </label>
-          </div>
+          {allowSetAsCurrent && (
+            <div className="field toggle" style={{ marginTop: 4 }}>
+              <input
+                id="set-current"
+                type="checkbox"
+                checked={setAsCurrent}
+                onChange={(e) => setSetAsCurrent(e.target.checked)}
+              />
+              <label htmlFor="set-current" style={{ margin: 0 }}>
+                Sæt også som aktuel opgave
+              </label>
+            </div>
+          )}
         </div>
 
         {/* Sticky footer — Gem altid synlig, også ved lange formularer/små skærme */}
         <div className="sheet-footer">
+          {mode === "edit" && onDelete && (
+            <button
+              className="smu-btn-ghost sheet-delete"
+              onClick={onDelete}
+              style={{ flex: "0 0 auto" }}
+            >
+              Slet
+            </button>
+          )}
           <button className="smu-btn-secondary" onClick={onClose} style={{ flex: "0 0 auto" }}>
             Annuller
           </button>

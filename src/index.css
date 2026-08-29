@@ -114,6 +114,13 @@ body {
 }
 .who { margin-top: 4px; font-size: 14px; color: var(--color-text-muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 600; }
 .who strong { color: var(--color-text); font-weight: 800; }
+.who-sub { font-weight: 600; color: var(--color-text-muted); }
+
+/* Leder-visning: aktiv opgave-kort får primær venstrekant */
+.ld-active { border-left: 4px solid var(--color-primary-deep); }
+
+/* Slet i editor-footer (leder-korrektion) — neutral, skubbet til venstre (rød = kun fejl) */
+.sheet-delete { margin-right: auto; color: var(--color-text-muted); }
 .header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .link-btn { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
 
@@ -574,6 +581,13 @@ body {
   border-color: var(--color-orange-deep); border-left-color: var(--color-orange-deep);
   background: var(--color-orange-soft);
 }
+
+/* Leder-korrektion: klikbare tidslinje-blokke (kun når handlers gives = leder). */
+.tl-editable { position: relative; cursor: pointer; transition: border-color .12s ease, box-shadow .12s ease; }
+.tl-editable:hover { border-color: var(--color-primary-deep); box-shadow: 0 1px 6px rgba(0, 0, 0, .06); }
+.tl-editable:focus-visible { outline: 2px solid var(--color-primary-deep); outline-offset: 2px; }
+.tl-edit-ic { position: absolute; top: 8px; right: 10px; color: var(--color-text-muted); opacity: .5; }
+.tl-editable:hover .tl-edit-ic { opacity: 1; color: var(--color-primary-deep); }
 
 .tl-main { min-width: 0; }
 .tl-line1 { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 14px; }
