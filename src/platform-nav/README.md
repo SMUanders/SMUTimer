@@ -22,7 +22,7 @@ ind i hver app der skal have app-skifteren (ingen npm-pakke/monorepo). Kanonisk 
 |---|---|---|
 | Hook | `usePlatformApps()` | `useAllowedApps()` |
 | Viser | hele det synlige SMU-univers | Hub + aktuel app + brugerens øvrige frigivne apps |
-| Apps uden adgang | vises med "Ingen adgang" | vises **ikke** |
+| Apps uden adgang | vises **ikke** | vises **ikke** |
 | Apps på vej | vises med "På vej" | vises **ikke** |
 | Private apps uden adgang | vises **ikke** | vises **ikke** |
 
@@ -31,15 +31,22 @@ AppSwitcher er et arbejdsværktøj: den må kun indeholde ting, brugeren rent fa
 
 **Produktfrigivelse er ikke teknisk deploy.** Kataloget har to uafhængige akser:
 - `status`: `frigivet` (rigtigt arbejdsværktøj) | `paa_vej` (kendt produkt, ikke frigivet endnu)
-- `synlighed`: `discoverable` (alle må se at appen findes) | `privat` (kun synlig med aktiv adgang)
+- `synlighed`: `discoverable` | `privat`. Efter 28. aug. 2026 adskiller de to sig kun for
+  `paa_vej`-apps: en frigiven app er alligevel skjult uden adgang. `privat` betyder, at eksistensen
+  er følsom og skjules uanset status.
 
 **Tilstande** (`AppTilstand` i `platformSynlighed.ts` — ren funktion, ingen React):
 - `tilgaengelig` — frigivet **og** aktiv `app_adgang` → kortet er et link.
-- `ingen_adgang` — frigivet + discoverable, men uden adgang → roligt kort uden href.
-  Det må **ikke** ligne en teknisk fejl: grå mærkat, ingen rød, intet fejlikon.
 - `paa_vej` — ikke frigivet → dæmpet kort, **aldrig** klikbart. Gælder også apps der teknisk
-  set er deployet (fx Source), og apps helt uden URL/app-key (fx Arkiv, ESG).
-- *(ingen tilstand)* — `privat` app uden adgang filtreres helt væk, så eksistensen ikke røbes (MUS).
+  set er deployet (fx Source), og apps helt uden URL/app-key (fx ESG).
+- *(ingen tilstand)* — appen vises slet ikke. Det gælder både en `privat` app uden adgang (MUS)
+  og — efter beslutningen 28. aug. 2026 — **enhver frigiven app, brugeren ikke har adgang til**.
+
+**For frigivne apps følger synlighed den faktiske app-adgang.** Det tidligere "Ingen adgang"-kort
+er afskaffet: en medarbejder skal se sit eget arbejdsbord, ikke en liste over låste døre. Det er ikke
+en bestemt rolle, der giver synlighed — enhver gyldig aktiv rolle (`observatoer`, `bruger`,
+`redaktoer`, `leder`, `admin`, app-specifikke roller) gør det. Reglen kender ingen rollenavne;
+den spørger kun, om der findes en aktiv adgang.
 
 Synlighed vurderes FØR status, så en privat app aldrig kan lække via "På vej" eller "Ingen adgang".
 Skjulningen er en UX-beslutning oven på RLS — ikke sikkerhedsmekanismen i sig selv.
