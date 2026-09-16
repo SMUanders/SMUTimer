@@ -26,7 +26,7 @@ ind i hver app der skal have app-skifteren (ingen npm-pakke/monorepo). Kanonisk 
 | Apps på vej | vises med "På vej" | vises **ikke** |
 | Private apps uden adgang | vises **ikke** | vises **ikke** |
 
-Hub er platformens kort: en medarbejder skal kunne se, at fx SMU Source findes, uden at kunne åbne den.
+Hub er platformens kort: en medarbejder skal kunne se, at en app på vej findes, uden at kunne åbne den.
 AppSwitcher er et arbejdsværktøj: den må kun indeholde ting, brugeren rent faktisk kan hoppe til.
 
 **Produktfrigivelse er ikke teknisk deploy.** Kataloget har to uafhængige akser:
@@ -38,7 +38,7 @@ AppSwitcher er et arbejdsværktøj: den må kun indeholde ting, brugeren rent fa
 **Tilstande** (`AppTilstand` i `platformSynlighed.ts` — ren funktion, ingen React):
 - `tilgaengelig` — frigivet **og** aktiv `app_adgang` → kortet er et link.
 - `paa_vej` — ikke frigivet → dæmpet kort, **aldrig** klikbart. Gælder også apps der teknisk
-  set er deployet (fx Source), og apps helt uden URL/app-key (fx ESG).
+  set er deployet, og apps helt uden URL/app-key (fx ESG).
 - *(ingen tilstand)* — appen vises slet ikke. Det gælder både en `privat` app uden adgang (MUS)
   og — efter beslutningen 28. aug. 2026 — **enhver frigiven app, brugeren ikke har adgang til**.
 
@@ -61,8 +61,9 @@ En app uden verificeret adresse har `url: null`; den gættes aldrig.
 `maalUrl` er platformens **godkendte målmodel** (`<app>.smu.signmeup.dk`) og er dokumentation, ikke live-sandhed.
 
 Cutover og live-verificeret (20. aug. 2026): Hub (`smu.signmeup.dk`), OS (`os.smu.signmeup.dk`),
-APV (`apv.smu.signmeup.dk`) og Wiki (`wiki.smu.signmeup.dk`). Tid, Color og Source kører fortsat på
-deres Netlify-adresse.
+APV (`apv.smu.signmeup.dk`) og Wiki (`wiki.smu.signmeup.dk`); siden MUS (21. aug.), Arkiv (26. aug.) og
+Tid (28. aug.). Source (`source.smu.signmeup.dk`) er cutover 15. sep. 2026 og frigivet 16. sep. 2026 med synlighed `privat`.
+Color kører fortsat på sin Netlify-adresse.
 Den delte cookie-session (SSO) virker **kun** på `*.smu.signmeup.dk`, så et hop fra Hub til en
 `netlify.app`-adresse kan kræve nyt login, indtil den app er cutover. Når en app er cutover, skiftes dens
 `url` til subdomænet, og Netlify-adressen bliver legacy — den svarer stadig, men deler ikke platform-cookien

@@ -23,7 +23,8 @@
  * Cutover og live-verificeret 20. aug. 2026: Hub (smu.signmeup.dk), OS (os.smu.signmeup.dk),
  * APV (apv.smu.signmeup.dk) og Wiki (wiki.smu.signmeup.dk); 21. aug. 2026: MUS (mus.smu.signmeup.dk);
  * 26. aug. 2026: Arkiv (arkiv.smu.signmeup.dk); 28. aug. 2026: Tid (tid.smu.signmeup.dk).
- * Color og Source kører fortsat på Netlify, og den delte cookie-session (SSO) virker KUN på
+ * 15. sep. 2026: Source (source.smu.signmeup.dk) — cutover; frigivet 16. sep. 2026 med synlighed privat.
+ * Color kører fortsat på Netlify, og den delte cookie-session (SSO) virker KUN på
  * *.smu.signmeup.dk — så et hop til en netlify.app-adresse kan kræve nyt login.
  */
 
@@ -153,16 +154,20 @@ export const PLATFORM_APPS: Record<string, AppMeta> = {
   source: {
     key: 'source',
     appKey: 'source',
-    // Teknisk deployet og har adgangsmodel, men IKKE frigivet som medarbejderværktøj.
-    // URL'en er verificeret og bevares som sandhed; Hub linker den ikke, så længe status er paa_vej.
+    // Cutover 15. sep. 2026 (custom domain, fælles Hub-session, platform-nav) og frigivet
+    // 16. sep. 2026 efter Arkiv-mønsteret: frigivet = klikbart for brugere MED aktiv source-adgang;
+    // privat = appen er slet ikke synlig for andre. Frigivelsen tildeler ingen adgange —
+    // app_adgange/app_roller + RLS er fortsat den autoritative adgangskontrol.
+    // Tidligere adresse https://smu-source.netlify.app svarer stadig, men er legacy — den deler
+    // ikke platform-cookien og må ikke linkes fra Hub/AppSwitcher.
     displayName: 'SMU Source',
     description: 'Produkt- og materialeregister',
-    url: 'https://smu-source.netlify.app',
+    url: 'https://source.smu.signmeup.dk',
     maalUrl: 'https://source.smu.signmeup.dk',
     icon: '/icons/apps/smu-source.svg', // egen officiel identitet findes allerede
     sortOrder: 60,
-    status: 'paa_vej',
-    synlighed: 'discoverable',
+    status: 'frigivet',
+    synlighed: 'privat',
   },
   arkiv: {
     key: 'arkiv',
