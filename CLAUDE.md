@@ -30,6 +30,13 @@ ligne SMU":
 
 ## Datamodel (på SMU-standard)
 - Tabel: **`tid_time_entries`** (tid_-prefiks). `employee_id uuid → profiler(id)`.
+- **SMU-sag (v2.1):** `tid_time_entries`/`tid_current_tasks` har nullable `sag_id uuid`
+  (blød ref til `sager.id`, INGEN FK) + `sag_smu_nummer` (display-snapshot). SMU OS ejer
+  sager; Tid refererer kun. Søgning sker via OS-ejet read-contract
+  `public.tid_sag_search(q)` (SECURITY DEFINER, `har_app_adgang('tid')`, kun minimale
+  felter — ingen bred `os`-adgang). Fritekst (`customer`/`order_number`) bevares til
+  ikke-sagsbundet arbejde. Hub-migration `20260925120001`. QR = senere inputkanal til
+  samme resolver (ikke bygget).
 - **Medarbejdere = den delte `profiler`** (via `src/lib/people.ts`) — ingen egen
   liste. `nt` vises som "Natasha"; `info` ekskluderes; navne med stort forbogstav.
 - **Soft-delete:** `slettet boolean`; sletning markerer i stedet for at fjerne.
