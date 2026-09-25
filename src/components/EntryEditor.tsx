@@ -29,6 +29,8 @@ const emptyDraft = (): EntryDraft => ({
   categoryId: CATEGORIES[0].id,
   subcategoryId: CATEGORIES[0].subcategories[0]?.id ?? null,
   customer: "",
+  sagId: null,
+  sagSmuNummer: null,
   note: "",
   isRedo: false,
   redoReason: null,

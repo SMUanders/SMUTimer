@@ -156,4 +156,9 @@ export const localAdapter: TimeEntryStore = {
     all[idx] = { ...all[idx], ended, updatedAt: nowIso() };
     saveAbsences(all);
   },
+
+  // Ingen SMU OS i lokal dev → ingen sags-søgning (typeahead viser "ingen resultater").
+  async searchSager() {
+    return [];
+  },
 };

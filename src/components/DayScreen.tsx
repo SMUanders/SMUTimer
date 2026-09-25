@@ -17,6 +17,7 @@ import { todayIso } from "../lib/dates";
 import { isDayEnded, setDayEnded } from "../lib/dayEnded";
 import { getHelp, setHelp, clearHelp, HELP_NOTE } from "../lib/helpContext";
 import type { OwnTask } from "../lib/helpContext";
+import { getPause, setPause, clearPause } from "../lib/pauseContext";
 import { getRedo, setRedo, clearRedo } from "../lib/redoContext";
 import type { RedoContext } from "../lib/redoContext";
 import { ABSENCE_TYPES, absenceTypeName } from "../data/absences";
@@ -37,6 +38,7 @@ import {
 import type { CurrentTask, TimeEntry, Absence } from "../types";
 import CategoryPicker from "./CategoryPicker";
 import TimeSelect from "./TimeSelect";
+import SagPicker from "./SagPicker";
 
 interface Props {
   employeeId: string;
@@ -48,6 +50,9 @@ interface WorkDraft {
   categoryId: string;
   subcategoryId: string | null;
   orderNumber: string;
+  /** Stabil SMU-sag-reference, hvis valgt via SagPicker (ellers null = fri reference). */
+  sagId: string | null;
+  sagSmuNummer: string | null;
   note: string;
 }
 
@@ -71,6 +76,8 @@ function emptyDraft(): WorkDraft {
     categoryId: CATEGORIES[0].id,
     subcategoryId: CATEGORIES[0].subcategories[0]?.id ?? null,
     orderNumber: "",
+    sagId: null,
+    sagSmuNummer: null,
     note: "",
   };
 }
@@ -79,6 +86,8 @@ function draftFromTask(t: CurrentTask): WorkDraft {
     categoryId: t.categoryId,
     subcategoryId: t.subcategoryId,
     orderNumber: t.orderNumber ?? "",
+    sagId: t.sagId ?? null,
+    sagSmuNummer: t.sagSmuNummer ?? null,
     note: t.note ?? "",
   };
 }
@@ -102,6 +111,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
   const [tick, setTick] = useState(0);
   // "Hjælp på anden opgave": den EGNE opgave der kan genoptages bagefter.
   const [helpOwn, setHelpOwn] = useState<OwnTask | null>(null);
+  // "Pause fra aktiv opgave": den oprindelige opgave der genoptages efter pausen.
+  const [pauseOwn, setPauseOwn] = useState<OwnTask | null>(null);
   // Kollegaers aktive opgaver lige nu (forslag når man vælger hjælp-opgave).
   const [colleagues, setColleagues] = useState<CurrentTask[]>([]);
   // "Omgøring": oprindelig opgave (til genoptag) + valgt årsag.
@@ -125,6 +136,7 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
     setStartedAt(getTaskStart(employeeId));
     setDayEndedState(isDayEnded(employeeId, today));
     setHelpOwn(getHelp(employeeId));
+    setPauseOwn(getPause(employeeId));
     setRedoCtx(getRedo(employeeId));
     setAbsences(await store().getAbsencesForDate(employeeId, today));
   }
@@ -185,6 +197,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         categoryId: draft.categoryId,
         subcategoryId: draft.subcategoryId,
         orderNumber: draft.orderNumber.trim() || null,
+        sagId: draft.sagId,
+        sagSmuNummer: draft.sagSmuNummer,
         note: draft.note.trim() || null,
         updatedAt: nowIso(),
         updatedBy: null,
@@ -201,18 +215,57 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
 
   function startPauseSubmit() {
     guarded(async () => {
+      // Pause tilbydes kun fra en NORMAL aktiv opgave eller fra "Hvad nu?" (task=null).
+      // Er der en normal opgave aktiv, lukkes den til historik og huskes til genoptag.
+      const resume = task && !isBreakCategory(task.categoryId) ? task : null;
+      if (resume) {
+        // Luk den normale opgave frem til pausestart (rører, aldrig overlap).
+        const own = redoOwnCloseTimes(startedAt ?? resume.updatedAt, pauseStart, lastEnd);
+        if (own) {
+          const ownClose = buildEntry({
+            employeeId,
+            workDate: today,
+            startTime: own.startTime,
+            endTime: own.endTime,
+            categoryId: resume.categoryId,
+            subcategoryId: resume.subcategoryId,
+            orderNumber: resume.orderNumber ?? "",
+            sagId: resume.sagId,
+            sagSmuNummer: resume.sagSmuNummer,
+            note: resume.note ?? "",
+            newId,
+            nowIso: nowIso(),
+          });
+          if (!isExactDuplicate(ownClose, entries)) {
+            await store().addEntries([ownClose]);
+          }
+        }
+        // Husk opgaven, så den genoptages automatisk når pausen slutter.
+        setPause(employeeId, {
+          categoryId: resume.categoryId,
+          subcategoryId: resume.subcategoryId,
+          orderNumber: resume.orderNumber ?? "",
+          sagId: resume.sagId,
+          sagSmuNummer: resume.sagSmuNummer,
+          note: resume.note ?? "",
+        });
+      } else {
+        clearPause(employeeId); // standalone pause fra "Hvad nu?" — ingen genoptag
+      }
       await store().setCurrentTask({
         employeeId,
         categoryId: BREAK_CATEGORY_ID,
         subcategoryId: pauseType,
         orderNumber: null,
+        sagId: null,
+        sagSmuNummer: null,
         note: null,
         updatedAt: nowIso(),
         updatedBy: null,
       });
       setTaskStart(employeeId, hhmmToIsoToday(pauseStart));
       setDayEnded(employeeId, today, false);
-      clearHelp(employeeId); // en frisk pause er ikke en hjælp-session
+      clearHelp(employeeId); // en pause er ikke en hjælp-session
       clearRedo(employeeId); // …og ikke en omgøring
       setFormMode(null);
       await refresh();
@@ -228,6 +281,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         categoryId: draft.categoryId,
         subcategoryId: draft.subcategoryId,
         orderNumber: draft.orderNumber.trim() || null,
+        sagId: draft.sagId,
+        sagSmuNummer: draft.sagSmuNummer,
         note: draft.note.trim() || null,
         updatedAt: nowIso(),
         updatedBy: null,
@@ -249,6 +304,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         categoryId: task.categoryId,
         subcategoryId: task.subcategoryId,
         orderNumber: task.orderNumber ?? "",
+        sagId: task.sagId,
+        sagSmuNummer: task.sagSmuNummer,
         note: finish.note,
         newId,
         nowIso: nowIso(),
@@ -286,8 +343,26 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         return;
       }
       await store().addEntries([entry]);
-      await store().clearCurrentTask(employeeId);
-      clearTaskStart(employeeId);
+      if (pauseOwn) {
+        // Pause startet fra en aktiv opgave → genoptag den automatisk fra pausens sluttid.
+        await store().setCurrentTask({
+          employeeId,
+          categoryId: pauseOwn.categoryId,
+          subcategoryId: pauseOwn.subcategoryId,
+          orderNumber: pauseOwn.orderNumber.trim() || null,
+          sagId: pauseOwn.sagId ?? null,
+          sagSmuNummer: pauseOwn.sagSmuNummer ?? null,
+          note: pauseOwn.note.trim() || null,
+          updatedAt: nowIso(),
+          updatedBy: null,
+        });
+        setTaskStart(employeeId, hhmmToIsoToday(finish.endTime));
+        clearPause(employeeId);
+      } else {
+        // Standalone pause → tilbage til "Hvad nu?".
+        await store().clearCurrentTask(employeeId);
+        clearTaskStart(employeeId);
+      }
       setFormMode(null);
       await refresh();
       onChanged();
@@ -313,6 +388,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
           categoryId: task.categoryId,
           subcategoryId: task.subcategoryId,
           orderNumber: task.orderNumber ?? "",
+          sagId: task.sagId,
+          sagSmuNummer: task.sagSmuNummer,
           note: task.note ?? "",
           newId,
           nowIso: nowIso(),
@@ -321,11 +398,13 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
           await store().addEntries([ownClose]);
         }
       }
-      // Husk den egne opgave (til at genoptage bagefter).
+      // Husk den egne opgave (til at genoptage bagefter) — inkl. sag-reference.
       setHelp(employeeId, {
         categoryId: task.categoryId,
         subcategoryId: task.subcategoryId,
         orderNumber: task.orderNumber ?? "",
+        sagId: task.sagId,
+        sagSmuNummer: task.sagSmuNummer,
         note: task.note ?? "",
       });
       // Hjælp-opgaven bliver den aktive opgave; gem HS som starttidspunkt.
@@ -334,6 +413,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         categoryId: draft.categoryId,
         subcategoryId: draft.subcategoryId,
         orderNumber: draft.orderNumber.trim() || null,
+        sagId: draft.sagId,
+        sagSmuNummer: draft.sagSmuNummer,
         note: draft.note.trim() || null,
         updatedAt: nowIso(),
         updatedBy: null,
@@ -360,6 +441,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         categoryId: task.categoryId,
         subcategoryId: task.subcategoryId,
         orderNumber: task.orderNumber ?? "",
+        sagId: task.sagId,
+        sagSmuNummer: task.sagSmuNummer,
         note: HELP_NOTE,
         newId,
         nowIso: nowIso(),
@@ -373,6 +456,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         categoryId: helpOwn.categoryId,
         subcategoryId: helpOwn.subcategoryId,
         orderNumber: helpOwn.orderNumber.trim() || null,
+        sagId: helpOwn.sagId ?? null,
+        sagSmuNummer: helpOwn.sagSmuNummer ?? null,
         note: helpOwn.note.trim() || null,
         updatedAt: nowIso(),
         updatedBy: null,
@@ -406,6 +491,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
             categoryId: task.categoryId,
             subcategoryId: task.subcategoryId,
             orderNumber: task.orderNumber ?? "",
+            sagId: task.sagId,
+            sagSmuNummer: task.sagSmuNummer,
             note: task.note ?? "",
             newId,
             nowIso: nowIso(),
@@ -418,6 +505,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
           categoryId: task.categoryId,
           subcategoryId: task.subcategoryId,
           orderNumber: task.orderNumber ?? "",
+          sagId: task.sagId,
+          sagSmuNummer: task.sagSmuNummer,
           note: task.note ?? "",
         };
       }
@@ -429,6 +518,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         categoryId: draft.categoryId,
         subcategoryId: draft.subcategoryId,
         orderNumber: draft.orderNumber.trim() || null,
+        sagId: draft.sagId,
+        sagSmuNummer: draft.sagSmuNummer,
         note: draft.note.trim() || null,
         updatedAt: nowIso(),
         updatedBy: null,
@@ -454,6 +545,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         categoryId: task.categoryId,
         subcategoryId: task.subcategoryId,
         orderNumber: task.orderNumber ?? "",
+        sagId: task.sagId,
+        sagSmuNummer: task.sagSmuNummer,
         note: "",
         isRedo: true,
         redoReason,
@@ -473,6 +566,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
           categoryId: redoCtx.ownTask.categoryId,
           subcategoryId: redoCtx.ownTask.subcategoryId,
           orderNumber: redoCtx.ownTask.orderNumber.trim() || null,
+          sagId: redoCtx.ownTask.sagId ?? null,
+          sagSmuNummer: redoCtx.ownTask.sagSmuNummer ?? null,
           note: redoCtx.ownTask.note.trim() || null,
           updatedAt: nowIso(),
           updatedBy: null,
@@ -546,9 +641,12 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
     setDraft(emptyDraft());
     setFormMode("startWork");
   }
-  function openStartPause() {
+  function openStartPause(fromActive = false) {
     setPauseType(LUNCH_SUBCATEGORY_ID);
-    setPauseStart(lastEnd ?? roundTo15(isoToHHMM(nowIso())));
+    // Fra aktiv opgave: pausen starter nu (nærmeste kvarter, aldrig før seneste sluttid)
+    // — den aktive opgave lukkes frem til dette tidspunkt. Fra "Hvad nu?": fortsæt fra
+    // seneste sluttid (sammenhængende tidslinje), som hidtil.
+    setPauseStart(fromActive ? redoStartHHMM(nowIso(), lastEnd) : lastEnd ?? roundTo15(isoToHHMM(nowIso())));
     setFormMode("startPause");
   }
   function openEditWork() {
@@ -590,6 +688,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
       categoryId: c.categoryId,
       subcategoryId: c.subcategoryId,
       orderNumber: c.orderNumber ?? "",
+      sagId: c.sagId ?? null,
+      sagSmuNummer: c.sagSmuNummer ?? null,
       note: c.note ?? "",
     });
   }
@@ -638,16 +738,19 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         />
       </div>
       <div className="row-2">
-        <div className="field">
-          <label>Ordre / sag / kunde</label>
-          <input
-            className="smu-input"
-            type="text"
-            placeholder="Fx 54277, SMU-0042 eller kundenavn"
-            value={draft.orderNumber}
-            onChange={(e) => setDraft((d) => ({ ...d, orderNumber: e.target.value }))}
-          />
-        </div>
+        <SagPicker
+          customer={draft.orderNumber}
+          sagId={draft.sagId}
+          sagSmuNummer={draft.sagSmuNummer}
+          onChange={(n) =>
+            setDraft((d) => ({
+              ...d,
+              orderNumber: n.customer,
+              sagId: n.sagId,
+              sagSmuNummer: n.sagSmuNummer,
+            }))
+          }
+        />
         <div className="field">
           <label>Note</label>
           <input
@@ -905,16 +1008,19 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
                   onChange={(cat, sub) => setDraft((d) => ({ ...d, categoryId: cat, subcategoryId: sub }))}
                 />
               </div>
-              <div className="field">
-                <label>Ordre / sag / kunde</label>
-                <input
-                  className="smu-input"
-                  type="text"
-                  placeholder="Fx 54277, SMU-0042 eller kundenavn"
-                  value={draft.orderNumber}
-                  onChange={(e) => setDraft((d) => ({ ...d, orderNumber: e.target.value }))}
-                />
-              </div>
+              <SagPicker
+                customer={draft.orderNumber}
+                sagId={draft.sagId}
+                sagSmuNummer={draft.sagSmuNummer}
+                onChange={(n) =>
+                  setDraft((d) => ({
+                    ...d,
+                    orderNumber: n.customer,
+                    sagId: n.sagId,
+                    sagSmuNummer: n.sagSmuNummer,
+                  }))
+                }
+              />
             </>
           )}
           {redoReasonSelect}
@@ -1056,7 +1162,7 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
               <button className="smu-btn-secondary ds-big" onClick={openStartRedoStandalone} disabled={busy}>
                 <RotateCcw size={16} /> Start omgøring
               </button>
-              <button className="smu-btn-secondary ds-big ds-pause" onClick={openStartPause} disabled={busy}>
+              <button className="smu-btn-secondary ds-big ds-pause" onClick={() => openStartPause()} disabled={busy}>
                 <Coffee size={16} /> Start pause
               </button>
               <button className="smu-btn-secondary ds-big" onClick={openRegisterAbsence} disabled={busy}>
@@ -1083,9 +1189,27 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
               {elapsedText ? ` · ${elapsedText}` : ""}
             </div>
           )}
+          {pauseOwn && (
+            <div className="ds-resume-hint">
+              <RotateCcw size={13} /> Genoptages efter pausen:{" "}
+              <strong>
+                {getCategory(pauseOwn.categoryId)?.name}
+                {pauseOwn.orderNumber ? ` · ${pauseOwn.orderNumber}` : ""}
+              </strong>
+            </div>
+          )}
           <div className="ds-actions">
             <button className="smu-btn-primary ds-primary" onClick={openFinishPause} disabled={busy}>
-              <CheckCircle2 size={16} /> Afslut pause
+              {pauseOwn ? (
+                <>
+                  <RotateCcw size={16} /> Genoptag{" "}
+                  {pauseOwn.orderNumber || getCategory(pauseOwn.categoryId)?.name || "opgave"}
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={16} /> Afslut pause
+                </>
+              )}
             </button>
           </div>
         </>
@@ -1195,6 +1319,9 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
           <div className="ds-actions">
             <button className="smu-btn-primary ds-primary" onClick={openFinishWork} disabled={busy}>
               <CheckCircle2 size={16} /> Gå til afslutning
+            </button>
+            <button className="smu-btn-secondary ds-pause" onClick={() => openStartPause(true)} disabled={busy}>
+              <Coffee size={15} /> Pause
             </button>
             <button className="smu-btn-secondary" onClick={openStartHelp} disabled={busy}>
               <Users size={15} /> Hjælp på anden opgave

@@ -39,7 +39,7 @@ function work(startTime: string, endTime: string): TimeEntry {
     durationMinutes: eh * 60 + em - (sh * 60 + sm),
     categoryId: "montage-ude",
     subcategoryId: null,
-    customer: "",
+    customer: "", sagId: null, sagSmuNummer: null,
     note: "",
     isBreak: false,
     isRedo: false,

@@ -15,7 +15,7 @@ const SAT = "2026-08-15";
 function breakEntry(start: string, end: string): TimeEntry {
   return {
     id: "b", employeeId: "anders", workDate: MON, startTime: start, endTime: end, durationMinutes: 0,
-    categoryId: "pause", subcategoryId: "frokost", customer: "", note: "",
+    categoryId: "pause", subcategoryId: "frokost", customer: "", sagId: null, sagSmuNummer: null, note: "",
     isBreak: true, isRedo: false, redoReason: null, redoNote: "", splitGroupId: "g", slettet: false,
     createdAt: "", updatedAt: "",
   };
@@ -24,7 +24,7 @@ function breakEntry(start: string, end: string): TimeEntry {
 function workEntry(start: string, end: string): TimeEntry {
   return {
     id: "w", employeeId: "anders", workDate: MON, startTime: start, endTime: end, durationMinutes: 0,
-    categoryId: "salg-administration", subcategoryId: null, customer: "", note: "",
+    categoryId: "salg-administration", subcategoryId: null, customer: "", sagId: null, sagSmuNummer: null, note: "",
     isBreak: false, isRedo: false, redoReason: null, redoNote: "", splitGroupId: null, slettet: false,
     createdAt: "", updatedAt: "",
   };

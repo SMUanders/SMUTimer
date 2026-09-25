@@ -11,7 +11,7 @@ import DayOverview from "./admin/DayOverview";
 import WeekOverview from "./admin/WeekOverview";
 import EmployeeFilter from "./admin/EmployeeFilter";
 import UpdateBanner from "./UpdateBanner";
-import { appVersionShort } from "../lib/version";
+import { appVersionShort, appProductVersion } from "../lib/version";
 
 type Tab = "dag" | "uge";
 
@@ -92,7 +92,9 @@ export default function Admin() {
         </>
       )}
 
-      <div className="app-version">SMU Tid · v{appVersionShort()}</div>
+      <div className="app-version" title={`Build ${appVersionShort()}`}>
+        SMU Tid {appProductVersion()}
+      </div>
       <UpdateBanner />
     </div>
   );

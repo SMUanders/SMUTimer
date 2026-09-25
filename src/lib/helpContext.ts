@@ -15,6 +15,9 @@ export interface OwnTask {
   categoryId: string;
   subcategoryId: string | null;
   orderNumber: string;
+  /** Bevar SMU-sag-reference over suspend/resume (hjælp/pause/omgøring). */
+  sagId?: string | null;
+  sagSmuNummer?: string | null;
   note: string;
 }
 

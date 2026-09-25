@@ -127,6 +127,9 @@ export interface BuildParams {
   categoryId: string;
   subcategoryId: string | null;
   orderNumber: string;
+  /** Stabil SMU-sag-reference, hvis valgt. */
+  sagId?: string | null;
+  sagSmuNummer?: string | null;
   note: string;
   newId: () => string;
   nowIso: string;
@@ -153,6 +156,8 @@ export function buildEntry(p: BuildParams): TimeEntry {
     categoryId: p.categoryId,
     subcategoryId: p.subcategoryId,
     customer: p.orderNumber.trim(),
+    sagId: p.sagId ?? null,
+    sagSmuNummer: p.sagSmuNummer ?? null,
     note: p.note.trim(),
     isBreak: isBreakCategory(p.categoryId),
     isRedo,

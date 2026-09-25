@@ -14,9 +14,10 @@ import { signOut } from "../lib/auth";
 import EmployeeSelect from "./EmployeeSelect";
 import DayScreen from "./DayScreen";
 import DayTimeline from "./DayTimeline";
+import EntryDetail from "./EntryDetail";
 import { buildDayTimeline } from "../lib/dayTimeline";
 import UpdateBanner from "./UpdateBanner";
-import { appVersionShort } from "../lib/version";
+import { appVersionShort, appProductVersion } from "../lib/version";
 
 const EMPLOYEE_KEY = "smu-tid.employee";
 
@@ -36,6 +37,8 @@ export default function EmployeeApp() {
   const [historyDate, setHistoryDate] = useState<string>(today);
   const [historyEntries, setHistoryEntries] = useState<TimeEntry[]>([]);
   const [historyAbsences, setHistoryAbsences] = useState<Absence[]>([]);
+  // Read-only detaljevisning når man klikker en registrering i "Min dag".
+  const [detailEntry, setDetailEntry] = useState<TimeEntry | null>(null);
 
   async function loadToday(emp = employeeId) {
     setTodayEntries(emp ? await store().getEntriesForDate(emp, today) : []);
@@ -216,11 +219,17 @@ export default function EmployeeApp() {
               : "Ingen registreringer denne dag."}
           </div>
         ) : (
-          <DayTimeline blocks={timeline} />
+          <DayTimeline blocks={timeline} onSelectEntry={setDetailEntry} />
         )}
       </div>
 
-      <div className="app-version">SMU Tid · v{appVersionShort()}</div>
+      {detailEntry && (
+        <EntryDetail entry={detailEntry} onClose={() => setDetailEntry(null)} />
+      )}
+
+      <div className="app-version" title={`Build ${appVersionShort()}`}>
+        SMU Tid {appProductVersion()}
+      </div>
       <UpdateBanner />
     </div>
   );

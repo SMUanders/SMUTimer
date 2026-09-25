@@ -1,5 +1,13 @@
 import type { TimeEntry, CurrentTask, Absence } from "../../types";
 
+/** Resultat fra sags-søgning (OS-ejet read-contract public.tid_sag_search). */
+export interface SagRef {
+  sagId: string;
+  smuNummer: string;
+  titel: string;
+  kundeNavn: string;
+}
+
 // Fælles storage-interface. Al persistering går gennem dette — resten af appen
 // kender ikke til om data ligger i localStorage eller Supabase.
 // Alle metoder er async, så adapterne kan være netværksbaserede (Supabase).
@@ -31,6 +39,10 @@ export interface TimeEntryStore {
   addAbsence(absence: Absence): Promise<void>;
   /** Afslut fravær ("Jeg er tilbage"): sæt active=false + faktisk sluttid. */
   endAbsence(id: string, endTime: string): Promise<void>;
+
+  // SMU-sag: søg eksisterende OS-sager via OS-ejet read-contract (tid_sag_search).
+  // Kræver ingen 'os'-adgang. Local-adapter returnerer [] (ingen OS i dev).
+  searchSager(query: string): Promise<SagRef[]>;
 }
 
 // ID/tidsstempel — bruges når nye entries bygges. crypto.randomUUID giver et

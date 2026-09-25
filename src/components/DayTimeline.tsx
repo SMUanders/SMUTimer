@@ -1,5 +1,5 @@
 import type React from "react";
-import { AlertTriangle, Coffee, Users, RotateCcw, UserMinus, Pencil, Plus } from "lucide-react";
+import { AlertTriangle, Coffee, Users, RotateCcw, UserMinus, Pencil, Plus, ChevronRight } from "lucide-react";
 import type { TimeEntry } from "../types";
 import type { TimelineBlock } from "../lib/dayTimeline";
 import { getCategory, getSubcategory, getRedoReason } from "../data/categories";
@@ -87,17 +87,21 @@ interface Props {
   onEditEntry?: (entry: TimeEntry) => void;
   /** Leder-korrektion: klik på et hul for at udfylde det (start/slut prefilles). */
   onFillGap?: (startTime: string, endTime: string) => void;
+  /** Read-only: klik på en registrerings-blok for at se detaljer (medarbejder). */
+  onSelectEntry?: (entry: TimeEntry) => void;
 }
 
-export default function DayTimeline({ blocks, onEditEntry, onFillGap }: Props) {
+export default function DayTimeline({ blocks, onEditEntry, onFillGap, onSelectEntry }: Props) {
   return (
     <div className="timeline">
       {blocks.map((b, i) => {
-        const editable = !!onEditEntry && !!b.entry; // arbejde/hjælp/omgøring/pause
+        // onEditEntry (leder-korrektion) har forrang; ellers onSelectEntry (read-only detalje).
+        const entryHandler = onEditEntry ?? onSelectEntry;
+        const editable = !!entryHandler && !!b.entry; // arbejde/hjælp/omgøring/pause
         const fillable = !!onFillGap && b.kind === "gap";
         const interactive = editable || fillable;
         const activate = () => {
-          if (editable && b.entry) onEditEntry!(b.entry);
+          if (editable && b.entry) entryHandler!(b.entry);
           else if (fillable) onFillGap!(b.startTime, b.endTime);
         };
         return (
@@ -120,12 +124,13 @@ export default function DayTimeline({ blocks, onEditEntry, onFillGap }: Props) {
                         activate();
                       }
                     },
-                    title: editable ? "Ret registrering" : "Udfyld hul",
+                    title: onEditEntry ? "Ret registrering" : editable ? "Se detaljer" : "Udfyld hul",
                   }
                 : {})}
             >
               <BlockBody b={b} />
-              {editable && <Pencil className="tl-edit-ic" size={13} />}
+              {editable && onEditEntry && <Pencil className="tl-edit-ic" size={13} />}
+              {editable && !onEditEntry && <ChevronRight className="tl-edit-ic" size={14} />}
               {fillable && <Plus className="tl-edit-ic" size={13} />}
             </div>
           </div>

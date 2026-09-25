@@ -32,7 +32,7 @@ import DayTimeline from "./DayTimeline";
 import EntryEditor, { emptyDraft } from "./EntryEditor";
 import LunchSplitDialog from "./LunchSplitDialog";
 import UpdateBanner from "./UpdateBanner";
-import { appVersionShort } from "../lib/version";
+import { appVersionShort, appProductVersion } from "../lib/version";
 
 // SMU Tid v2 — LEDER-VISNING af én medarbejders dag ("Andreas' dag").
 //
@@ -50,6 +50,9 @@ function draftFromEntry(e: TimeEntry): EntryDraft {
     categoryId: e.categoryId,
     subcategoryId: e.subcategoryId,
     customer: e.customer,
+    // Bevar sag-referencen ved leder-korrektion (round-trip, ingen picker i v2.1).
+    sagId: e.sagId,
+    sagSmuNummer: e.sagSmuNummer,
     note: e.note,
     isRedo: e.isRedo,
     redoReason: e.redoReason,
@@ -437,7 +440,9 @@ export default function LeaderDay() {
         />
       )}
 
-      <div className="app-version">SMU Tid · v{appVersionShort()}</div>
+      <div className="app-version" title={`Build ${appVersionShort()}`}>
+        SMU Tid {appProductVersion()}
+      </div>
       <UpdateBanner defer={!!editor || !!pending} />
     </div>
   );

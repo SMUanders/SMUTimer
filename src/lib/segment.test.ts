@@ -28,7 +28,7 @@ function te(overrides: Partial<TimeEntry> = {}): TimeEntry {
   return {
     id: "x", employeeId: "anders", workDate: "2026-08-19",
     startTime: "08:00", endTime: "10:00", durationMinutes: 120,
-    categoryId: "montage-ude", subcategoryId: null, customer: "54277", note: "",
+    categoryId: "montage-ude", subcategoryId: null, customer: "54277", sagId: null, sagSmuNummer: null, note: "",
     isBreak: false, isRedo: false, redoReason: null, redoNote: "",
     splitGroupId: null, slettet: false, createdAt: "", updatedAt: "",
     ...overrides,

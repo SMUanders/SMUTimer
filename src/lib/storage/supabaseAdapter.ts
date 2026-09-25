@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TimeEntry, CurrentTask, Absence } from "../../types";
-import type { TimeEntryStore } from "./types";
+import type { TimeEntryStore, SagRef } from "./types";
 
 const TASKS_TABLE = "tid_current_tasks";
 const ABSENCES_TABLE = "tid_absences";
@@ -39,6 +39,8 @@ interface TaskRow {
   category: string;
   subcategory: string | null;
   order_number: string | null;
+  sag_id: string | null;
+  sag_smu_nummer: string | null;
   note: string | null;
   updated_at: string;
   updated_by: string | null;
@@ -49,6 +51,8 @@ function taskFromRow(r: TaskRow): CurrentTask {
     categoryId: r.category,
     subcategoryId: r.subcategory,
     orderNumber: r.order_number,
+    sagId: r.sag_id ?? null,
+    sagSmuNummer: r.sag_smu_nummer ?? null,
     note: r.note,
     updatedAt: r.updated_at,
     updatedBy: r.updated_by,
@@ -78,6 +82,8 @@ interface Row {
   category_id: string;
   subcategory_id: string | null;
   customer: string;
+  sag_id: string | null;
+  sag_smu_nummer: string | null;
   note: string;
   is_break: boolean;
   is_redo: boolean;
@@ -100,6 +106,8 @@ function toRow(e: TimeEntry): Row {
     category_id: e.categoryId,
     subcategory_id: e.subcategoryId,
     customer: e.customer,
+    sag_id: e.sagId,
+    sag_smu_nummer: e.sagSmuNummer,
     note: e.note,
     is_break: e.isBreak,
     is_redo: e.isRedo,
@@ -123,6 +131,8 @@ function fromRow(r: Row): TimeEntry {
     categoryId: r.category_id,
     subcategoryId: r.subcategory_id,
     customer: r.customer,
+    sagId: r.sag_id ?? null,
+    sagSmuNummer: r.sag_smu_nummer ?? null,
     note: r.note,
     isBreak: r.is_break,
     isRedo: r.is_redo,
@@ -147,6 +157,8 @@ function patchToRow(patch: Partial<TimeEntry>): Record<string, unknown> {
     categoryId: "category_id",
     subcategoryId: "subcategory_id",
     customer: "customer",
+    sagId: "sag_id",
+    sagSmuNummer: "sag_smu_nummer",
     note: "note",
     isBreak: "is_break",
     isRedo: "is_redo",
@@ -263,6 +275,8 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
         category: task.categoryId,
         subcategory: task.subcategoryId,
         order_number: task.orderNumber,
+        sag_id: task.sagId,
+        sag_smu_nummer: task.sagSmuNummer,
         note: task.note,
       };
       const { error } = await client
@@ -346,6 +360,28 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
     async endAbsence(id, ended) {
       const { error } = await client.from(ABSENCES_TABLE).update({ ended }).eq("id", id);
       if (error) throw error;
+    },
+
+    // ---- SMU-sag søgning (OS-ejet read-contract) ----
+    // Kalder public.tid_sag_search(q). Ingen direkte adgang til sager/kunder — RPC'en
+    // håndhæver har_app_adgang('tid') og returnerer kun minimale felter. Fejler blødt.
+    async searchSager(query) {
+      const q = query.trim();
+      if (q.length < 2) return [];
+      try {
+        const { data, error } = await client.rpc("tid_sag_search", { q });
+        if (error || !data) return [];
+        return (data as { sag_id: string; smu_nummer: string; titel: string; kunde_navn: string }[]).map(
+          (r): SagRef => ({
+            sagId: r.sag_id,
+            smuNummer: r.smu_nummer,
+            titel: r.titel,
+            kundeNavn: r.kunde_navn,
+          })
+        );
+      } catch {
+        return [];
+      }
     },
   };
 }

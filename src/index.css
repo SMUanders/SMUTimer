@@ -121,6 +121,43 @@ body {
 
 /* Slet i editor-footer (leder-korrektion) — neutral, skubbet til venstre (rød = kun fejl) */
 .sheet-delete { margin-right: auto; color: var(--color-text-muted); }
+
+/* SMU-sagsvælger (typeahead) */
+.sag-picker { position: relative; }
+.sag-input-wrap { position: relative; display: flex; align-items: center; }
+.sag-ic { position: absolute; left: 10px; color: var(--color-text-muted); pointer-events: none; }
+.sag-ic-ok { color: var(--color-teal); }
+.sag-input { padding-left: 32px; width: 100%; }
+.sag-clear { position: absolute; right: 6px; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 0; background: transparent; border-radius: 8px; color: var(--color-text-muted); cursor: pointer; }
+.sag-clear:hover { background: var(--color-grey-soft); color: var(--color-text); }
+.sag-hint { font-size: 12px; font-weight: 600; color: var(--color-text-muted); margin-top: 4px; }
+.sag-hint-ok { color: var(--color-teal); }
+.sag-results {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 40;
+  background: var(--color-card); border: 1px solid var(--color-border); border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .12); max-height: 264px; overflow-y: auto;
+}
+.sag-result {
+  display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left;
+  padding: 10px 12px; border: 0; border-bottom: 1px solid var(--color-border);
+  background: transparent; cursor: pointer; font: inherit;
+}
+.sag-result:last-child { border-bottom: 0; }
+.sag-result:hover { background: var(--color-grey-soft); }
+.sag-result-top { font-size: 14px; font-weight: 600; color: var(--color-text); }
+.sag-result-titel { font-size: 12px; font-weight: 600; color: var(--color-text-muted); }
+.sag-muted { color: var(--color-text-muted); font-weight: 600; }
+
+/* Read-only detaljevisning (Min dag → klik på registrering) */
+.detail-kind { margin-bottom: 12px; }
+.detail-row { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--color-border); }
+.detail-row:last-child { border-bottom: 0; }
+.detail-label { flex: 0 0 40%; color: var(--color-text-muted); font-weight: 600; }
+.detail-value { flex: 1 1 60%; color: var(--color-text); font-weight: 700; }
+.detail-tag { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+.detail-tag-redo  { background: var(--color-primary-soft); color: var(--color-primary-deep); }
+.detail-tag-help  { background: var(--color-violet-soft); color: var(--color-violet-deep); }
+.detail-tag-pause { background: var(--color-orange-soft); color: var(--color-orange-deep); }
 .header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .link-btn { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
 

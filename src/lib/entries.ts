@@ -65,6 +65,8 @@ function makeWorkEntry(
     categoryId: draft.categoryId,
     subcategoryId: draft.subcategoryId,
     customer: draft.customer.trim(),
+    sagId: draft.sagId ?? null,
+    sagSmuNummer: draft.sagSmuNummer ?? null,
     note: draft.note.trim(),
     // Manuel "Pause"-kategori tæller også som pause (ikke arbejdstid).
     isBreak: isBreakCategory(draft.categoryId),
@@ -96,6 +98,8 @@ function makeBreakEntry(
     categoryId: BREAK_CATEGORY_ID,
     subcategoryId: LUNCH_SUBCATEGORY_ID,
     customer: "",
+    sagId: null,
+    sagSmuNummer: null,
     note: "",
     isBreak: true,
     isRedo: false,

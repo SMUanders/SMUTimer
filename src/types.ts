@@ -29,8 +29,12 @@ export interface TimeEntry {
   durationMinutes: number;
   categoryId: string;
   subcategoryId: string | null;
-  /** Fri tekst, kan være tom. */
+  /** Fri tekst, kan være tom. Fritekst-reference til ordre/sag/kunde. */
   customer: string;
+  /** Stabil reference til en SMU OS-sag (sager.id). null = ikke-sagsbundet arbejde. */
+  sagId: string | null;
+  /** Display-snapshot af sagens SMU-nummer (så historik er læsbar uden OS-adgang). */
+  sagSmuNummer: string | null;
   /** Fri tekst, kan være lang. */
   note: string;
   /** true for auto-oprettede frokostlinjer (Pause). */
@@ -58,6 +62,10 @@ export interface CurrentTask {
   categoryId: string;
   subcategoryId: string | null;
   orderNumber: string | null;
+  /** Stabil reference til en valgt SMU OS-sag (sager.id), hvis nogen. */
+  sagId: string | null;
+  /** Display-snapshot af sagens SMU-nummer. */
+  sagSmuNummer: string | null;
   note: string | null;
   updatedAt: string;
   updatedBy: string | null;
@@ -99,6 +107,9 @@ export interface EntryDraft {
   categoryId: string;
   subcategoryId: string | null;
   customer: string;
+  /** Stabil SMU-sag-reference, hvis valgt (round-trippes ved leder-korrektion). */
+  sagId: string | null;
+  sagSmuNummer: string | null;
   note: string;
   isRedo: boolean;
   redoReason: string | null;

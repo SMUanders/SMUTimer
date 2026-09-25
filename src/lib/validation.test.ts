@@ -5,7 +5,7 @@ import type { TimeEntry } from "../types";
 function entry(start: string, end: string): TimeEntry {
   return {
     id: "x", employeeId: "anders", workDate: "2026-08-10", startTime: start, endTime: end,
-    durationMinutes: 0, categoryId: "montage-ude", subcategoryId: null, customer: "", note: "",
+    durationMinutes: 0, categoryId: "montage-ude", subcategoryId: null, customer: "", sagId: null, sagSmuNummer: null, note: "",
     isBreak: false, isRedo: false, redoReason: null, redoNote: "",
     splitGroupId: null, slettet: false, createdAt: "", updatedAt: "",
   };

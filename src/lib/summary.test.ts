@@ -13,7 +13,7 @@ function e(
   return {
     id: Math.random().toString(36).slice(2), employeeId: "anders",
     workDate: "2026-08-10", startTime: start, endTime: end, durationMinutes: dur,
-    categoryId: "montage-ude", subcategoryId: null, customer: "", note: "",
+    categoryId: "montage-ude", subcategoryId: null, customer: "", sagId: null, sagSmuNummer: null, note: "",
     isBreak: false, isRedo: false, redoReason: null, redoNote: "",
     splitGroupId: null, slettet: false, createdAt: "", updatedAt: "",
     ...opts,
