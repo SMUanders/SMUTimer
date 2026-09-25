@@ -92,6 +92,16 @@ export default function EmployeeApp() {
     if (historyDate === today) await loadHistory(employeeId, today);
   }
 
+  // v2.1.1: medarbejderen redigerer KUN noten på egen afsluttet registrering.
+  // Sender kun note-feltet (ikke hele entry). RLS owner-scope tillader UPDATE på egne rækker.
+  async function saveDetailNote(note: string) {
+    if (!detailEntry) return;
+    await store().updateEntry(detailEntry.id, { note });
+    setDetailEntry({ ...detailEntry, note }); // vis den nye note straks
+    await loadHistory(employeeId, historyDate);
+    await loadToday(employeeId);
+  }
+
   const summary = useMemo(
     () => summarizeDay(historyEntries, expectedWorkMinutes(historyDate), historyAbsences),
     [historyEntries, historyAbsences, historyDate]
@@ -224,7 +234,12 @@ export default function EmployeeApp() {
       </div>
 
       {detailEntry && (
-        <EntryDetail entry={detailEntry} onClose={() => setDetailEntry(null)} />
+        <EntryDetail
+          entry={detailEntry}
+          onClose={() => setDetailEntry(null)}
+          // Kun egne registreringer må note-redigeres (employee_id = den indloggede bruger).
+          onSaveNote={detailEntry.employeeId === employeeId ? saveDetailNote : undefined}
+        />
       )}
 
       <div className="app-version" title={`Build ${appVersionShort()}`}>

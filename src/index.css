@@ -158,6 +158,13 @@ body {
 .detail-tag-redo  { background: var(--color-primary-soft); color: var(--color-primary-deep); }
 .detail-tag-help  { background: var(--color-violet-soft); color: var(--color-violet-deep); }
 .detail-tag-pause { background: var(--color-orange-soft); color: var(--color-orange-deep); }
+/* Note-sektion med redigering (kun egen entry, v2.1.1) */
+.detail-note { display: flex; flex-direction: column; gap: 8px; padding: 10px 0; }
+.detail-note .detail-label { color: var(--color-text-muted); font-weight: 600; }
+.detail-note-text { color: var(--color-text); font-weight: 700; white-space: pre-wrap; }
+.detail-edit-note { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; }
+.detail-note textarea.smu-input { width: 100%; min-height: 72px; resize: vertical; }
+.detail-note-actions { display: flex; gap: 10px; justify-content: flex-end; }
 .header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .link-btn { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
 
