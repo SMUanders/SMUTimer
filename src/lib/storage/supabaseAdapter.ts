@@ -216,6 +216,20 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
       return (data as Row[]).map(fromRow);
     },
 
+    async getEntriesForSag(sagId) {
+      // RLS: SELECT = har_app_adgang('tid') (alle tid-brugere ser alle registreringer).
+      // Kun autoritativ sag_id — ingen fritekst-/fuzzy-match.
+      const { data, error } = await client
+        .from(TABLE)
+        .select("*")
+        .eq("sag_id", sagId)
+        .eq("slettet", false)
+        .order("work_date", { ascending: false })
+        .order("start_time", { ascending: true });
+      if (error) throw error;
+      return (data as Row[]).map(fromRow);
+    },
+
     async addEntries(entries) {
       const rows = entries.map(toRow);
       const { error } = await client.from(TABLE).insert(rows);

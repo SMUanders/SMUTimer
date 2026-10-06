@@ -9,11 +9,12 @@ import { AppSwitcher } from "../platform-nav/AppSwitcher";
 import { signOut } from "../lib/auth";
 import DayOverview from "./admin/DayOverview";
 import WeekOverview from "./admin/WeekOverview";
+import SagOverview from "./admin/SagOverview";
 import EmployeeFilter from "./admin/EmployeeFilter";
 import UpdateBanner from "./UpdateBanner";
 import { appVersionShort, appProductVersion } from "../lib/version";
 
-type Tab = "dag" | "uge";
+type Tab = "dag" | "uge" | "sag";
 
 // Admin/Overblik — Natasha & Anders. Egen route (/oversigt). Ingen skrivning her,
 // kun læsning på tværs af medarbejdere. Klik åbner medarbejderens dagsseddel via
@@ -73,10 +74,16 @@ export default function Admin() {
         <button className={tab === "uge" ? "active" : ""} onClick={() => setTab("uge")}>
           Uge
         </button>
+        <button className={tab === "sag" ? "active" : ""} onClick={() => setTab("sag")}>
+          Sag
+        </button>
       </div>
 
       {!ready ? (
         <div className="empty">Indlæser…</div>
+      ) : tab === "sag" ? (
+        // Sag-overblik er på tværs af alle medarbejdere (ikke medarbejder-filtreret).
+        <SagOverview />
       ) : (
         <>
           <EmployeeFilter people={allPeople} hidden={hidden} onChange={setHidden} />

@@ -18,6 +18,9 @@ export interface TimeEntryStore {
   getEntriesForDateAll(isoDate: string): Promise<TimeEntry[]>;
   /** Alle medarbejderes linjer i et datointerval, inkl. begge ender (uge). */
   getEntriesInRange(fromIso: string, toIso: string): Promise<TimeEntry[]>;
+  /** Alle (ikke-slettede) registreringer knyttet til én SMU-sag (sag_id), på tværs
+   *  af medarbejdere og datoer. Kun autoritativ sag-reference — ingen fritekst-match. */
+  getEntriesForSag(sagId: string): Promise<TimeEntry[]>;
   addEntries(entries: TimeEntry[]): Promise<void>;
   updateEntry(id: string, patch: Partial<TimeEntry>): Promise<void>;
   deleteEntry(id: string): Promise<void>;

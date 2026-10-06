@@ -317,7 +317,51 @@ body {
 
 /* Sektionsoverskrifter på /oversigt (Arbejder på nu / Dagens registrering) */
 .ov-section { margin-top: 18px; }
-.ov-section-title { font-size: 15px; font-weight: 800; color: var(--color-navy); margin: 0 0 10px; }
+.ov-section-title { font-size: 15px; font-weight: 800; color: var(--color-navy); margin: 0 0 10px; display: inline-flex; align-items: center; gap: 6px; }
+
+/* ===== Sag-overblik (søg på SMU-nummer) ===== */
+.sag-ov-head {
+  background: var(--color-card); border: 1px solid var(--color-border);
+  border-radius: 14px; padding: 16px;
+}
+.sag-ov-ident { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; }
+.sag-ov-nr { font-size: 20px; font-weight: 800; color: var(--color-navy); }
+.sag-ov-kunde { font-size: 15px; font-weight: 700; color: var(--color-text-muted); }
+.sag-ov-titel { font-size: 14px; font-weight: 600; color: var(--color-text-muted); margin-top: 2px; }
+.sag-ov-total {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--color-border);
+}
+.sag-ov-total-k { font-size: 14px; font-weight: 700; color: var(--color-text-muted); }
+.sag-ov-total-v { font-size: 30px; font-weight: 800; color: var(--color-teal); font-variant-numeric: tabular-nums; }
+.sag-ov-active {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 12px;
+  padding: 8px 12px; border-radius: 10px; background: var(--color-primary-soft);
+  color: var(--color-primary-deep); font-size: 13px; font-weight: 700;
+}
+.sag-ov-active-note { color: var(--color-text-muted); font-weight: 600; }
+.sag-ov-disclaimer {
+  display: flex; align-items: flex-start; gap: 6px; margin-top: 12px;
+  font-size: 12px; font-weight: 600; color: var(--color-text-muted); line-height: 1.4;
+}
+
+.sag-rows { display: flex; flex-direction: column; }
+.sag-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 0; border-bottom: 1px solid var(--color-border);
+}
+.sag-row:last-child { border-bottom: 0; }
+.sag-row-name { font-weight: 700; color: var(--color-text); }
+.sag-row-dur { font-weight: 800; color: var(--color-navy); font-variant-numeric: tabular-nums; }
+
+.sag-entries { display: flex; flex-direction: column; gap: 8px; }
+.sag-entry { border: 1px solid var(--color-border); border-radius: 10px; padding: 10px 12px; background: var(--color-card); }
+.sag-entry-top { display: flex; align-items: baseline; gap: 10px; }
+.sag-entry-date { font-weight: 800; color: var(--color-navy); font-variant-numeric: tabular-nums; }
+.sag-entry-name { font-weight: 700; color: var(--color-text); flex: 1 1 auto; }
+.sag-entry-dur { font-weight: 800; color: var(--color-navy); font-variant-numeric: tabular-nums; }
+.sag-entry-act { font-size: 13px; font-weight: 600; color: var(--color-text-muted); margin-top: 3px; }
+.sag-entry-note { font-size: 13px; font-weight: 600; color: var(--color-text); margin-top: 4px; white-space: pre-wrap; }
 
 /* Dagens registrering — 7-kolonne variant */
 .ov-table-2 .ov-head,

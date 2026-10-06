@@ -15,9 +15,11 @@ interface Props {
   sagId: string | null;
   sagSmuNummer: string | null;
   onChange: (next: { customer: string; sagId: string | null; sagSmuNummer: string | null }) => void;
+  /** Valgfri: fyres med den fulde sag (titel/kunde) når en sag vælges — fx til overskrift. */
+  onPick?: (sag: SagRef) => void;
 }
 
-export default function SagPicker({ label = "SMU-nr. / sag / kunde", customer, sagId, onChange }: Props) {
+export default function SagPicker({ label = "SMU-nr. / sag / kunde", customer, sagId, onChange, onPick }: Props) {
   const [results, setResults] = useState<SagRef[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -54,6 +56,7 @@ export default function SagPicker({ label = "SMU-nr. / sag / kunde", customer, s
   function selectSag(s: SagRef) {
     // Gem stabil reference + vis SMU-nummeret i fritekstfeltet (display-kontinuitet).
     onChange({ customer: s.smuNummer, sagId: s.sagId, sagSmuNummer: s.smuNummer });
+    onPick?.(s);
     setOpen(false);
     setResults([]);
   }

@@ -69,6 +69,10 @@ export const localAdapter: TimeEntryStore = {
     );
   },
 
+  async getEntriesForSag(sagId) {
+    return loadAll().filter((e) => !e.slettet && e.sagId === sagId);
+  },
+
   async addEntries(newEntries) {
     const all = loadAll();
     all.push(...newEntries);
