@@ -142,7 +142,12 @@ export const PLATFORM_APPS: Record<string, AppMeta> = {
     appKey: 'color',
     displayName: 'SMU Color',
     description: 'Farveopslag og verifikation',
-    url: 'https://smucolor.netlify.app',
+    // Cutover gennemført 6. okt. 2026: color.smu.signmeup.dk (custom domain, Let's Encrypt,
+    // tvungen HTTPS) deler platform-cookien, så login i Hub åbner Color uden nyt login.
+    // Netlify-sitet er sidenhen omdøbt smucolor → smu-color (samme site-id), så den gamle
+    // adresse https://smucolor.netlify.app nu svarer 404 "Site not found". Den er død —
+    // ikke blot legacy — og må aldrig linkes fra Hub eller AppSwitcher.
+    url: 'https://color.smu.signmeup.dk',
     maalUrl: 'https://color.smu.signmeup.dk',
     icon: '/icons/apps/smu-color.svg',
     sortOrder: 50,
