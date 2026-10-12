@@ -19,6 +19,15 @@ export function canLeaderCorrect(args: { supabaseConfigured: boolean; role: TidR
   return args.role === "leder" || args.role === "admin";
 }
 
+/**
+ * Må viewer registrere tid på sin EGEN dag (EmployeeApp)?
+ * `observatoer` er read-only — RLS afviser registrering, så dagsedlen vises ikke.
+ * null = ingen app_adgange-række (fx global super-admin, som RLS lader skrive).
+ */
+export function canRegisterOwnTime(role: TidRole): boolean {
+  return role !== "observatoer";
+}
+
 /** Læser viewerens egen tid-rolle fra `app_adgange` via RLS (kun egen række). */
 export function useTidRole(
   client: SupabaseClient | null,
