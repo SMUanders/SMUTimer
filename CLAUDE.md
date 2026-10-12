@@ -46,6 +46,9 @@ ligne SMU":
 - **Stack-version:** React 18 + Vite 5 (standarden/`smu-os-v2` er på React 19 +
   Vite 8). Fungerer; kan opgraderes.
 - **Ingen append-only aktivitetslog** endnu (har soft-delete + audit-kolonner).
+- **App-adgang (frontend-gate):** `AuthGate` kræver `har_app_adgang('tid')` (`src/lib/tidAdgang.ts`) — et
+  Hub-login uden `tid`-adgang i `app_adgange` får en "Ingen adgang"-side, der peger på Hub. Deaktiverede
+  konti afvises af samme RPC. Ændrer ikke rollemodellen nedenfor.
 - **Roller + owner-scope (individuelt login):** SELECT = alle med `har_app_adgang('tid')`
   ser alt. **Skrivning er owner-scopet:** en `medarbejder` kan kun oprette/ændre/slette
   **egne** rækker (`employee_id = auth.uid()`); `leder`/`admin` må korrigere andre;
