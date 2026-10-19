@@ -1,6 +1,6 @@
 # SMU Tid produktbeslutning
 
-> Status: **SMU Tid v2.2 er PRODUCTION-LIVE på https://smutimer.netlify.app** (produktversion = `package.json`, vist diskret "SMU Tid v2.2"). Custom-domain (`tid.smu.signmeup.dk`) + TLS + Supabase Auth URL + **SSO-cutover er PENDING** (ikke live endnu). Hub peger fortsat på `smutimer.netlify.app`.
+> Status: **SMU Tid v2.2 er PRODUCTION-LIVE på https://tid.smu.signmeup.dk** (produktversion = `package.json`, vist diskret "SMU Tid v2.2"). Custom-domain og SSO-cutover er **live siden 28. aug. 2026**: SMU Hub og platform-navigationen linker til `tid.smu.signmeup.dk`, og login sker via Hub med den delte platform-session. `smutimer.netlify.app` er fortsat Netlify-sitets hosting-origin (svarer stadig, ingen redirect), men er ikke den kanoniske indgang og linkes ikke.
 > v2.2 tilføjede (19. okt. 2026): **tid på enhed** (TR-088) — montører kan vælge den konkrete enhed på en SMU-sag.
 > v2.1 tilføjede: pause fra aktiv opgave med automatisk genoptag · read-only detaljevisning i "Min dag" · synlig produktversion · SMU-sagsvælger (typeahead mod OS-ejet read-contract; QR-klart fundament).
 > (Produktnavnet er nu "SMU Tid v2"; "vNext" var det tidligere internt navn — historiske
@@ -43,10 +43,10 @@ Vurderes først **efter reel brug** af v2. Ingen af dem blokerer go-live.
 
 ## Production-live status & næste gate (Reality Sync)
 
-- **SMU Tid v2 er PRODUCTION-LIVE** på `https://smutimer.netlify.app` (main = go-live-commit; Netlify auto-deploy verificeret grøn: app loader, platform-nav/AppSwitcher renderer, ingen runtime-fejl).
+- **SMU Tid v2 er PRODUCTION-LIVE** på `https://tid.smu.signmeup.dk` (continuous deploy fra `main` via Netlify-sitet med origin `smutimer.netlify.app`; auto-deploy verificeret grøn: app loader, platform-nav/AppSwitcher renderer, ingen runtime-fejl).
 - **SMU Tid v2 er FEATURE-FROZEN.** Der bygges ikke flere funktioner før reel brug af v2; kendte forbedringer (backlog ovenfor) hører efter drift-feedback.
 - **Ingen krav om perfekt minutpræcision.** Hjælp/omgøring bruger 5-min-afrunding, og registreringer under overgang/briefing (fx fredag) behøver ikke være perfekte — Signmeup accepterer det.
-- **Custom-domain / SSO-cutover er PENDING (endnu ikke live):** næste gate er `tid.smu.signmeup.dk` + TLS + opdateret **Supabase Auth URL** + SSO. På `smutimer.netlify.app` bruges fortsat localStorage-login — det er korrekt og **ikke** en SSO-fejl. Hub peger fortsat på `smutimer.netlify.app`.
+- **Custom-domain / SSO-cutover er LIVE siden 28. aug. 2026** (platform-nav-commit `a4b8e9e`: katalog-URL → `tid.smu.signmeup.dk`). Tids egen login blev fjernet samme dag; login sker på SMU Hub, og den delte platform-session gælder på `*.smu.signmeup.dk`. Verificeret 19. okt. 2026: HTTPS med gyldigt certifikat og HSTS, `http://` → `https://` (301). `smutimer.netlify.app` svarer fortsat med appen (ingen redirect) men er kun hosting-origin — brug og link altid `tid.smu.signmeup.dk`.
 - Kanonisk `NEXT_STEPS` (Truth Reset i `smu-os-v2`) synkes af platform-/Hub-sporet; hub-migrationshistorik for APV/Color/Tid reconciles i Hub-sporet → **ingen migration køres fra smu-tid** (fravær-tabellen `tid_absences` er allerede live og uafhængig af dette).
 
 ---
