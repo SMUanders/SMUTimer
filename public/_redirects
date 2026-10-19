@@ -1,1 +1,9 @@
+# Kanonisk indgang er https://tid.smu.signmeup.dk (cutover 28. aug. 2026). Den gamle
+# Netlify-origin sendes permanent videre med samme sti (og query). Kun præcis denne vært
+# rammes — deploy-previews (deploy-preview-N--smutimer.netlify.app) er upåvirkede.
+# Skal stå FØR SPA-fallbacken (første match vinder; denne fil læses før netlify.toml).
+https://smutimer.netlify.app/*  https://tid.smu.signmeup.dk/:splat  301!
+http://smutimer.netlify.app/*   https://tid.smu.signmeup.dk/:splat  301!
+
+# SPA-fallback: alle stier serveres af index.html.
 /*    /index.html   200
