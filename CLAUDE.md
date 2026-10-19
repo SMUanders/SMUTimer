@@ -71,6 +71,8 @@ ligne SMU":
   (`EmployeeApp`); `/oversigt` = `Admin`/Overblik; deep-link
   `?medarbejder=<id>&dato=<YYYY-MM-DD>` = **leder-visning** af medarbejderens v2-dag
   (`LeaderDay` — "Andreas' dag", rolle-gatede korrektioner, ikke "registrér som").
+  `/oversigt?sag=<sag-uuid>&smu=<SMU-nr.>` åbner fanen "Sag" med sagen valgt (`src/lib/sagDeeplink.ts`) — bruges af
+  SMU OS' "Tidsforbrug i alt" på sagen (LIVE 19. okt. 2026). Titel/kunde via `tid_sag_search`; registreringerne via sag_id.
   Den gamle v1-dagsseddel (`App.tsx`) + `CurrentTaskCard`/`EntryRow`/`LunchPlaceholderRow`
   er fjernet.
 
