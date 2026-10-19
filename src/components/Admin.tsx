@@ -13,14 +13,17 @@ import SagOverview from "./admin/SagOverview";
 import EmployeeFilter from "./admin/EmployeeFilter";
 import UpdateBanner from "./UpdateBanner";
 import { appVersionShort, appProductVersion } from "../lib/version";
+import { sagFraUrl } from "../lib/sagDeeplink";
 
 type Tab = "dag" | "uge" | "sag";
 
 // Admin/Overblik — Natasha & Anders. Egen route (/oversigt). Ingen skrivning her,
 // kun læsning på tværs af medarbejdere. Klik åbner medarbejderens dagsseddel via
-// deep-link (?medarbejder=<id>&dato=<YYYY-MM-DD>).
+// deep-link (?medarbejder=<id>&dato=<YYYY-MM-DD>). Fra SMU OS kan sagens tidsforbrug
+// åbne fanen "Sag" med sagen valgt (?sag=<id>&smu=<SMU-nr.>).
 export default function Admin() {
-  const [tab, setTab] = useState<Tab>("dag");
+  const [startSag] = useState(() => sagFraUrl(window.location.search));
+  const [tab, setTab] = useState<Tab>(startSag ? "sag" : "dag");
   const [ready, setReady] = useState(false);
   const [storageName, setStorageName] = useState<"local" | "supabase">("local");
   const [hidden, setHidden] = useState<Set<string>>(() => loadHidden());
@@ -83,7 +86,7 @@ export default function Admin() {
         <div className="empty">Indlæser…</div>
       ) : tab === "sag" ? (
         // Sag-overblik er på tværs af alle medarbejdere (ikke medarbejder-filtreret).
-        <SagOverview />
+        <SagOverview startSag={startSag} />
       ) : (
         <>
           <EmployeeFilter people={allPeople} hidden={hidden} onChange={setHidden} />

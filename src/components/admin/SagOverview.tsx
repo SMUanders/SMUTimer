@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Clock, Users, Info } from "lucide-react";
 import type { TimeEntry, CurrentTask } from "../../types";
 import type { SagRef } from "../../lib/storage/types";
+import type { SagDeeplink } from "../../lib/sagDeeplink";
 import { store } from "../../lib/storage";
 import { summarizeSag } from "../../lib/sagSummary";
 import { getPersonName } from "../../lib/people";
@@ -20,19 +21,44 @@ function activityName(categoryId: string, subcategoryId: string | null): string 
   return sub ? `${cat} · ${sub}` : cat;
 }
 
-export default function SagOverview() {
+interface Props {
+  /** Sag valgt på forhånd via deep-link fra SMU OS (?sag=<id>&smu=<SMU-nr.>). */
+  startSag?: SagDeeplink | null;
+}
+
+export default function SagOverview({ startSag = null }: Props) {
+  const startNr = startSag?.smuNummer ?? "";
   const [picker, setPicker] = useState<{ customer: string; sagId: string | null; sagSmuNummer: string | null }>({
-    customer: "",
-    sagId: null,
-    sagSmuNummer: null,
+    customer: startNr,
+    sagId: startSag?.sagId ?? null,
+    sagSmuNummer: startSag?.smuNummer ?? null,
   });
-  const [sag, setSag] = useState<SagRef | null>(null);
+  const [sag, setSag] = useState<SagRef | null>(() =>
+    startSag ? { sagId: startSag.sagId, smuNummer: startNr, titel: "", kundeNavn: "" } : null
+  );
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [activeNow, setActiveNow] = useState<CurrentTask[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Deep-link: titel og kunde hentes via samme read-contract som søgningen (tid_sag_search).
+  // Findes sagen ikke dér (fx lukket), vises registreringerne alligevel — de hentes via sag_id.
   useEffect(() => {
-    if (!sag) {
+    if (!startSag?.smuNummer) return;
+    let alive = true;
+    store()
+      .searchSager(startSag.smuNummer)
+      .then((rows) => {
+        const hit = rows.find((r) => r.sagId === startSag.sagId);
+        if (alive && hit) setSag((cur) => (cur?.sagId === hit.sagId ? hit : cur));
+      });
+    return () => {
+      alive = false;
+    };
+  }, [startSag]);
+
+  const sagId = sag?.sagId ?? null;
+  useEffect(() => {
+    if (!sagId) {
       setEntries([]);
       setActiveNow([]);
       return;
@@ -41,19 +67,19 @@ export default function SagOverview() {
     setLoading(true);
     (async () => {
       const [rows, tasks] = await Promise.all([
-        store().getEntriesForSag(sag.sagId),
+        store().getEntriesForSag(sagId),
         store().getAllCurrentTasks().catch(() => [] as CurrentTask[]),
       ]);
       if (!alive) return;
       setEntries(rows);
       // Aktivt arbejde på sagen lige nu (status, IKKE afsluttet tid) — holdes adskilt.
-      setActiveNow(tasks.filter((t) => t.sagId === sag.sagId && !isBreakCategory(t.categoryId)));
+      setActiveNow(tasks.filter((t) => t.sagId === sagId && !isBreakCategory(t.categoryId)));
       setLoading(false);
     })();
     return () => {
       alive = false;
     };
-  }, [sag]);
+  }, [sagId]);
 
   const s = summarizeSag(entries);
 
