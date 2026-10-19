@@ -35,6 +35,10 @@ export interface TimeEntry {
   sagId: string | null;
   /** Display-snapshot af sagens SMU-nummer (så historik er læsbar uden OS-adgang). */
   sagSmuNummer: string | null;
+  /** Blød reference til OS-enhed (TR-088); null = sagsniveau/intern tid. */
+  enhedId: string | null;
+  /** Display-snapshot af enheden ("#3 · beskrivelse · reg.nr"). */
+  enhedVisning: string | null;
   /** Fri tekst, kan være lang. */
   note: string;
   /** true for auto-oprettede frokostlinjer (Pause). */
@@ -66,6 +70,10 @@ export interface CurrentTask {
   sagId: string | null;
   /** Display-snapshot af sagens SMU-nummer. */
   sagSmuNummer: string | null;
+  /** Blød reference til OS-enhed (TR-088); null = sagsniveau/intern tid. */
+  enhedId: string | null;
+  /** Display-snapshot af enheden ("#3 · beskrivelse · reg.nr"). */
+  enhedVisning: string | null;
   note: string | null;
   updatedAt: string;
   updatedBy: string | null;
@@ -110,6 +118,10 @@ export interface EntryDraft {
   /** Stabil SMU-sag-reference, hvis valgt (round-trippes ved leder-korrektion). */
   sagId: string | null;
   sagSmuNummer: string | null;
+  /** Blød reference til OS-enhed (TR-088); null = sagsniveau/intern tid. */
+  enhedId: string | null;
+  /** Display-snapshot af enheden ("#3 · beskrivelse · reg.nr"). */
+  enhedVisning: string | null;
   note: string;
   isRedo: boolean;
   redoReason: string | null;

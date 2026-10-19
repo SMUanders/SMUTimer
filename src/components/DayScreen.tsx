@@ -39,6 +39,7 @@ import type { CurrentTask, TimeEntry, Absence } from "../types";
 import CategoryPicker from "./CategoryPicker";
 import TimeSelect from "./TimeSelect";
 import SagPicker from "./SagPicker";
+import EnhedPicker from "./EnhedPicker";
 
 interface Props {
   employeeId: string;
@@ -53,6 +54,10 @@ interface WorkDraft {
   /** Stabil SMU-sag-reference, hvis valgt via SagPicker (ellers null = fri reference). */
   sagId: string | null;
   sagSmuNummer: string | null;
+  /** Blød reference til OS-enhed (TR-088); null = sagsniveau/intern tid. */
+  enhedId: string | null;
+  /** Display-snapshot af enheden ("#3 · beskrivelse · reg.nr"). */
+  enhedVisning: string | null;
   note: string;
 }
 
@@ -78,6 +83,8 @@ function emptyDraft(): WorkDraft {
     orderNumber: "",
     sagId: null,
     sagSmuNummer: null,
+    enhedId: null,
+    enhedVisning: null,
     note: "",
   };
 }
@@ -88,6 +95,8 @@ function draftFromTask(t: CurrentTask): WorkDraft {
     orderNumber: t.orderNumber ?? "",
     sagId: t.sagId ?? null,
     sagSmuNummer: t.sagSmuNummer ?? null,
+    enhedId: t.enhedId ?? null,
+    enhedVisning: t.enhedVisning ?? null,
     note: t.note ?? "",
   };
 }
@@ -199,6 +208,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         orderNumber: draft.orderNumber.trim() || null,
         sagId: draft.sagId,
         sagSmuNummer: draft.sagSmuNummer,
+        enhedId: draft.enhedId,
+        enhedVisning: draft.enhedVisning,
         note: draft.note.trim() || null,
         updatedAt: nowIso(),
         updatedBy: null,
@@ -232,6 +243,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
             orderNumber: resume.orderNumber ?? "",
             sagId: resume.sagId,
             sagSmuNummer: resume.sagSmuNummer,
+            enhedId: resume.enhedId,
+            enhedVisning: resume.enhedVisning,
             note: resume.note ?? "",
             newId,
             nowIso: nowIso(),
@@ -247,6 +260,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
           orderNumber: resume.orderNumber ?? "",
           sagId: resume.sagId,
           sagSmuNummer: resume.sagSmuNummer,
+          enhedId: resume.enhedId,
+          enhedVisning: resume.enhedVisning,
           note: resume.note ?? "",
         });
       } else {
@@ -259,6 +274,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         orderNumber: null,
         sagId: null,
         sagSmuNummer: null,
+        enhedId: null,
+        enhedVisning: null,
         note: null,
         updatedAt: nowIso(),
         updatedBy: null,
@@ -283,6 +300,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         orderNumber: draft.orderNumber.trim() || null,
         sagId: draft.sagId,
         sagSmuNummer: draft.sagSmuNummer,
+        enhedId: draft.enhedId,
+        enhedVisning: draft.enhedVisning,
         note: draft.note.trim() || null,
         updatedAt: nowIso(),
         updatedBy: null,
@@ -306,6 +325,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         orderNumber: task.orderNumber ?? "",
         sagId: task.sagId,
         sagSmuNummer: task.sagSmuNummer,
+        enhedId: task.enhedId,
+        enhedVisning: task.enhedVisning,
         note: finish.note,
         newId,
         nowIso: nowIso(),
@@ -352,6 +373,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
           orderNumber: pauseOwn.orderNumber.trim() || null,
           sagId: pauseOwn.sagId ?? null,
           sagSmuNummer: pauseOwn.sagSmuNummer ?? null,
+          enhedId: pauseOwn.enhedId ?? null,
+          enhedVisning: pauseOwn.enhedVisning ?? null,
           note: pauseOwn.note.trim() || null,
           updatedAt: nowIso(),
           updatedBy: null,
@@ -390,6 +413,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
           orderNumber: task.orderNumber ?? "",
           sagId: task.sagId,
           sagSmuNummer: task.sagSmuNummer,
+          enhedId: task.enhedId,
+          enhedVisning: task.enhedVisning,
           note: task.note ?? "",
           newId,
           nowIso: nowIso(),
@@ -405,6 +430,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         orderNumber: task.orderNumber ?? "",
         sagId: task.sagId,
         sagSmuNummer: task.sagSmuNummer,
+        enhedId: task.enhedId,
+        enhedVisning: task.enhedVisning,
         note: task.note ?? "",
       });
       // Hjælp-opgaven bliver den aktive opgave; gem HS som starttidspunkt.
@@ -415,6 +442,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         orderNumber: draft.orderNumber.trim() || null,
         sagId: draft.sagId,
         sagSmuNummer: draft.sagSmuNummer,
+        enhedId: draft.enhedId,
+        enhedVisning: draft.enhedVisning,
         note: draft.note.trim() || null,
         updatedAt: nowIso(),
         updatedBy: null,
@@ -443,6 +472,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         orderNumber: task.orderNumber ?? "",
         sagId: task.sagId,
         sagSmuNummer: task.sagSmuNummer,
+        enhedId: task.enhedId,
+        enhedVisning: task.enhedVisning,
         note: HELP_NOTE,
         newId,
         nowIso: nowIso(),
@@ -458,6 +489,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         orderNumber: helpOwn.orderNumber.trim() || null,
         sagId: helpOwn.sagId ?? null,
         sagSmuNummer: helpOwn.sagSmuNummer ?? null,
+        enhedId: helpOwn.enhedId ?? null,
+        enhedVisning: helpOwn.enhedVisning ?? null,
         note: helpOwn.note.trim() || null,
         updatedAt: nowIso(),
         updatedBy: null,
@@ -493,6 +526,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
             orderNumber: task.orderNumber ?? "",
             sagId: task.sagId,
             sagSmuNummer: task.sagSmuNummer,
+            enhedId: task.enhedId,
+            enhedVisning: task.enhedVisning,
             note: task.note ?? "",
             newId,
             nowIso: nowIso(),
@@ -507,6 +542,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
           orderNumber: task.orderNumber ?? "",
           sagId: task.sagId,
           sagSmuNummer: task.sagSmuNummer,
+          enhedId: task.enhedId,
+          enhedVisning: task.enhedVisning,
           note: task.note ?? "",
         };
       }
@@ -520,6 +557,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         orderNumber: draft.orderNumber.trim() || null,
         sagId: draft.sagId,
         sagSmuNummer: draft.sagSmuNummer,
+        enhedId: draft.enhedId,
+        enhedVisning: draft.enhedVisning,
         note: draft.note.trim() || null,
         updatedAt: nowIso(),
         updatedBy: null,
@@ -547,6 +586,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         orderNumber: task.orderNumber ?? "",
         sagId: task.sagId,
         sagSmuNummer: task.sagSmuNummer,
+        enhedId: task.enhedId,
+        enhedVisning: task.enhedVisning,
         note: "",
         isRedo: true,
         redoReason,
@@ -568,6 +609,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
           orderNumber: redoCtx.ownTask.orderNumber.trim() || null,
           sagId: redoCtx.ownTask.sagId ?? null,
           sagSmuNummer: redoCtx.ownTask.sagSmuNummer ?? null,
+          enhedId: redoCtx.ownTask.enhedId ?? null,
+          enhedVisning: redoCtx.ownTask.enhedVisning ?? null,
           note: redoCtx.ownTask.note.trim() || null,
           updatedAt: nowIso(),
           updatedBy: null,
@@ -690,6 +733,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
       orderNumber: c.orderNumber ?? "",
       sagId: c.sagId ?? null,
       sagSmuNummer: c.sagSmuNummer ?? null,
+      enhedId: c.enhedId ?? null,
+      enhedVisning: c.enhedVisning ?? null,
       note: c.note ?? "",
     });
   }
@@ -737,30 +782,37 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
           onChange={(cat, sub) => setDraft((d) => ({ ...d, categoryId: cat, subcategoryId: sub }))}
         />
       </div>
-      <div className="row-2">
-        <SagPicker
-          customer={draft.orderNumber}
-          sagId={draft.sagId}
-          sagSmuNummer={draft.sagSmuNummer}
-          onChange={(n) =>
-            setDraft((d) => ({
-              ...d,
-              orderNumber: n.customer,
-              sagId: n.sagId,
-              sagSmuNummer: n.sagSmuNummer,
-            }))
-          }
+      <SagPicker
+        customer={draft.orderNumber}
+        sagId={draft.sagId}
+        sagSmuNummer={draft.sagSmuNummer}
+        onChange={(n) =>
+          setDraft((d) => ({
+            ...d,
+            orderNumber: n.customer,
+            sagId: n.sagId,
+            sagSmuNummer: n.sagSmuNummer,
+            enhedId: null, // ny/ryddet sag → nulstil enhed
+            enhedVisning: null,
+          }))
+        }
+      />
+      <EnhedPicker
+        sagId={draft.sagId}
+        categoryId={draft.categoryId}
+        enhedId={draft.enhedId}
+        enhedVisning={draft.enhedVisning}
+        onChange={(n) => setDraft((d) => ({ ...d, enhedId: n.enhedId, enhedVisning: n.enhedVisning }))}
+      />
+      <div className="field">
+        <label>Note</label>
+        <input
+          className="smu-input"
+          type="text"
+          placeholder="Valgfri — hvad arbejder du på"
+          value={draft.note}
+          onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
         />
-        <div className="field">
-          <label>Note</label>
-          <input
-            className="smu-input"
-            type="text"
-            placeholder="Valgfri — hvad arbejder du på"
-            value={draft.note}
-            onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
-          />
-        </div>
       </div>
     </>
   );
@@ -874,6 +926,7 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
               <span className="ds-sub"> · {getSubcategory(task.categoryId, task.subcategoryId)?.name}</span>
             )}
             {task?.orderNumber && <span className="ds-order"> · {task.orderNumber}</span>}
+            {task?.enhedVisning && <span className="ds-order"> · {task.enhedVisning}</span>}
           </div>
           {timePair}
           <div className="field">
@@ -992,6 +1045,7 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
                   <span className="ds-sub"> · {getSubcategory(task.categoryId, task.subcategoryId)?.name}</span>
                 )}
                 {task.orderNumber && <span className="ds-order"> · {task.orderNumber}</span>}
+                {task.enhedVisning && <span className="ds-order"> · {task.enhedVisning}</span>}
               </div>
               <div className="ds-help">
                 Den aktive opgave lukkes og genoptages automatisk efter omgøringen.
@@ -1018,8 +1072,17 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
                     orderNumber: n.customer,
                     sagId: n.sagId,
                     sagSmuNummer: n.sagSmuNummer,
+                    enhedId: null, // ny/ryddet sag → nulstil enhed
+                    enhedVisning: null,
                   }))
                 }
+              />
+              <EnhedPicker
+                sagId={draft.sagId}
+                categoryId={draft.categoryId}
+                enhedId={draft.enhedId}
+                enhedVisning={draft.enhedVisning}
+                onChange={(n) => setDraft((d) => ({ ...d, enhedId: n.enhedId, enhedVisning: n.enhedVisning }))}
               />
             </>
           )}
@@ -1053,6 +1116,7 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
               <span className="ds-sub"> · {getSubcategory(task.categoryId, task.subcategoryId)?.name}</span>
             )}
             {task?.orderNumber && <span className="ds-order"> · {task.orderNumber}</span>}
+            {task?.enhedVisning && <span className="ds-order"> · {task.enhedVisning}</span>}
           </div>
           {timePair}
           {redoReasonSelect}
@@ -1225,6 +1289,7 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
               <span className="ds-sub"> · {getSubcategory(task.categoryId, task.subcategoryId)?.name}</span>
             )}
             {task.orderNumber && <span className="ds-order"> · {task.orderNumber}</span>}
+            {task.enhedVisning && <span className="ds-order"> · {task.enhedVisning}</span>}
           </div>
           {task.note && <div className="ds-note">{task.note}</div>}
           {startHHMM && (
@@ -1265,6 +1330,7 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
               <span className="ds-sub"> · {getSubcategory(task.categoryId, task.subcategoryId)?.name}</span>
             )}
             {task.orderNumber && <span className="ds-order"> · {task.orderNumber}</span>}
+            {task.enhedVisning && <span className="ds-order"> · {task.enhedVisning}</span>}
           </div>
           {redoCtx && (
             <div className="ds-reason">Årsag: {getRedoReason(redoCtx.reason)?.name ?? redoCtx.reason}</div>
@@ -1308,6 +1374,7 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
               <span className="ds-sub"> · {getSubcategory(task.categoryId, task.subcategoryId)?.name}</span>
             )}
             {task.orderNumber && <span className="ds-order"> · {task.orderNumber}</span>}
+            {task.enhedVisning && <span className="ds-order"> · {task.enhedVisning}</span>}
           </div>
           {task.note && <div className="ds-note">{task.note}</div>}
           {startHHMM && (

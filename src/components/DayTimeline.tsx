@@ -76,7 +76,9 @@ function BlockBody({ b }: { b: TimelineBlock }) {
       {b.kind === "redo" && b.entry?.redoReason && (
         <div className="tl-reason">Årsag: {getRedoReason(b.entry.redoReason)?.name ?? b.entry.redoReason}</div>
       )}
-      {b.entry?.customer && <div className="tl-order">{b.entry.customer}</div>}
+      {(b.entry?.customer || b.entry?.enhedVisning) && (
+        <div className="tl-order">{[b.entry.customer, b.entry.enhedVisning].filter(Boolean).join(" · ")}</div>
+      )}
     </div>
   );
 }

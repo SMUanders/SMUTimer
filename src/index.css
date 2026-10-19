@@ -131,6 +131,8 @@ body {
 .sag-clear { position: absolute; right: 6px; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 0; background: transparent; border-radius: 8px; color: var(--color-text-muted); cursor: pointer; }
 .sag-clear:hover { background: var(--color-grey-soft); color: var(--color-text); }
 .sag-hint { font-size: 12px; font-weight: 600; color: var(--color-text-muted); margin-top: 4px; }
+/* Blød opfordring ved montage uden valgt enhed (ikke en fejl → ikke rød) */
+.enhed-hint { font-size: 12px; font-weight: 600; color: var(--color-primary-deep); margin-top: 4px; }
 .sag-hint-ok { color: var(--color-teal); }
 .sag-results {
   position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 40;

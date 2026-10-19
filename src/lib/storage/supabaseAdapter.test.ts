@@ -30,6 +30,43 @@ describe("supabaseAdapter.searchSager — kalder OS read-contract og mapper felt
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  it("getSagEnheder kalder tid_sag_enheder med p_sag_id og mapper felter", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [
+        {
+          enhed_id: "e3",
+          loebenummer: 3,
+          beskrivelse: "Schmitz trailer",
+          reg_nr: "AB12345",
+          stelnummer: null,
+          trailer_nr: "T7",
+          internt_nr: null,
+        },
+      ],
+      error: null,
+    });
+    const store = createSupabaseAdapter(fakeClient(rpc));
+    const res = await store.getSagEnheder("sag-1");
+    expect(rpc).toHaveBeenCalledWith("tid_sag_enheder", { p_sag_id: "sag-1" });
+    expect(res).toEqual([
+      {
+        enhedId: "e3",
+        loebenummer: 3,
+        beskrivelse: "Schmitz trailer",
+        regNr: "AB12345",
+        stelnummer: null,
+        trailerNr: "T7",
+        interntNr: null,
+      },
+    ]);
+  });
+
+  it("getSagEnheder fejler blødt → tom liste (vælgeren skjules)", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: { message: "denied" } });
+    const store = createSupabaseAdapter(fakeClient(rpc));
+    expect(await store.getSagEnheder("sag-1")).toEqual([]);
+  });
+
   it("fejler blødt → tom liste (ingen crash i UI)", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: { message: "denied" } });
     const store = createSupabaseAdapter(fakeClient(rpc));

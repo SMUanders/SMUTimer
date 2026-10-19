@@ -165,4 +165,9 @@ export const localAdapter: TimeEntryStore = {
   async searchSager() {
     return [];
   },
+
+  // Ingen SMU OS i lokal dev → ingen enheder (vælgeren skjules; registrering på sagsniveau).
+  async getSagEnheder() {
+    return [];
+  },
 };

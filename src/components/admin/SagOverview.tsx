@@ -142,6 +142,7 @@ export default function SagOverview() {
                       </div>
                       <div className="sag-entry-act">
                         {e.startTime}–{e.endTime} · {activityName(e.categoryId, e.subcategoryId)}
+                        {e.enhedVisning ? ` · ${e.enhedVisning}` : ""}
                       </div>
                       {e.note?.trim() && <div className="sag-entry-note">{e.note.trim()}</div>}
                     </div>

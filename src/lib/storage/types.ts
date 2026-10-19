@@ -8,6 +8,18 @@ export interface SagRef {
   kundeNavn: string;
 }
 
+/** En aktiv enhed på en sag (OS-ejet read-contract public.tid_sag_enheder). */
+export interface SagEnhed {
+  enhedId: string;
+  loebenummer: number;
+  /** Enhedens beskrivelse (OS' `enheder.type`, fritekst — TR-089). */
+  beskrivelse: string | null;
+  regNr: string | null;
+  stelnummer: string | null;
+  trailerNr: string | null;
+  interntNr: string | null;
+}
+
 // Fælles storage-interface. Al persistering går gennem dette — resten af appen
 // kender ikke til om data ligger i localStorage eller Supabase.
 // Alle metoder er async, så adapterne kan være netværksbaserede (Supabase).
@@ -46,6 +58,10 @@ export interface TimeEntryStore {
   // SMU-sag: søg eksisterende OS-sager via OS-ejet read-contract (tid_sag_search).
   // Kræver ingen 'os'-adgang. Local-adapter returnerer [] (ingen OS i dev).
   searchSager(query: string): Promise<SagRef[]>;
+
+  // Enhed (TR-088): sagens aktive enheder via OS-ejet read-contract (tid_sag_enheder).
+  // Kræver ingen 'os'-adgang. Local-adapter returnerer [] (ingen OS i dev).
+  getSagEnheder(sagId: string): Promise<SagEnhed[]>;
 }
 
 // ID/tidsstempel — bruges når nye entries bygges. crypto.randomUUID giver et

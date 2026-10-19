@@ -6,6 +6,7 @@ import { getLunchWindow } from "../lib/lunch";
 import { overlaps as intervalsOverlap, toMinutes } from "../lib/time";
 import CategoryPicker from "./CategoryPicker";
 import TimeSelect from "./TimeSelect";
+import EnhedPicker from "./EnhedPicker";
 
 interface Props {
   mode: "new" | "edit";
@@ -31,6 +32,8 @@ const emptyDraft = (): EntryDraft => ({
   customer: "",
   sagId: null,
   sagSmuNummer: null,
+  enhedId: null,
+  enhedVisning: null,
   note: "",
   isRedo: false,
   redoReason: null,
@@ -140,6 +143,16 @@ export default function EntryEditor({
               onChange={(e) => set("customer", e.target.value)}
             />
           </div>
+
+          {/* Enhed (TR-088): kun når registreringen er knyttet til en SMU-sag. Leder kan rette
+              en forkert enhed; sagen ændres ikke her. */}
+          <EnhedPicker
+            sagId={draft.sagId}
+            categoryId={draft.categoryId}
+            enhedId={draft.enhedId}
+            enhedVisning={draft.enhedVisning}
+            onChange={(n) => setDraft((d) => ({ ...d, enhedId: n.enhedId, enhedVisning: n.enhedVisning }))}
+          />
 
           <div className="field">
             <label>Note</label>

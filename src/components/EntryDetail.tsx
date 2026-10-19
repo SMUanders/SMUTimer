@@ -101,6 +101,9 @@ export default function EntryDetail({ entry, onClose, onSaveNote }: Props) {
             ) : (
               <Row label="Ordre / sag / kunde" value={entry.customer?.trim() || "—"} />
             ))}
+          {!isPause && entry.sagId && (
+            <Row label="Enhed" value={entry.enhedVisning || "Hele sagen"} />
+          )}
 
           {entry.isRedo && (
             <Row label="Omgøring årsag" value={getRedoReason(entry.redoReason)?.name ?? entry.redoReason ?? "—"} />

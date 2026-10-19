@@ -18,6 +18,10 @@ export interface OwnTask {
   /** Bevar SMU-sag-reference over suspend/resume (hjælp/pause/omgøring). */
   sagId?: string | null;
   sagSmuNummer?: string | null;
+  /** Blød reference til OS-enhed (TR-088); null = sagsniveau/intern tid. */
+  enhedId?: string | null;
+  /** Display-snapshot af enheden ("#3 · beskrivelse · reg.nr"). */
+  enhedVisning?: string | null;
   note: string;
 }
 

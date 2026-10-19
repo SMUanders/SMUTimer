@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TimeEntry, CurrentTask, Absence } from "../../types";
-import type { TimeEntryStore, SagRef } from "./types";
+import type { TimeEntryStore, SagRef, SagEnhed } from "./types";
 
 const TASKS_TABLE = "tid_current_tasks";
 const ABSENCES_TABLE = "tid_absences";
@@ -41,6 +41,8 @@ interface TaskRow {
   order_number: string | null;
   sag_id: string | null;
   sag_smu_nummer: string | null;
+  enhed_id: string | null;
+  enhed_visning: string | null;
   note: string | null;
   updated_at: string;
   updated_by: string | null;
@@ -53,6 +55,8 @@ function taskFromRow(r: TaskRow): CurrentTask {
     orderNumber: r.order_number,
     sagId: r.sag_id ?? null,
     sagSmuNummer: r.sag_smu_nummer ?? null,
+    enhedId: r.enhed_id ?? null,
+    enhedVisning: r.enhed_visning ?? null,
     note: r.note,
     updatedAt: r.updated_at,
     updatedBy: r.updated_by,
@@ -84,6 +88,8 @@ interface Row {
   customer: string;
   sag_id: string | null;
   sag_smu_nummer: string | null;
+  enhed_id: string | null;
+  enhed_visning: string | null;
   note: string;
   is_break: boolean;
   is_redo: boolean;
@@ -108,6 +114,8 @@ function toRow(e: TimeEntry): Row {
     customer: e.customer,
     sag_id: e.sagId,
     sag_smu_nummer: e.sagSmuNummer,
+    enhed_id: e.enhedId,
+    enhed_visning: e.enhedVisning,
     note: e.note,
     is_break: e.isBreak,
     is_redo: e.isRedo,
@@ -133,6 +141,8 @@ function fromRow(r: Row): TimeEntry {
     customer: r.customer,
     sagId: r.sag_id ?? null,
     sagSmuNummer: r.sag_smu_nummer ?? null,
+    enhedId: r.enhed_id ?? null,
+    enhedVisning: r.enhed_visning ?? null,
     note: r.note,
     isBreak: r.is_break,
     isRedo: r.is_redo,
@@ -159,6 +169,8 @@ function patchToRow(patch: Partial<TimeEntry>): Record<string, unknown> {
     customer: "customer",
     sagId: "sag_id",
     sagSmuNummer: "sag_smu_nummer",
+    enhedId: "enhed_id",
+    enhedVisning: "enhed_visning",
     note: "note",
     isBreak: "is_break",
     isRedo: "is_redo",
@@ -291,6 +303,8 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
         order_number: task.orderNumber,
         sag_id: task.sagId,
         sag_smu_nummer: task.sagSmuNummer,
+        enhed_id: task.enhedId,
+        enhed_visning: task.enhedVisning,
         note: task.note,
       };
       const { error } = await client
@@ -391,6 +405,39 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
             smuNummer: r.smu_nummer,
             titel: r.titel,
             kundeNavn: r.kunde_navn,
+          })
+        );
+      } catch {
+        return [];
+      }
+    },
+
+    // ---- Enhed (TR-088) — OS-ejet read-contract ----
+    // Kalder public.tid_sag_enheder(p_sag_id). Ingen direkte adgang til enheder — RPC'en
+    // håndhæver har_app_adgang('tid') og returnerer kun identitetsfelter. Fejler blødt.
+    async getSagEnheder(sagId) {
+      try {
+        const { data, error } = await client.rpc("tid_sag_enheder", { p_sag_id: sagId });
+        if (error || !data) return [];
+        return (
+          data as {
+            enhed_id: string;
+            loebenummer: number;
+            beskrivelse: string | null;
+            reg_nr: string | null;
+            stelnummer: string | null;
+            trailer_nr: string | null;
+            internt_nr: string | null;
+          }[]
+        ).map(
+          (r): SagEnhed => ({
+            enhedId: r.enhed_id,
+            loebenummer: r.loebenummer,
+            beskrivelse: r.beskrivelse,
+            regNr: r.reg_nr,
+            stelnummer: r.stelnummer,
+            trailerNr: r.trailer_nr,
+            interntNr: r.internt_nr,
           })
         );
       } catch {
