@@ -37,6 +37,11 @@ ligne SMU":
   felter — ingen bred `os`-adgang). Fritekst (`customer`/`order_number`) bevares til
   ikke-sagsbundet arbejde. Hub-migration `20260925120001`. QR = senere inputkanal til
   samme resolver (ikke bygget).
+- **Enhed (v2.2, TR-088):** valgfri `enhed_id` (blød ref til `enheder.id`, INGEN FK) + `enhed_visning`
+  (snapshot "#3 · beskrivelse · reg.nr") på `tid_time_entries`/`tid_current_tasks`. Enhederne læses via OS-ejet
+  `public.tid_sag_enheder(p_sag_id)`; trigger `tid_valider_enhed` afviser enhed fra en anden sag. Én enhed pr.
+  registrering; flere/alle enheder = sagsniveau. Aldrig obligatorisk; montage + præcis én aktiv enhed → forvalgt
+  (kun når sagen vælges i formularen — eksisterende registreringer omskrives aldrig). Hub-migration `20261019210000`.
 - **Medarbejdere = den delte `profiler`** (via `src/lib/people.ts`) — ingen egen
   liste. `nt` vises som "Natasha"; `info` ekskluderes; navne med stort forbogstav.
 - **Soft-delete:** `slettet boolean`; sletning markerer i stedet for at fjerne.
