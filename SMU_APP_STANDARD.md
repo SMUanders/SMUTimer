@@ -121,24 +121,15 @@ Kort resumé (autoritativt i design-doc'en):
 - Dansk UI. Ingen gradients, ingen emojis, ingen accent-striber.
 - Login, tomme states og fejlskærme skal føles som SMU.
 
-### App-ikon & favicon (standard)
+### App-ikon og PWA (Tid)
 **Navy `#213746` bund + ét enkelt hvidt symbol for appen** (SMU Tid = et **ur**;
 hver app vælger et passende symbol — evt. med blå `#3f9ed3` accent). Ingen
 tilfældige farver. **Samme ikon bruges som favicon i fanen OG som app-ikon på
-mobil** (hjemmeskærm), så alt hænger sammen.
-- Kilde: `public/favicon.svg` (skarp i alle størrelser).
-- Rasteriseret fra SVG'en: `favicon-32.png`, `favicon-48.png`, `pwa-192x192.png`,
-  `pwa-512x512.png`, `apple-touch-icon.png`.
-- Linket i `index.html` (favicon + apple-touch) og `manifest.webmanifest` (pwa).
-
-### PWA / hjemmeskærm (standard)
-Hver SMU-app skal kunne gemmes på telefonen som app-ikon:
-- `public/manifest.webmanifest` — `display: standalone`, `theme_color` navy
-  `#213746`, `background_color` beige `#f4f2ed`, ikoner 192 + 512 (+ maskable).
-- `index.html` — `manifest`-link, `theme-color`, `apple-touch-icon`,
-  `apple-mobile-web-app-capable` + `-title`.
-- **App-ikon:** se "App-ikon & favicon" ovenfor (navy bund + hvidt app-symbol;
-  samme ikon som favicon). Genereres fra SVG'en — ingen ekstra runtime-dep.
+mobil** (hjemmeskærm), så alt hænger sammen. Ikonerne genereres fra SVG'en
+(`public/favicon.svg`) — ingen ekstra runtime-dep. Filer, størrelser og manifest: se §12.
+- `manifest.webmanifest`: `display: standalone`, `theme_color` navy `#213746`,
+  `background_color` beige `#f4f2ed`.
+- `index.html`: `theme-color`, `apple-mobile-web-app-capable` + `-title`.
 - **Ingen service worker / offline i V1** — kun ikon + standalone-åbning. Appen må
   fortsat kræve internet + login.
 
