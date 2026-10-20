@@ -16,8 +16,9 @@ import DayScreen from "./DayScreen";
 import DayTimeline from "./DayTimeline";
 import EntryDetail from "./EntryDetail";
 import { buildDayTimeline } from "../lib/dayTimeline";
-import UpdateBanner from "./UpdateBanner";
-import { appVersionShort, appProductVersion } from "../lib/version";
+import { UpdateBanner } from "../platform-update/UpdateBanner";
+import { appBuildIdShort } from "../platform-update/buildId";
+import { appProductVersion } from "../lib/version";
 
 const EMPLOYEE_KEY = "smu-tid.employee";
 
@@ -242,7 +243,7 @@ export default function EmployeeApp() {
         />
       )}
 
-      <div className="app-version" title={`Build ${appVersionShort()}`}>
+      <div className="app-version" title={`Build ${appBuildIdShort()}`}>
         SMU Tid {appProductVersion()}
       </div>
       <UpdateBanner />

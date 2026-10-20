@@ -31,8 +31,9 @@ import DaySummary from "./DaySummary";
 import DayTimeline from "./DayTimeline";
 import EntryEditor, { emptyDraft } from "./EntryEditor";
 import LunchSplitDialog from "./LunchSplitDialog";
-import UpdateBanner from "./UpdateBanner";
-import { appVersionShort, appProductVersion } from "../lib/version";
+import { UpdateBanner } from "../platform-update/UpdateBanner";
+import { appBuildIdShort } from "../platform-update/buildId";
+import { appProductVersion } from "../lib/version";
 
 // SMU Tid v2 — LEDER-VISNING af én medarbejders dag ("Andreas' dag").
 //
@@ -449,7 +450,7 @@ export default function LeaderDay() {
         />
       )}
 
-      <div className="app-version" title={`Build ${appVersionShort()}`}>
+      <div className="app-version" title={`Build ${appBuildIdShort()}`}>
         SMU Tid {appProductVersion()}
       </div>
       <UpdateBanner defer={!!editor || !!pending} />
