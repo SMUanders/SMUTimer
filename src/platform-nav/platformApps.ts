@@ -24,8 +24,11 @@
  * APV (apv.smu.signmeup.dk) og Wiki (wiki.smu.signmeup.dk); 21. aug. 2026: MUS (mus.smu.signmeup.dk);
  * 26. aug. 2026: Arkiv (arkiv.smu.signmeup.dk); 28. aug. 2026: Tid (tid.smu.signmeup.dk).
  * 15. sep. 2026: Source (source.smu.signmeup.dk) — cutover; frigivet 16. sep. 2026 med synlighed privat.
- * Color kører fortsat på Netlify, og den delte cookie-session (SSO) virker KUN på
- * *.smu.signmeup.dk — så et hop til en netlify.app-adresse kan kræve nyt login.
+ * 6. okt. 2026: Color (color.smu.signmeup.dk) — cutover.
+ * 8. okt. 2026: Kapacitet (kapacitet.smu.signmeup.dk) — live (frigivet, synlig for brugere med adgang).
+ * 9. okt. 2026: Pladsliste (pladsliste.smu.signmeup.dk) — live i intern testfase (frigivet + privat, kun brugere med adgang).
+ * Den delte cookie-session (SSO) virker KUN på *.smu.signmeup.dk — så et hop til en
+ * netlify.app-adresse kan kræve nyt login.
  */
 
 /** Er produktet frigivet til almindelig medarbejderbrug? */
@@ -220,6 +223,82 @@ export const PLATFORM_APPS: Record<string, AppMeta> = {
     status: 'frigivet',
     // Fortrolige personoplysninger: brugere uden mus-adgang skal ikke kunne se,
     // at appen overhovedet findes — derfor hverken kort eller "Ingen adgang".
+    synlighed: 'privat',
+  },
+
+  // ── Intern beta: appen er live for brugere med en aktiv kalkulation-adgang ───
+  kalkulation: {
+    key: 'kalkulation',
+    appKey: 'kalkulation',
+    displayName: 'SMU Kalkulation',
+    description: 'Kalkulationer, materialer, tid og økonomi under en OS-løsning',
+    // Teknisk platform-cutover 16. sep. 2026 som INTERN BETA (TR-065). Pr. 20. okt. 2026 er der tre
+    // aktive adgange — global super-admin (admin) og to medarbejdere (bruger) — og kortet ses kun af
+    // dem (frigivet: synlighed følger app_adgange). Kalkulationer gemmes på en OS-sag (TR-093).
+    // Materialepriserne er fortsat prototype/manuelle, undtagen ORACAL 651 Farver, der regnes med den
+    // gældende SMU Source-pris som pilot (TR-101). Appen bærer selv en synlig beta-markering.
+    // https://smu-kalkulation.netlify.app er legacy og linkes ikke — den deler ikke platform-cookien.
+    url: 'https://kalkulation.smu.signmeup.dk',
+    maalUrl: 'https://kalkulation.smu.signmeup.dk',
+    // Officielt app-ikon: lommeregner i SMU-ikonstilen (besluttet 20. okt. 2026, TR-099).
+    icon: '/icons/apps/smu-kalkulation.svg',
+    sortOrder: 100,
+    status: 'frigivet',
+    synlighed: 'discoverable',
+  },
+  lager: {
+    key: 'lager',
+    appKey: 'lager', // app-key + roller bruger/admin er live (20260925150001)
+    displayName: 'SMU Lager',
+    description: 'Forbrugsvarer og genbestilling',
+    // Selvstændig Small App (v0.1), cutover 25. sep. 2026 på custom domain med Let's Encrypt
+    // og tvungen HTTPS. Samme mønster som Kalkulation: frigivet + discoverable, men kun ÉN aktiv
+    // adgang — global super-admin som lager/admin (20260925150002). Kortet er derfor kun synligt
+    // for ham, indtil medarbejdere får lager-adgang i Hub → Medarbejdere.
+    // https://smu-lager.netlify.app linkes ikke — den deler ikke platform-cookien.
+    url: 'https://lager.smu.signmeup.dk',
+    maalUrl: 'https://lager.smu.signmeup.dk',
+    // MIDLERTIDIGT IKON: SMU Lager har endnu ingen officiel identitet. Den neutrale
+    // platform-placeholder må aldrig blive appens officielle ikon.
+    icon: PAA_VEJ_IKON,
+    sortOrder: 110,
+    status: 'frigivet',
+    synlighed: 'discoverable',
+  },
+  kapacitet: {
+    key: 'kapacitet',
+    appKey: 'kapacitet', // app-key + roller observatoer/bruger/admin er live (20261008130000)
+    displayName: 'SMU Kapacitet',
+    description: 'Montageplanlægning',
+    // Selvstændig Small App, live 8. okt. 2026 på custom domain med Let's Encrypt og tvungen
+    // HTTPS. Frigivet + discoverable som Lager: kortet ses kun af brugere med en aktiv
+    // kapacitet-adgang (20261008140000: anders admin, natasha og marie bruger).
+    // https://smu-kapacitet.netlify.app linkes ikke — den deler ikke platform-cookien.
+    url: 'https://kapacitet.smu.signmeup.dk',
+    maalUrl: 'https://kapacitet.smu.signmeup.dk',
+    icon: '/icons/apps/smu-kapacitet.svg', // enkelt kalenderikon (besluttet 8. okt. 2026)
+    sortOrder: 120,
+    status: 'frigivet',
+    synlighed: 'discoverable',
+  },
+  pladsliste: {
+    key: 'pladsliste',
+    appKey: 'pladsliste', // app-key + roller observatoer/bruger er live (20261008200000)
+    displayName: 'SMU Pladsliste',
+    description: 'Køretøjer og trailere på pladsen',
+    // Selvstændig Small App (v0.1), live 9. okt. 2026 på custom domain med Let's Encrypt og
+    // tvungen HTTPS. INTERN TESTFASE: frigivet + PRIVAT — kortet er klikbart for brugere med en
+    // aktiv pladsliste-adgang (20261009100000: 11 × bruger) og slet ikke synligt for andre.
+    // privat (frem for discoverable som Kapacitet) gør, at appen heller ikke kan dukke op som
+    // "På vej"-teaser, hvis status senere ændres. Laila har udelukkende SMU MUS og ser den ikke.
+    // https://smu-pladsliste.netlify.app linkes ikke — den deler ikke platform-cookien.
+    url: 'https://pladsliste.smu.signmeup.dk',
+    maalUrl: 'https://pladsliste.smu.signmeup.dk',
+    // MIDLERTIDIGT IKON (godkendt 8. okt. 2026): appens eget midlertidige P-skilt-ikon.
+    // Erstattes af en officiel identitet før bred frigivelse.
+    icon: '/icons/apps/smu-pladsliste.svg',
+    sortOrder: 130,
+    status: 'frigivet',
     synlighed: 'privat',
   },
 }

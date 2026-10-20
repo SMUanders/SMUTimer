@@ -53,7 +53,9 @@ Skjulningen er en UX-beslutning oven på RLS — ikke sikkerhedsmekanismen i sig
 
 **Ikoner:** en `paa_vej`-app uden officiel identitet bruger `PAA_VEJ_IKON`
 (`platform-paa-vej.svg`) — en neutral, stiplet placeholder der bevidst ikke ligner et app-ikon og
-aldrig må genbruges som appens fremtidige identitet.
+aldrig må genbruges som appens fremtidige identitet. Samme placeholder bruges midlertidigt af en
+frigivet app, der endnu ikke har fået en besluttet identitet (SMU Kalkulation, 16. sep. 2026) —
+den er et synligt hul, ikke et design, og udskiftes når ikonet besluttes.
 
 ## URL-disciplin
 `url` er appens **verificerede adresse** — det eneste Hub/AppSwitcher linker til, og kun når appen er frigivet.

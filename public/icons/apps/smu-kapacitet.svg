@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="SMU Kapacitet">
+  <!-- SMU Kapacitet: enkelt kalender med planlagte blokke i kolonner (montører). D7, 8. okt. 2026. -->
+  <rect width="512" height="512" rx="112" fill="#213746"/>
+  <rect x="104" y="128" width="304" height="272" rx="36" fill="none" stroke="#ffffff" stroke-width="24"/>
+  <line x1="104" y1="196" x2="408" y2="196" stroke="#ffffff" stroke-width="24"/>
+  <line x1="184" y1="96" x2="184" y2="148" stroke="#ffffff" stroke-width="24" stroke-linecap="round"/>
+  <line x1="328" y1="96" x2="328" y2="148" stroke="#ffffff" stroke-width="24" stroke-linecap="round"/>
+  <rect x="146" y="232" width="56" height="128" rx="12" fill="#3f9ed3"/>
+  <rect x="228" y="232" width="56" height="72" rx="12" fill="#3f9ed3"/>
+  <rect x="310" y="276" width="56" height="84" rx="12" fill="#3f9ed3"/>
+</svg>
