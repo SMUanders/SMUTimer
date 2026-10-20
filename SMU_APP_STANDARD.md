@@ -196,8 +196,53 @@ Hver SMU-app skal kunne gemmes på telefonen som app-ikon:
 
 ---
 
-> **§12–15 er synkroniseret ordret fra den kanoniske `SMU_APP_STANDARD.md` i smu-os** (platform-update, TR-096).
+> **§11–15 er synkroniseret ordret fra den kanoniske `SMU_APP_STANDARD.md` i smu-os** (platform-update, TR-096).
 > §-henvisninger i disse afsnit følger den kanoniske nummerering.
+
+## 11. Platform-navigation og app-identitet
+
+**Status: godkendt standard.** Canonical kilde er `smu-hub/src/platform-nav/` (Model D — filerne kopieres
+uændret ind i hver app; se modulets egen `README.md`). Følgende er platformens vedtagne UX-model.
+
+**Teknisk deployet er ikke det samme som frigivet til medarbejdere.** Det er den varige
+discoverability-regel: Hub er et produktlandskab, ikke en liste over deployede repositories. En app kan være
+live på en URL og alligevel stå som "På vej", indtil den er frigivet som almindeligt arbejdsværktøj — og Hub
+må vise en kendt produktretning, før der overhovedet findes kode.
+
+Kataloget har to uafhængige akser: **`status`** (`frigivet` | `paa_vej`) og **`synlighed`**
+(`discoverable` | `privat`). **SMU Hub viser hele det synlige SMU-univers**, ikke kun brugerens egne apps:
+
+| Tilstand | Betingelse | Kortets opførsel |
+|---|---|---|
+| Tilgængelig | frigivet **og** aktiv `app_adgang` | klikbart link |
+| Ingen adgang | frigivet + discoverable, brugeren mangler adgang | synligt, ikke klikbart, rolig mærkat "Ingen adgang" |
+| På vej | ikke frigivet endnu | dæmpet kort, mærkat "På vej", **aldrig klikbart**, **ingen opfundet URL** |
+| *(skjult)* | `privat` app uden adgang | optræder slet ikke i brugerens Hub |
+
+Synlighed vurderes før status, så en privat app aldrig kan lække gennem "På vej"- eller "Ingen adgang"-kortet.
+En `paa_vej`-app kræver hverken app-key, roller eller adgange endnu; har den ingen officiel identitet, bruges
+en neutral platform-placeholder, som **aldrig** må genbruges som appens fremtidige ikon.
+
+At private apps skjules, er en UX-beslutning oven på RLS — ikke sikkerhedsmekanismen i sig selv.
+"Ingen adgang" må ikke ligne en teknisk fejl: grå mærkat, aldrig rød, intet fejlikon. Hub forbliver en
+launcher/platformoversigt — **ingen** dashboard-data, sager, tider, notifikationer eller cross-app domænedata.
+
+**AppSwitcheren er daglig navigation**, ikke platformoversigt. Den viser Hub, den aktuelle app (markeret) og
+brugerens øvrige **frigivne** apps med adgang. Apps uden adgang, apps "på vej" og private apps uden adgang
+hører ikke til der.
+
+**Multi-app arbejde:** navigation sker med almindelige links, så brugeren selv kan vælge ny fane. Tving ikke
+al navigation ind i samme fane — en medarbejder skal kunne have OS, Tid og Color åbne samtidig.
+
+**URL-disciplin:** app-kataloget skelner mellem `url` (verificeret live-adresse — det eneste der linkes til)
+og `maalUrl` (godkendt målmodel `<app>.smu.signmeup.dk`). Skriv aldrig målmodellen som live-sandhed, og gæt
+aldrig en app-key, URL, status eller et ikon.
+
+**Cross-app handoff — godkendt princip, ikke bygget endnu.** En app må deep-linke til en anden app med
+relevant kontekst, når modtagerappen ejer arbejdsopgaven (fx OS Sag → "Åbn i Color" / "Registrér tid"):
+modtageren ejer opgaven og validerer selv; konteksten er en stabil reference (fx `sag_id`/SMU-nummer), aldrig
+kopieret domænedata; adgang afgøres hos modtageren (et link er ikke en adgangstildeling); handoff må åbne i ny
+fane; ingen skjult skrivning på tværs af domæner. Konkrete handoffs kræver produktbeslutning først.
 
 ## 12. Definition: platformklar app
 
