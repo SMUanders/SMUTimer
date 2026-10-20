@@ -121,17 +121,8 @@ Kort resumé (autoritativt i design-doc'en):
 - Dansk UI. Ingen gradients, ingen emojis, ingen accent-striber.
 - Login, tomme states og fejlskærme skal føles som SMU.
 
-### App-ikon og PWA (Tid)
-**Navy `#213746` bund + ét enkelt hvidt symbol for appen** (SMU Tid = et **ur**;
-hver app vælger et passende symbol — evt. med blå `#3f9ed3` accent). Ingen
-tilfældige farver. **Samme ikon bruges som favicon i fanen OG som app-ikon på
-mobil** (hjemmeskærm), så alt hænger sammen. Ikonerne genereres fra SVG'en
-(`public/favicon.svg`) — ingen ekstra runtime-dep. Filer, størrelser og manifest: se §12.
-- `manifest.webmanifest`: `display: standalone`, `theme_color` navy `#213746`,
-  `background_color` beige `#f4f2ed`.
-- `index.html`: `theme-color`, `apple-mobile-web-app-capable` + `-title`.
-- **Ingen service worker / offline i V1** — kun ikon + standalone-åbning. Appen må
-  fortsat kræve internet + login.
+### App-ikon (Tid)
+SMU Tids app-symbol er et **ur**. Ikonstil og PWA: §11 (canonical).
 
 ---
 
@@ -187,7 +178,7 @@ mobil** (hjemmeskærm), så alt hænger sammen. Ikonerne genereres fra SVG'en
 
 ---
 
-> **§11–15 er synkroniseret ordret fra den kanoniske `SMU_APP_STANDARD.md` i smu-os** (platform-update, TR-096).
+> **§11–15 er synkroniseret ordret fra den kanoniske `SMU_APP_STANDARD.md` i smu-os** (TR-096, TR-098).
 > §-henvisninger i disse afsnit følger den kanoniske nummerering.
 
 ## 11. Platform-navigation og app-identitet
@@ -235,6 +226,18 @@ modtageren ejer opgaven og validerer selv; konteksten er en stabil reference (fx
 kopieret domænedata; adgang afgøres hos modtageren (et link er ikke en adgangstildeling); handoff må åbne i ny
 fane; ingen skjult skrivning på tværs af domæner. Konkrete handoffs kræver produktbeslutning først.
 
+**App-ikon og PWA — godkendt standard (TR-098).**
+- **Ikonstil:** navy `#213746` bund + ét enkelt hvidt symbol for appen — hver app vælger et passende symbol,
+  evt. med blå `#3f9ed3` accent. Ingen tilfældige farver. Gælder nye ikoner; eksisterende afvigere står i
+  `NEXT_STEPS.md` → *Deferred housekeeping*, og et ikon ændres kun ved en eksplicit designbeslutning.
+- **Samme ikon overalt:** favicon i fanen og app-ikon på mobil (hjemmeskærm) er det samme ikon. Det genereres
+  fra appens `public/favicon.svg` — ingen ekstra runtime-dep. Filer og størrelser: §12.
+- **PWA = kun ikon + standalone-åbning:** `manifest.webmanifest` med `display: standalone`, `theme_color`
+  navy `#213746` og `background_color` beige `#f4f2ed`; `index.html` med `theme-color`,
+  `apple-mobile-web-app-capable` + `-title`.
+- **Ingen service worker og ingen offline-cache.** Apps kræver internet og login. Den fælles
+  update-notifikation (§15) forudsætter, at ingen service worker cacher gamle filer.
+
 ## 12. Definition: platformklar app
 
 En ny SMU-app er **platformklar** — altså klar til at komme i Hub og blive rullet ud til medarbejdere — først
@@ -247,10 +250,10 @@ når alle relevante punkter er på plads. Punkter der bevidst ikke gælder appen
 4. backend/RLS håndhæver adgangen — frontend-tjek alene er ikke sikkerhed.
 
 **Identitet og ikoner**
-5. officielt app-ikon besluttet (opfind ikke et permanent ikon for en app uden identitet);
+5. officielt app-ikon besluttet i platformens ikonstil (§11) — opfind ikke et permanent ikon for en app uden identitet;
 6. browser-favicon (SVG + PNG-fallback);
 7. iOS `apple-touch-icon` 180×180 som PNG — SVG virker ikke;
-8. PWA 192×192 og 512×512 + `manifest.webmanifest` med `theme_color`/`background_color`;
+8. PWA 192×192 og 512×512 + `manifest.webmanifest` med `theme_color`/`background_color` — uden service worker (§11);
 9. ægte maskable 512×512 med indholdet inden for 80 %-sikkerhedszonen (genbrug ikke `any`-filen);
 10. samme ikon kopieret til Hubs `public/icons/apps/` — Hub viser appens **egen** identitet.
 
