@@ -47,6 +47,11 @@ ligne SMU":
 - **Soft-delete:** `slettet boolean`; sletning markerer i stedet for at fjerne.
 - Audit `created_by`/`updated_by` = `auth.uid()`.
 
+- **Update-notifikation:** `src/platform-update/` er en uændret kopi af `smu-hub/src/platform-update/` (Model D) — ret
+  aldrig lokalt; ret canonical og kopiér igen. Build-id + `dist/version.json` kommer fra dets Vite-plugin;
+  produktversionen ("SMU Tid v2.2") er fortsat `package.json` via `src/lib/version.ts`. Banneret er monteret i
+  Admin/EmployeeApp/LeaderDay (LeaderDay med `defer` under redigering). Genindlæsning kun ved klik.
+
 ## Kendte afvigelser (mindre — ryd op ved lejlighed)
 - **Stack-version:** React 18 + Vite 5 (standarden/`smu-os-v2` er på React 19 +
   Vite 8). Fungerer; kan opgraderes.
