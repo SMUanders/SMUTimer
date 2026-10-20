@@ -133,6 +133,9 @@ body {
 .sag-hint { font-size: 12px; font-weight: 600; color: var(--color-text-muted); margin-top: 4px; }
 /* Blød opfordring ved montage uden valgt enhed (ikke en fejl → ikke rød) */
 .enhed-hint { font-size: 12px; font-weight: 600; color: var(--color-primary-deep); margin-top: 4px; }
+/* Fulde identitetsnumre for den valgte enhed (kontrol mod typeskilt) */
+.enhed-detaljer { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 13px; font-weight: 600; color: var(--color-text-muted); }
+.enhed-detaljer strong { color: var(--color-text); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: .01em; }
 .sag-hint-ok { color: var(--color-teal); }
 .sag-results {
   position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 40;

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { store } from "../lib/storage";
 import type { SagEnhed } from "../lib/storage/types";
-import { enhedVisning, erMontageKategori, standardEnhed } from "../lib/enhed";
+import { enhedVisning, enhedDetaljer, erMontageKategori, standardEnhed } from "../lib/enhed";
 
 // "Enhed" — vælg den konkrete enhed på den valgte SMU-sag (TR-088). Vises KUN når der er
 // valgt en rigtig sag med aktive enheder. Ét valg pr. registrering; arbejde på flere/alle
@@ -66,6 +66,7 @@ export default function EnhedPicker({ sagId, categoryId, enhedId, enhedVisning: 
   // En tidligere valgt enhed, der siden er soft-slettet, skal stadig kunne vises.
   const ukendt = enhedId && !enheder.some((e) => e.enhedId === enhedId);
   const opfordring = erMontageKategori(categoryId) && !enhedId && enheder.length > 1;
+  const valgtEnhed = enhedId ? enheder.find((e) => e.enhedId === enhedId) ?? null : null;
 
   return (
     <div className="field">
@@ -88,6 +89,16 @@ export default function EnhedPicker({ sagId, categoryId, enhedId, enhedVisning: 
         {ukendt && <option value={enhedId!}>{snapshot ?? "Ukendt enhed"}</option>}
       </select>
       {opfordring && <div className="enhed-hint">Montage: vælg den enhed, du arbejder på.</div>}
+      {valgtEnhed && enhedDetaljer(valgtEnhed).length > 0 && (
+        // Fulde numre til kontrol mod enheden (fx stelnummer på typeskiltet).
+        <div className="enhed-detaljer">
+          {enhedDetaljer(valgtEnhed).map((d) => (
+            <span key={d.label}>
+              {d.label} <strong>{d.vaerdi}</strong>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

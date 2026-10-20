@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { enhedVisning, enhedIdent, kortStel, standardEnhed, erMontageKategori } from "./enhed";
+import { enhedVisning, enhedDetaljer, kortStel, standardEnhed, erMontageKategori } from "./enhed";
 import type { SagEnhed } from "./storage/types";
 
 function enhed(over: Partial<SagEnhed> = {}): SagEnhed {
@@ -15,7 +15,12 @@ function enhed(over: Partial<SagEnhed> = {}): SagEnhed {
   };
 }
 
-describe("enhedVisning — samme format som Kapacitet/Pladsliste", () => {
+describe("enhedVisning — Kapacitet/Pladsliste-format + både reg.nr. og stelnummer", () => {
+  it("reg.nr. OG stelnummer vises begge (stel forkortet)", () => {
+    expect(
+      enhedVisning(enhed({ beskrivelse: "Schmitz trailer", regNr: "AB12345", stelnummer: "WSM00000000999999" }))
+    ).toBe("#3 · Schmitz trailer · AB12345 · …00999999");
+  });
   it("løbenummer + beskrivelse + reg.nr.", () => {
     expect(enhedVisning(enhed({ beskrivelse: "Schmitz trailer", regNr: "AB12345" }))).toBe(
       "#3 · Schmitz trailer · AB12345"
@@ -35,12 +40,29 @@ describe("enhedVisning — samme format som Kapacitet/Pladsliste", () => {
   });
 });
 
-describe("enhedIdent / kortStel", () => {
-  it("reg.nr. vinder over stelnummer", () => {
-    expect(enhedIdent(enhed({ regNr: "AB12345", stelnummer: "WSM00000000999999" }))).toBe("AB12345");
-  });
+describe("kortStel", () => {
   it("kort stelnummer forkortes ikke", () => {
     expect(kortStel("1234567890")).toBe("1234567890");
+  });
+});
+
+describe("enhedDetaljer — fulde numre under vælgeren", () => {
+  it("fast rækkefølge, fuldt stelnummer, kun udfyldte felter", () => {
+    expect(
+      enhedDetaljer(enhed({ regNr: "AB12345", stelnummer: "WSM00000000999999", interntNr: " 17 " }))
+    ).toEqual([
+      { label: "Stelnr.", vaerdi: "WSM00000000999999" },
+      { label: "Reg.nr.", vaerdi: "AB12345" },
+      { label: "Internt nr.", vaerdi: "17" },
+    ]);
+  });
+  it("alle fire felter", () => {
+    expect(
+      enhedDetaljer(enhed({ stelnummer: "S1", regNr: "R1", trailerNr: "T1", interntNr: "I1" })).map((d) => d.label)
+    ).toEqual(["Stelnr.", "Reg.nr.", "Trailer-nr.", "Internt nr."]);
+  });
+  it("ingen numre → tom liste", () => {
+    expect(enhedDetaljer(enhed({ stelnummer: "  " }))).toEqual([]);
   });
 });
 
