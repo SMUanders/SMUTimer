@@ -196,8 +196,46 @@ Hver SMU-app skal kunne gemmes på telefonen som app-ikon:
 
 ---
 
-## 11. Checkliste — ny SMU-app
+> **§12–15 er synkroniseret ordret fra den kanoniske `SMU_APP_STANDARD.md` i smu-os** (platform-update, TR-096).
+> §-henvisninger i disse afsnit følger den kanoniske nummerering.
 
+## 12. Definition: platformklar app
+
+En ny SMU-app er **platformklar** — altså klar til at komme i Hub og blive rullet ud til medarbejdere — først
+når alle relevante punkter er på plads. Punkter der bevidst ikke gælder appen, dokumenteres i dens `CLAUDE.md`.
+
+**Fundament**
+1. fælles Supabase-projekt, identity og session (`platformAuthStorage()`);
+2. app-key registreret i `app_roller` (og tabel-prefix valgt);
+3. adgangsmodel via `app_adgange`/`app_roller` med dokumenterede roller;
+4. backend/RLS håndhæver adgangen — frontend-tjek alene er ikke sikkerhed.
+
+**Identitet og ikoner**
+5. officielt app-ikon besluttet (opfind ikke et permanent ikon for en app uden identitet);
+6. browser-favicon (SVG + PNG-fallback);
+7. iOS `apple-touch-icon` 180×180 som PNG — SVG virker ikke;
+8. PWA 192×192 og 512×512 + `manifest.webmanifest` med `theme_color`/`background_color`;
+9. ægte maskable 512×512 med indholdet inden for 80 %-sikkerhedszonen (genbrug ikke `any`-filen);
+10. samme ikon kopieret til Hubs `public/icons/apps/` — Hub viser appens **egen** identitet.
+
+**Navigation**
+11. Hub-metadata med verificeret `url`, korrekt `status` (frigivet/på vej) og `synlighed`
+    (discoverable/privat) — en app optages først som *frigivet*, når den er besluttet frigivet til
+    medarbejdere, ikke når den er deployet;
+12. `<AppSwitcher>` placeret i appens topbar med egen `currentAppKey`;
+13. synlig vej tilbage til Hub;
+14. mobil/responsiv navigation.
+
+**Drift**
+15. korrekt subdomæne (`<app>.smu.signmeup.dk`) — indtil cutover står Netlify-adressen som `url`;
+16. Git → Netlify continuous deploy (§9), Node 20 pinnet;
+17. `npm run build` grøn (+ lint/tests hvor repoet har dem);
+18. fælles update-notifikation (`platform-update`, §15) monteret;
+19. live QA før bred rollout.
+
+## 13. Checkliste — ny SMU-app
+
+0. Sæt appens produktversion efter §14 (`package.json` → `"version"`, `src/lib/version.ts`, diskret label).
 1. Vite + React 19 + TS (strict) projekt. Kopiér `src/index.css`-tokens fra `smu-os-v2`.
 2. Kopiér denne `SMU_APP_STANDARD.md` og `docs/SMU_DESIGN_SYSTEM.md` ind.
 3. Vælg et unikt tabel-prefix (`wiki_`, `tid_`, `apv_`, …).
@@ -205,4 +243,77 @@ Hver SMU-app skal kunne gemmes på telefonen som app-ikon:
 5. `AuthContext` + `Layout`-gate. Genbrug `profiler`/`auth.users` — opret dem ikke.
 6. `netlify.toml` + `.env.example` + pin Node 20.
 7. Første migration: tabeller med prefix, `slettet`-kolonne, audit-kolonner, RLS `to authenticated`.
-8. Skriv appens egen `CLAUDE.md` og dokumentér enhver afvigelse fra denne standard.
+8. Kopiér `platform-nav/` + app-ikoner ind, og indsæt `<AppSwitcher>` i topbaren (§11).
+9. Kopiér `platform-update/` uændret ind fra `smu-hub` og montér den (§15).
+10. Kør §12 igennem, før appen optages i Hub og rulles ud.
+11. Skriv appens egen `CLAUDE.md` og dokumentér enhver afvigelse fra denne standard.
+
+## 14. Produktversion
+
+Hver app har **én** produktversion. Beslutning, regler og begrundelse: `PLANNING.md` TR-071. Aktuel
+baseline pr. app: `PROJECT_OVERVIEW.md` → *Produktversionering*. Her står kun, hvordan den implementeres.
+
+**Autoritativ kilde er `package.json` → `"version"`.** Ikke git-tags, ikke changelog, ikke database.
+
+**Produktversion ≠ build-id.** Produktversionen er menneskelig og stabil (`v1.0`). Et build-id er et
+bygnings-tidsstempel, der kun bruges til update-detektion og fejlsøgning. Build-id'et kommer fra det fælles
+modul `platform-update` (§15) — ikke fra `version.ts` — og de to blandes aldrig sammen.
+
+Fire trin, kopieret fra `smu-tid` (referenceimplementeringen):
+
+1. **`package.json`** — sæt `"version"` til baseline, fx `1.0.0`.
+2. **`vite.config.ts`** — læs versionen ved build og indlejr den:
+   ```ts
+   import { readFileSync } from 'node:fs'
+   const PRODUCT_VERSION = JSON.parse(readFileSync('./package.json', 'utf-8')).version as string
+   export default defineConfig({
+     define: { __APP_PRODUCT_VERSION__: JSON.stringify(PRODUCT_VERSION) },
+     // …
+   })
+   ```
+   Kræver `@types/node` i `devDependencies` og `"types": ["node"]` i `tsconfig.node.json`.
+3. **`src/lib/version.ts`** — kopiér filen fra en eksisterende app. Den deklarerer konstanten, har en
+   `'dev'`-fallback til testmiljøer og eksponerer `appProductVersion()`. `formatProductVersion()` klipper
+   patch væk, så labelen kun viser `major.minor`.
+4. **UI** — én diskret label i topbaren ved siden af `<AppSwitcher>`:
+   ```tsx
+   <span className="hidden sm:inline text-[11px] font-semibold tabular-nums"
+         style={{ color: 'rgba(255,255,255,0.45)' }}>
+     {appProductVersion()}
+   </span>
+   ```
+   Ingen fremhævelse, intet redesign. Har appen en testrunner, følger `src/lib/version.test.ts` med.
+
+**Ingen konkurrerende versionsnumre i UI.** Funktionsnavne som "Udskriv ordre v1.4" må ikke vises ved
+siden af produktversionen. Statustekster uden tal ("PROTOTYPE · ingen data gemmes") er i orden.
+
+## 15. Update-notifikation (platform-update)
+
+En åben SMU-app skal opdage, at en nyere frontend er deployet, uden at kassere brugerens arbejde. Beslutning:
+`PLANNING.md` TR-096. Gælder alle LIVE-apps; bevidst udeladt: SMU Assist, SMU ESG og Projektboard.
+
+**Kanonisk kilde:** `smu-hub/src/platform-update/` (med README). **Model D** som `platform-nav`: mappen
+kopieres **uændret** ind i hver app (ingen npm-pakke, intet monorepo, ingen central tjeneste). Ret aldrig lokalt
+i en app — ret canonical og kopiér igen til alle apps, så modulet forbliver bit-identisk.
+
+**Produktversion vs. build-id:** produktversionen (§14) er til mennesker. Build-id'et er et tidsstempel pr.
+produktionsbuild, som modulets Vite-plugin compiler ind som `__APP_VERSION__` og lægger som `version.json`
+**direkte i `dist/`** — aldrig i `public/` og aldrig i repoet.
+
+**UX:**
+- **Ny version** → diskret, ikke-modalt banner nederst: "Ny version er klar" + [Opdater]. Tjekkes kun i
+  produktion: ved start, ca. hvert 5. minut og når fanen/app-ikonet bliver synligt igen.
+- **Lazy-/preload-fejl** (en gammel fane kan ikke hente en kodefil, der er væk efter et deploy) → KUN ét
+  centralt recovery-kort med samme tekst og knap — aldrig samtidig med banneret. Hele appen erstattes, også
+  header/navigation: én sikker recovery-skærm frem for navigation i en inkonsistent gammel bundle.
+- **Ingen automatisk genindlæsning.** Siden genindlæses kun, når brugeren klikker "Opdater".
+- `defer` på banneret bruges kun, hvor appen har en åbenlys kritisk redigering (i dag: SMU Tids LeaderDay).
+
+**Implementering i en app:**
+1. Kopiér `smu-hub/src/platform-update/` uændret til appens `src/platform-update/`.
+2. `vite.config.ts`: `import { platformUpdate } from './src/platform-update/vitePlatformUpdate'` og
+   `platformUpdate()` i `plugins`.
+3. `main.tsx`: omslut hele appen med `<PlatformUpdateBoundary>` og montér `<UpdateBanner />` som søskende
+   uden for den. (Apps med en særlig besked, fx SMU Ports flersprogede, kan bruge `useVersionCheck()` direkte.)
+4. Har appen en CSP, skal `connect-src` indeholde `'self'` (fetch af `/version.json`).
+5. Verificér efter deploy, at `/version.json` matcher build-id'et i den serverede bundle.
