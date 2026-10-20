@@ -30,10 +30,11 @@ describe('formatBuildId', () => {
   it('ISO → "YYYY-MM-DD HH:MM"', () => expect(formatBuildId('2026-10-20T10:05:00.000Z')).toMatch(/^2026-10-20 \d{2}:05$/))
 })
 
-describe('PlatformUpdateBoundary — chunk-fejl giver update-flow, andre fejl kastes videre', () => {
+describe('PlatformUpdateBoundary — recovery ved lazy-/chunk-fejl, andre fejl kastes videre', () => {
   const medFejl = (fejl: unknown) => {
     const b = new PlatformUpdateBoundary({ children: 'app' })
-    b.state = PlatformUpdateBoundary.getDerivedStateFromError(fejl)
+    // Som React: den delvise tilstand flettes ind i den eksisterende.
+    b.state = { ...b.state, ...PlatformUpdateBoundary.getDerivedStateFromError(fejl) }
     return b
   }
   it('ingen fejl → børnene vises uændret', () => {
@@ -44,6 +45,11 @@ describe('PlatformUpdateBoundary — chunk-fejl giver update-flow, andre fejl ka
       props: { role: string }
     }
     expect(el.props.role).toBe('alert')
+  })
+  it('vite:preloadError (recovery-tilstand) → kun recovery-kortet', () => {
+    const b = new PlatformUpdateBoundary({ children: 'app' })
+    b.state = { fejl: null, recovery: true }
+    expect((b.render() as { props: { role: string } }).props.role).toBe('alert')
   })
   it('anden fejl → kastes videre uændret', () => {
     const fejl = new Error('noget helt andet')

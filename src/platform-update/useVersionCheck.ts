@@ -5,22 +5,27 @@ import { APP_BUILD_ID, erNytBuild } from './buildId'
 const INTERVAL_MS = 5 * 60 * 1000
 
 /**
- * true, når en nyere frontend er deployet end den, der kører i fanen.
+ * Sendes af `PlatformUpdateBoundary`, når den viser recovery-kortet (en lazy chunk er væk efter et
+ * deploy). Så skjuler `UpdateBanner` sig, og brugeren ser kun ÉN besked: kortet.
+ */
+export const RECOVERY_EVENT = 'smu:platform-update-recovery'
+
+/**
+ * true, når en nyere frontend er deployet end den, der kører i fanen — og recovery-kortet ikke er fremme.
  *
- * Kilder:
- *  - `/version.json` (fra build-outputtet) afviger fra `__APP_VERSION__` — tjekkes ved start,
- *    hvert 5. minut og når fanen/app-ikonet bliver synligt igen. Kun i produktion.
- *  - `vite:preloadError`: en gammel fane kan ikke længere hente et lazy chunk efter et deploy.
- *    Fejlen lades gå videre (til `PlatformUpdateBoundary`); her markeres blot, at der er en ny version.
+ * Kilde: `/version.json` (fra build-outputtet) afviger fra `__APP_VERSION__` — tjekkes ved start,
+ * hvert 5. minut og når fanen/app-ikonet bliver synligt igen. Kun i produktion.
+ * Lazy-/preload-fejl (`vite:preloadError`) håndteres IKKE her, men af `PlatformUpdateBoundary`.
  *
  * Genindlæser ALDRIG selv — det gør kun brugeren via `UpdateBanner`.
  */
 export function useVersionCheck(): boolean {
   const [nyVersion, setNyVersion] = useState(false)
+  const [recovery, setRecovery] = useState(false)
 
   useEffect(() => {
-    const vedPreloadFejl = () => setNyVersion(true)
-    window.addEventListener('vite:preloadError', vedPreloadFejl)
+    const vedRecovery = () => setRecovery(true)
+    window.addEventListener(RECOVERY_EVENT, vedRecovery)
 
     const aktivt = import.meta.env.PROD && APP_BUILD_ID !== 'dev'
     let levende = true
@@ -49,11 +54,11 @@ export function useVersionCheck(): boolean {
 
     return () => {
       levende = false
-      window.removeEventListener('vite:preloadError', vedPreloadFejl)
+      window.removeEventListener(RECOVERY_EVENT, vedRecovery)
       if (id !== undefined) window.clearInterval(id)
       document.removeEventListener('visibilitychange', vedSynlig)
     }
   }, [])
 
-  return nyVersion
+  return nyVersion && !recovery
 }

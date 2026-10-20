@@ -5,7 +5,8 @@ Fælles update-notifikation for SMU Platform: en åben app opdager, at en nyere 
 **kopieres uændret** ind i hver app (ingen npm-pakke, intet monorepo, ingen central tjeneste). Kanonisk placering:
 `smu-hub/src/platform-update/`.
 
-**Status:** pilot i SMU Tid og SMU Pladsliste (okt. 2026). Rulles ikke videre, før oplevelsen er valideret i brug.
+**Status:** officiel SMU-standard (okt. 2026), valideret i pilot (Tid, Pladsliste og Arkiv med reel lazy-chunk-fejl på
+produktion). Gælder alle LIVE-apps undtagen Assist, ESG og Projektboard — se `SMU_APP_STANDARD.md` i smu-os.
 
 ## To adskilte versionsbegreber
 | | Produktversion | Build-id |
@@ -21,15 +22,20 @@ De to blandes aldrig: en ny build af samme produktversion er stadig et nyt deplo
   og lægges som `version.json` **direkte i build-outputtet** (`dist/version.json`). Intet i `public/`, ingen
   genereret fil i repoet. Under `vite dev`/vitest er id'et `dev`, og tjekket er slået fra.
 - `buildId.ts` — `APP_BUILD_ID`, `appBuildIdShort()` og de rene regler `erNytBuild()` / `erChunkFejl()`.
-- `useVersionCheck.ts` — kun i produktion: henter `/version.json` (no-store + cache-bust) ved start, hvert 5. minut
-  og når dokumentet bliver synligt igen. Lytter også på `vite:preloadError` (gammel fane, slettet lazy chunk).
+- `useVersionCheck.ts` — **normal versionsdetektion**, kun i produktion: henter `/version.json` (no-store + cache-bust)
+  ved start, hvert 5. minut og når dokumentet bliver synligt igen.
 - `UpdateBanner.tsx` — diskret, ikke-modal besked nederst. `defer` skjuler den midlertidigt under kritisk redigering.
-- `PlatformUpdateBoundary.tsx` — fanger kun chunk-fejl efter et deploy og viser samme update-flow i stedet for en
-  tom side; alle andre fejl kastes videre uændret.
+  Skjuler sig, når recovery-kortet er fremme (`RECOVERY_EVENT`).
+- `PlatformUpdateBoundary.tsx` — **recovery**: en gammel fane, der ikke kan hente et lazy chunk efter et deploy
+  (`vite:preloadError` eller chunk-fejl under rendering), får ét centralt kort i stedet for en tom side. Hele appen
+  erstattes (header/navigation forsvinder bevidst). Alle andre fejl kastes videre uændret.
 
 ## UX-regel
-**Ingen automatisk genindlæsning.** Siden genindlæses kun, når brugeren klikker "Opdater", så intet input kasseres.
-Beskeden blokerer intet og ligger under modaler. Samme tekst og placering i alle apps.
+- **Ny version:** nederste banner "Ny version er klar" + [Opdater]. Blokerer intet og ligger under modaler.
+- **Lazy-/preload-fejl:** KUN det centrale recovery-kort "Ny version er klar" + [Opdater] — aldrig samtidig med banneret.
+  Én sikker recovery-skærm frem for navigation i en inkonsistent gammel bundle.
+- **Ingen automatisk genindlæsning.** Siden genindlæses kun, når brugeren klikker "Opdater", så intet input kasseres.
+- Samme tekst og placering i alle apps.
 
 ## Sådan bruges det i en app
 1. Kopiér hele mappen `src/platform-update/` uændret ind i appens `src/`.
@@ -37,7 +43,7 @@ Beskeden blokerer intet og ligger under modaler. Samme tekst og placering i alle
    `platformUpdate()` i `plugins`.
 3. Montér `<UpdateBanner />` ét globalt sted (fx i `main.tsx` eller rod-layoutet) — eller pr. skærm med
    `defer={…}`, hvis appen har kritisk redigering, der ikke må forstyrres.
-4. Omslut appens indhold med `<PlatformUpdateBoundary>` (særligt vigtigt for apps med lazy routes).
+4. Omslut hele appen med `<PlatformUpdateBoundary>` (`<UpdateBanner />` som søskende uden for den).
 5. Har appen en CSP, skal `connect-src` tillade `'self'` (fetch af `/version.json`).
 6. Ingen `public/version.json` og ingen gitignore-linje til den.
 
