@@ -41,7 +41,7 @@ bagudkompatibel: mangler tabellen, viser appen bare "Ingen aktuel opgave" (ingen
 På /oversigt markeres en aktuel opgave der **ikke er opdateret i dag** som
 "Ikke opdateret i dag" og nedtones, så gamle statuser ikke virker troværdige.
 
-Kør i Supabase SQL Editor (eller `supabase db push`).
+Anvendes kun som migration i den fælles hub gennem hubbens gate, altid DEV → LIVE: `node scripts/db-apply.mjs --env dev --yes` → verificér → rapport → STOP → efter GO `--env live --yes --bekraeft-live` (se `smu-os/docs/SUPABASE_MIGRATIONS.md`, TR-092). Ikke SQL Editor, aldrig `supabase link` eller rå `db push`.
 
 ## Frokost er FORESLÅET — ikke en låst regel
 Standardfrokosten (man–tor 12:00–12:30, fre 10:00–10:30) er kun et **forslag** og

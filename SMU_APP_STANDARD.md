@@ -89,7 +89,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 ## 6. Sikkerhed
 
-- **Nummererede migrations** i `supabase/migrations/`. Format: `YYYYMMDDHHMMSS_beskrivelse.sql`.
+- **Nummererede migrations** i den **fælles hub** `smu-os/supabase/migrations/` (format `YYYYMMDDHHMMSS_beskrivelse.sql`), anvendt kun gennem gaten, altid DEV → LIVE: `node scripts/db-apply.mjs --env dev --yes` → verificér → rapport → STOP → efter GO `--env live --yes --bekraeft-live` (se `smu-os/docs/SUPABASE_MIGRATIONS.md`, TR-092). Aldrig `supabase link`, aldrig rå `supabase db push`, ingen egen migrationshistorik i app-repoet.
 - **RLS på alle tabeller.** Politikker skrives **kun `to authenticated`** — aldrig åben `using(true)` i prod. Stram videre (rolle/ejer) når behovet er bevist.
 - RLS-politikker skrives **i migreringsfilerne** — ikke i Supabase-dashboardet.
 - **Audit-kolonner:** `created_by` / `updated_by` = `auth.uid()`. Send `ansvarlig_id`/`created_by` **eksplicit fra klienten** — `DEFAULT auth.uid()` er upålidelig i PostgREST-kontekst.
