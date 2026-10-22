@@ -267,6 +267,16 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
       if (error) throw error;
     },
 
+    // Atomisk erstatning (lederrettelse): blød sletning + indsæt i én DB-transaktion.
+    // SECURITY INVOKER-funktion → RLS gælder som ved direkte skrivning.
+    async replaceEntry(id, replacements) {
+      const { error } = await client.rpc("tid_erstat_registrering", {
+        p_erstat_id: id,
+        p_nye: replacements.map(toRow),
+      });
+      if (error) throw error;
+    },
+
     // ---- Aktuel opgave ----
     // Læsninger fejler blødt (returnerer null/[]), så appen ikke knækker hvis
     // migration 0005 endnu ikke er kørt. Skrivninger kaster (UI viser fejl).

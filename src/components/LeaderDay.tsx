@@ -24,7 +24,7 @@ import { summarizeDay, expectedWorkMinutes } from "../lib/summary";
 import { suggestNextSlot } from "../lib/suggest";
 import { getTaskStart, clearTaskStart, isoToHHMM } from "../lib/currentTaskStart";
 import { durationMinutes } from "../lib/time";
-import { todayIso, addDays, formatDanishDate } from "../lib/dates";
+import { todayIso, addDays, formatDanishDate, datoFraSoegning } from "../lib/dates";
 import { signOut } from "../lib/auth";
 import { useTidRole, canLeaderCorrect } from "../lib/tidRole";
 import DaySummary from "./DaySummary";
@@ -84,10 +84,9 @@ function readDeepLink(): { employeeId: string | null; date: string | null } {
   try {
     const p = new URLSearchParams(window.location.search);
     const emp = p.get("medarbejder");
-    const dato = p.get("dato");
     return {
       employeeId: emp || null, // valideres mod profiler efter load
-      date: dato && /^\d{4}-\d{2}-\d{2}$/.test(dato) ? dato : null,
+      date: datoFraSoegning(window.location.search),
     };
   } catch {
     return { employeeId: null, date: null };
@@ -109,6 +108,19 @@ export default function LeaderDay() {
   const [ready, setReady] = useState(false);
   // Sandt når editoren blev åbnet via "Afslut opgave" — ryd aktuel opgave efter gem.
   const [clearCurrentOnSave, setClearCurrentOnSave] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Valgt dato bevares i adressen (?dato=), så genindlæsning og deling viser samme dag.
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get("dato") === date) return;
+      p.set("dato", date);
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}?${p.toString()}`);
+    } catch {
+      /* adressen er en bekvemmelighed — visningen virker uden */
+    }
+  }, [date]);
 
   const { role } = useTidRole(getSupabaseClient(), isSupabaseConfigured);
   const canCorrect = canLeaderCorrect({ supabaseConfigured: isSupabaseConfigured, role });
@@ -154,7 +166,24 @@ export default function LeaderDay() {
   const employee = getPerson(employeeId);
 
   // ---------- gem-flow (leder-korrektion) ----------
+  // Fejl vises tydeligt; formularen forbliver åben, og intet er ændret (atomisk erstatning).
+  function visGemFejl(e: unknown) {
+    const besked = e && typeof e === "object" && "message" in e ? String((e as { message: unknown }).message) : "";
+    setSaveError(
+      `Rettelsen blev ikke gemt — intet er ændret. ${besked ? `(${besked}) ` : ""}Genindlæs dagen og prøv igen.`
+    );
+  }
+
   async function requestSave(draft: EntryDraft, editingId: string | null) {
+    setSaveError(null);
+    try {
+      await requestSaveInner(draft, editingId);
+    } catch (e) {
+      visGemFejl(e);
+    }
+  }
+
+  async function requestSaveInner(draft: EntryDraft, editingId: string | null) {
     if (!employeeId) return;
     const editing = editingId ? entries.find((e) => e.id === editingId) ?? null : null;
 
@@ -191,14 +220,26 @@ export default function LeaderDay() {
   }
 
   async function commit(draft: EntryDraft, lunch: LunchWindow | null, editingId: string | null) {
-    if (!employeeId) return;
-    if (editingId) {
-      const e = entries.find((x) => x.id === editingId);
-      if (e?.splitGroupId) await store().deleteSplitGroup(e.splitGroupId);
-      else await store().deleteEntry(editingId);
+    setSaveError(null);
+    try {
+      await commitInner(draft, lunch, editingId);
+    } catch (e) {
+      setPending(null);
+      visGemFejl(e);
     }
+  }
+
+  async function commitInner(draft: EntryDraft, lunch: LunchWindow | null, editingId: string | null) {
+    if (!employeeId) return;
     const built = buildEntries(draft, date, { employeeId, lunch, newId, now: nowIso });
-    await store().addEntries(built);
+    if (editingId) {
+      // Rettelse = ATOMISK erstatning i databasen: originalen (inkl. evt. frokost-split-
+      // gruppe) markeres slettet OG erstatningen indsættes i én transaktion — eller intet.
+      // Tidligere to separate kald: fejlede indsættelsen, var originalen væk.
+      await store().replaceEntry(editingId, built);
+    } else {
+      await store().addEntries(built);
+    }
 
     // "Afslut opgave": nu hvor tiden ER gemt, ryddes medarbejderens aktuelle opgave.
     if (clearCurrentOnSave && !editingId) {
@@ -220,16 +261,23 @@ export default function LeaderDay() {
   }
 
   async function handleDelete(entry: TimeEntry): Promise<boolean> {
-    if (entry.splitGroupId) {
-      const ok = window.confirm(
-        "Denne linje er en del af en frokost-opdeling. Dette sletter hele den splittede registrering (alle dele). Fortsæt?"
-      );
-      if (!ok) return false;
-      await store().deleteSplitGroup(entry.splitGroupId);
-    } else {
-      const ok = window.confirm("Slet denne registrering?");
-      if (!ok) return false;
-      await store().deleteEntry(entry.id);
+    setSaveError(null);
+    try {
+      if (entry.splitGroupId) {
+        const ok = window.confirm(
+          "Denne linje er en del af en frokost-opdeling. Dette sletter hele den splittede registrering (alle dele). Fortsæt?"
+        );
+        if (!ok) return false;
+        await store().deleteSplitGroup(entry.splitGroupId);
+      } else {
+        const ok = window.confirm("Slet denne registrering?");
+        if (!ok) return false;
+        await store().deleteEntry(entry.id);
+      }
+    } catch (e) {
+      const besked = e && typeof e === "object" && "message" in e ? String((e as { message: unknown }).message) : "";
+      setSaveError(`Registreringen blev ikke slettet. ${besked ? `(${besked}) ` : ""}Prøv igen.`);
+      return false;
     }
     await refresh();
     return true;
@@ -245,11 +293,13 @@ export default function LeaderDay() {
 
   function openEdit(entry: TimeEntry) {
     setClearCurrentOnSave(false);
+    setSaveError(null);
     setEditor({ mode: "edit", editingId: entry.id, initial: draftFromEntry(entry) });
   }
 
   function openNew(prefill?: Partial<EntryDraft>) {
     setClearCurrentOnSave(false);
+    setSaveError(null);
     const slot = suggestNextSlot(entries);
     setEditor({
       mode: "new",
@@ -376,6 +426,8 @@ export default function LeaderDay() {
         </button>
       </div>
 
+      {saveError && !editor && <div className="msg error">{saveError}</div>}
+
       {/* Aktiv opgave (status). Vises hvis medarbejderen har en igangværende opgave. */}
       {currentTask && (
         <div className="current-task ld-active">
@@ -430,12 +482,14 @@ export default function LeaderDay() {
           workDate={date}
           initial={editor.initial}
           hint={editor.hint}
+          error={saveError}
           existing={editingExisting}
           allowSetAsCurrent={false}
           onDelete={editor.mode === "edit" ? deleteEditing : undefined}
           onSave={(draft) => requestSave(draft, editor.editingId)}
           onClose={() => {
             setEditor(null);
+            setSaveError(null);
             setClearCurrentOnSave(false);
           }}
         />

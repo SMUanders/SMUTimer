@@ -69,7 +69,13 @@ ligne SMU":
 ## Domæne-noter (SMU Tid-specifikt)
 - Frokost-split: man–tor 12:00–12:30, fre 10:00–10:30, weekend intet. Pause tælles
   ikke som arbejdstid. Ren logik i `src/lib/lunch.ts` (unit-testet).
-- Overlap blokeres (`src/lib/validation.ts`). Forventet arbejdsdag 7,5 t (weekend 0).
+- Overlap: medarbejderens afslutningsformer blokerer slut efter nu og overlap (`finishError` i
+  `src/lib/segment.ts`); lederens editor bruger `src/lib/validation.ts`. Tidsforslag: faktiske tider rundet
+  NED til 5 min, aldrig efter nu, aldrig før seneste sluttid; hjælp = præcise minutter (Pakke 1, v2.2.2).
+- Lederrettelse = atomisk erstatning via `tid_erstat_registrering` (SECURITY INVOKER, hub-migration
+  `20261022180000`): originalen blødt slettet + erstatning indsat i én transaktion — eller intet.
+- Valgt dato bevares i adressen (`?dato=`) i Min dag og leder-visningen.
+- Forventet arbejdsdag 7,5 t (weekend 0).
 - Storage bag interface: `src/lib/storage/` (localAdapter dev-fallback +
   supabaseAdapter). Én delt klient `src/lib/supabaseClient.ts`.
 - Routing: simpel sti-switch i `main.tsx`. `/` = medarbejderens egen v2-dag

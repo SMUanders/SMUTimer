@@ -1,20 +1,24 @@
 import { describe, it, expect } from "vitest";
 import {
+  suggestStart,
+  suggestEnd,
+  suggestSwitchAt,
   suggestFinishTimes,
+  activeStartHHMM,
+  ownCloseUntil,
+  helpStartHHMM,
+  helpEndHHMM,
+  lastEndNotAfterNow,
+  finishError,
+  switchError,
   buildEntry,
   isExactDuplicate,
   hhmmToIsoToday,
-  helpStartHHMM,
-  helpStopEndHHMM,
-  helpOwnCloseTimes,
-  redoStartHHMM,
-  redoOwnCloseTimes,
   lastEntryEndHHMM,
 } from "./segment";
 import { buildDayTimeline } from "./dayTimeline";
-import { HELP_NOTE } from "./helpContext";
-import { roundTo15, roundTo5, ceilTo5 } from "./time";
-import { isoToHHMM } from "./currentTaskStart";
+import { HELP_NOTE, helpNote, isHelpNote } from "./helpContext";
+import { floorTo5, toMinutes } from "./time";
 import type { TimeEntry } from "../types";
 
 const ctx = {
@@ -34,260 +38,235 @@ function te(overrides: Partial<TimeEntry> = {}): TimeEntry {
     ...overrides,
   };
 }
-
-describe("suggestFinishTimes (nærmeste-kvarter, ingen kæde-overlap)", () => {
-  it("runder start og slut til nærmeste kvarter (tidszone-uafhængigt)", () => {
-    const startIso = "2026-08-19T08:52:00.000Z";
-    const t = suggestFinishTimes(startIso, ctx.nowIso);
-    expect(t.startTime).toBe(roundTo15(isoToHHMM(startIso)));
-    expect(t.endTime).toBe(roundTo15(isoToHHMM(ctx.nowIso)));
-  });
-
-  it("back-to-back segmenter rører hinanden (samme skifte-instant → samme kvarter)", () => {
-    // To segmenter der skifter på samme tidspunkt: A's slut = B's start.
-    const switchIso = "2026-08-19T12:07:00.000Z";
-    const aEnd = suggestFinishTimes("2026-08-19T09:00:00.000Z", switchIso).endTime;
-    const bStart = suggestFinishTimes(switchIso, "2026-08-19T13:20:00.000Z").startTime;
-    expect(aEnd).toBe(bStart); // rører, ingen overlap
-  });
-
-  it("slut ≤ start → minimum ét kvarter", () => {
-    const t = suggestFinishTimes("2026-08-19T10:00:00.000Z", "2026-08-19T10:00:00.000Z");
-    expect(Number(t.endTime.replace(":", ""))).toBeGreaterThan(Number(t.startTime.replace(":", "")));
-  });
-});
-
-describe("5-min afrunding (hjælp-stopur)", () => {
-  it("roundTo5 → nærmeste 5", () => {
-    expect(roundTo5("10:33")).toBe("10:35");
-    expect(roundTo5("10:32")).toBe("10:30");
-    expect(roundTo5("10:00")).toBe("10:00");
-  });
-  it("ceilTo5 → op til næste 5", () => {
-    expect(ceilTo5("10:46")).toBe("10:50");
-    expect(ceilTo5("10:45")).toBe("10:45");
-    expect(ceilTo5("10:41")).toBe("10:45");
-  });
-});
-
-describe("hjælp mini-stopur (helpStartHHMM / helpStopEndHHMM)", () => {
-  it("start rundes til nærmeste 5 min", () => {
-    expect(helpStartHHMM(hhmmToIsoToday("10:33"))).toBe("10:35");
-  });
-  it("slut rundes OP til næste 5 min", () => {
-    expect(helpStopEndHHMM("10:35", hhmmToIsoToday("10:48"))).toBe("10:50");
-  });
-  it("minimum 5 minutters hjælp (2 min faktisk → 5 min)", () => {
-    expect(helpStopEndHHMM("10:35", hhmmToIsoToday("10:37"))).toBe("10:40");
-  });
-  it("0 min faktisk hjælp → stadig mindst 5 min", () => {
-    expect(helpStopEndHHMM("10:35", hhmmToIsoToday("10:35"))).toBe("10:40");
-  });
-  it("eksempel fra spec: 10:35 start, ~10:48 stop → 10:35–10:50", () => {
-    const start = "10:35";
-    const end = helpStopEndHHMM(start, hhmmToIsoToday("10:48"));
-    expect(start).toBe("10:35");
-    expect(end).toBe("10:50");
-    // genoptaget egen opgave starter ved hjælpens sluttid → intet overlap
-    expect(Number(end.replace(":", ""))).toBeGreaterThan(Number(start.replace(":", "")));
-  });
-});
-
-describe("hjælp-split — egen opgave lukkes uden overlap", () => {
-  it("start hjælp lukker egen opgave frem til hjælp-start", () => {
-    const hs = helpStartHHMM(hhmmToIsoToday("13:44")); // 13:45
-    const own = helpOwnCloseTimes(hhmmToIsoToday("13:30"), hs)!;
-    expect(own.startTime).toBe("13:30");
-    expect(own.endTime).toBe(hs); // egen slutter PRÆCIS ved hjælpens start
-    expect(hs).toBe("13:45");
-  });
-
-  it("egen opgave aktiv < ét interval → ingen egen-linje (ingen baguddatering)", () => {
-    const hs = helpStartHHMM(hhmmToIsoToday("13:41")); // 13:40
-    expect(helpOwnCloseTimes(hhmmToIsoToday("13:40"), hs)).toBeNull();
-  });
-
-  it("normalt hjælp-flow: egen → hjælp → genoptag rører uden overlap", () => {
-    const ownStart = hhmmToIsoToday("13:30");
-    const hs = helpStartHHMM(hhmmToIsoToday("13:34")); // 13:35 (hjælp-start)
-    const own = helpOwnCloseTimes(ownStart, hs)!; // 13:30–13:35
-    const he = helpStopEndHHMM(hs, hhmmToIsoToday("13:38")); // 13:40 (hjælp-slut)
-
-    expect(own.endTime).toBe(hs); // egen slut == hjælp start
-    expect(he).toBe("13:40");
-    // genoptaget egen starter ved he — byg Min dag og bekræft INGEN konflikt
-    const day = buildDayTimeline([
-      teLine(own.startTime, own.endTime, "montage-ude", ""),
-      teLine(hs, he, "montage-ude", HELP_NOTE),
-      teLine(he, "14:00", "montage-ude", ""), // genoptaget egen opgave
-    ]);
-    expect(day.filter((b) => b.kind !== "gap").every((b) => !b.conflict)).toBe(true);
-    expect(day.some((b) => b.kind === "help")).toBe(true);
-  });
-
-  it("hurtig hjælp-kæde: intet fabrikeret overlap (egen-linje droppes)", () => {
-    // egen genoptaget 13:40, hjælp igen straks 13:41 → hs=13:40 → ingen egen-linje
-    const hs = helpStartHHMM(hhmmToIsoToday("13:41"));
-    expect(helpOwnCloseTimes(hhmmToIsoToday("13:40"), hs)).toBeNull();
-  });
-
-  it("opgave-først: hjælpetid + Trucking lander på reference B (manuel/prefilled), ikke sag A", () => {
-    const ownStart = hhmmToIsoToday("13:30"); // Sag A aktiv (customer 54277)
-    const hs = helpStartHHMM(hhmmToIsoToday("13:34")); // 13:35
-    const own = helpOwnCloseTimes(ownStart, hs)!; // A: 13:30–13:35
-    const he = helpStopEndHHMM(hs, hhmmToIsoToday("13:38")); // 13:40
-
-    // Hjælp-linjen registreres på DEN ANDEN arbejdsreference (fx stelnummer) + Trucking.
-    const help = buildEntry({
-      ...ctx,
-      startTime: hs,
-      endTime: he,
-      categoryId: "montage-internt",
-      subcategoryId: "montage-internt__trucking",
-      orderNumber: "STELNR-12345",
-      note: HELP_NOTE,
-    });
-    expect(help.customer).toBe("STELNR-12345"); // tiden på sag B, ikke sag A (54277)
-    expect(help.categoryId).toBe("montage-internt");
-    expect(help.subcategoryId).toBe("montage-internt__trucking");
-    expect(help.isBreak).toBe(false); // Trucking = arbejdstid, ikke pause
-
-    // Sag A → hjælp/Trucking på B → Sag A genoptaget: rører, intet overlap.
-    const day = buildDayTimeline([
-      teLine(own.startTime, own.endTime, "montage-ude", ""), // Sag A
-      help, // Hjælp/Trucking på reference B
-      teLine(he, "14:00", "montage-ude", ""), // Sag A genoptaget
-    ]);
-    expect(day.filter((b) => b.kind !== "gap").every((b) => !b.conflict)).toBe(true);
-    expect(day.some((b) => b.kind === "help")).toBe(true);
-  });
-});
-
-function teLine(startTime: string, endTime: string, categoryId: string, note: string): TimeEntry {
-  return te({ startTime, endTime, categoryId, note, isBreak: categoryId === "pause" });
+function line(startTime: string, endTime: string, o: Partial<TimeEntry> = {}): TimeEntry {
+  return te({ id: `${startTime}-${endTime}`, startTime, endTime, durationMinutes: toMinutes(endTime) - toMinutes(startTime), ...o });
 }
+const efter = (a: string, b: string) => toMinutes(a) > toMinutes(b);
 
-describe("omgøring — split uden overlap + markering", () => {
+describe("floorTo5", () => {
+  it("runder altid NED til 5 min", () => {
+    expect(floorTo5("10:48")).toBe("10:45");
+    expect(floorTo5("10:45")).toBe("10:45");
+    expect(floorTo5("10:44")).toBe("10:40");
+    expect(floorTo5("00:03")).toBe("00:00");
+  });
+});
+
+describe("suggestStart — nu rundet ned, aldrig før seneste sluttid, aldrig efter nu", () => {
+  it("runder ned til 5 min", () => {
+    expect(suggestStart("15:12", "15:12")).toBe("15:10");
+  });
+  it("klampes til seneste sluttid (intet overlap)", () => {
+    expect(suggestStart("15:12", "15:12", "15:11")).toBe("15:11");
+  });
+  it("seneste sluttid i fremtiden klampes til nu", () => {
+    expect(suggestStart("15:40", "15:40", "16:00")).toBe("15:40");
+  });
+  it("et tidspunkt efter nu foreslås aldrig", () => {
+    expect(suggestStart("16:30", "15:42")).toBe("15:40");
+  });
+});
+
+describe("suggestEnd — aldrig efter nu, altid efter start når muligt", () => {
+  it("nu rundet ned, når det ligger efter start", () => {
+    expect(suggestEnd("15:15", "15:28")).toBe("15:25");
+  });
+  it("kort opgave forsvinder ikke: faktisk minut bruges", () => {
+    expect(suggestEnd("15:30", "15:33")).toBe("15:33");
+  });
+  it("kort opgave krymper ikke (15:39–15:42 bliver ikke 15:39–15:40)", () => {
+    expect(suggestEnd("15:39", "15:42")).toBe("15:42");
+  });
+  it("længere opgave: rundet ned til 5 min", () => {
+    expect(suggestEnd("15:39", "15:47")).toBe("15:45");
+  });
+  it("under ét minut → slut = start (formen viser det som ugyldigt)", () => {
+    expect(suggestEnd("15:30", "15:30")).toBe("15:30");
+  });
+  it("ALDRIG fremtidig sluttid (tidligere +15 min)", () => {
+    for (const [start, now] of [["15:30", "15:32"], ["15:45", "15:47"], ["10:00", "10:00"], ["09:12", "11:58"]]) {
+      expect(efter(suggestEnd(start, now), now)).toBe(false);
+    }
+  });
+});
+
+describe("activeStartHHMM — kortets start = afslutningens start", () => {
+  it("gemt start bruges uændret", () => {
+    expect(activeStartHHMM(hhmmToIsoToday("15:35"), hhmmToIsoToday("15:36"), "15:40", "15:35")).toBe("15:35");
+  });
+  it("uden gemt start: forslag ud fra updatedAt (rundet ned)", () => {
+    expect(activeStartHHMM(null, hhmmToIsoToday("15:37"), "15:50")).toBe("15:35");
+  });
+  it("aldrig før seneste sluttid (fx en linje tilføjet af leder bagefter)", () => {
+    expect(activeStartHHMM(hhmmToIsoToday("15:00"), hhmmToIsoToday("15:00"), "15:50", "15:20")).toBe("15:20");
+  });
+  it("aldrig efter nu", () => {
+    expect(activeStartHHMM(hhmmToIsoToday("16:00"), hhmmToIsoToday("16:00"), "15:40")).toBe("15:40");
+  });
+});
+
+describe("skifte (pause/omgøring/hjælp) fra en aktiv opgave", () => {
+  it("egen opgave lukkes præcis ved skiftet", () => {
+    expect(ownCloseUntil("09:00", "10:15")).toEqual({ startTime: "09:00", endTime: "10:15" });
+  });
+  it("under ét minut → ingen egen-linje", () => {
+    expect(ownCloseUntil("10:00", "10:00")).toBeNull();
+  });
+  it("skiftetidspunkt: nu rundet ned, men efter egen start", () => {
+    expect(suggestSwitchAt("09:00", "10:22")).toBe("10:20");
+  });
+});
+
+describe("hjælp er et stopur — præcise minutter, intet minimum", () => {
+  it("3 minutters hjælp registreres som 3 minutter", () => {
+    const hs = helpStartHHMM("15:31");
+    expect(hs).toBe("15:31");
+    expect(helpEndHHMM(hs, "15:34")).toBe("15:34");
+  });
+  it("tidligere minimum på 5 min er fjernet", () => {
+    expect(helpEndHHMM("10:35", "10:37")).toBe("10:37");
+  });
+  it("under ét minut → ingen hjælp-linje", () => {
+    expect(helpEndHHMM("10:35", "10:35")).toBeNull();
+  });
+  it("start aldrig før seneste sluttid", () => {
+    expect(helpStartHHMM("15:31", "15:33")).toBe("15:31"); // seneste sluttid i fremtiden klampes
+    expect(helpStartHHMM("15:31", "15:30")).toBe("15:31");
+  });
+});
+
+describe("finishError / switchError — validering før gem", () => {
+  const dag = [line("15:00", "15:30")];
+  it("slut skal være efter start", () => {
+    expect(finishError("15:30", "15:30", "15:40", [])).toMatch(/efter start/);
+  });
+  it("slut må ikke ligge efter nu", () => {
+    expect(finishError("15:30", "16:00", "15:35", [])).toMatch(/efter nu/);
+  });
+  it("overlap afvises med den registrering, der konflikter", () => {
+    expect(finishError("15:15", "15:40", "15:45", dag)).toMatch(/15:00–15:30/);
+  });
+  it("back-to-back er OK", () => {
+    expect(finishError("15:30", "15:40", "15:45", dag)).toBeNull();
+  });
+  it("slettede linjer ignoreres", () => {
+    expect(finishError("15:15", "15:40", "15:45", [line("15:00", "15:30", { slettet: true })])).toBeNull();
+  });
+  it("andre dage (nu=null) tjekkes ikke mod nu", () => {
+    expect(finishError("15:30", "18:00", null, [])).toBeNull();
+  });
+  it("pausestart: ikke efter nu, ikke før seneste sluttid", () => {
+    expect(switchError("15:50", "15:45", null)).toMatch(/efter nu/);
+    expect(switchError("15:20", "15:45", "15:30")).toMatch(/15:30/);
+    expect(switchError("15:30", "15:45", "15:30")).toBeNull();
+  });
+});
+
+describe("REGRESSION — Manus QA 22. okt. 2026", () => {
+  it("A1: pause i samme kvarter som opgaven sluger ikke længere opgavens tid", () => {
+    const egen = suggestStart("15:12", "15:12"); // 15:10
+    const pauseStart = suggestSwitchAt(egen, "15:14"); // 15:14 (ikke 15:15 og ikke opslugt)
+    expect(ownCloseUntil(egen, pauseStart)).toEqual({ startTime: "15:10", endTime: "15:14" });
+  });
+
+  it("A2: omgøringens start i formen = kortets start (tidligere 15:35 → 15:30 = overlap)", () => {
+    const kort = activeStartHHMM(hhmmToIsoToday("15:35"), hhmmToIsoToday("15:35"), "15:38", "15:35");
+    expect(kort).toBe("15:35");
+    // Afslutningen foreslår start = kortets start, slut aldrig efter nu.
+    const slut = suggestEnd(kort, "15:38");
+    expect(slut).toBe("15:38");
+    expect(finishError(kort, slut, "15:38", [line("15:30", "15:35", { note: HELP_NOTE })])).toBeNull();
+  });
+
+  it("A3: afslutning efter en (forkert) fremtidig sluttid giver ikke slut ≤ start", () => {
+    // Gammel data: en linje slutter 16:00, men klokken er 15:47.
+    const le = lastEntryEndHHMM([line("15:15", "16:00")]);
+    const start = activeStartHHMM(hhmmToIsoToday("15:45"), hhmmToIsoToday("15:45"), "15:47", le);
+    expect(lastEndNotAfterNow(le, "15:47")).toBe("15:47");
+    expect(efter(start, "15:47")).toBe(false);
+  });
+
+  it("A4: lederens Afslut opgave foreslår aldrig sluttid efter nu (tidligere +15)", () => {
+    const t = suggestFinishTimes(hhmmToIsoToday("15:45"), hhmmToIsoToday("15:47"));
+    expect(t.startTime).toBe("15:45");
+    expect(t.endTime).toBe("15:47");
+  });
+
+  it("Hele Manus-forløbet med de nye regler: intet overlap, ingen fremtidig slut, intet opslugt", () => {
+    const linjer: TimeEntry[] = [];
+    const gem = (start: string, slut: string, nu: string, o: Partial<TimeEntry> = {}) => {
+      expect(finishError(start, slut, nu, linjer)).toBeNull();
+      linjer.push(line(start, slut, o));
+    };
+    // 15:12 start montage
+    let egen = suggestStart("15:12", "15:12", lastEntryEndHHMM(linjer)); // 15:10
+    // 15:14 pause fra aktiv opgave
+    const p = suggestSwitchAt(egen, "15:14");
+    gem(ownCloseUntil(egen, p)!.startTime, p, "15:14");
+    // 15:27 genoptag efter pause
+    gem(p, suggestEnd(p, "15:27"), "15:27", { categoryId: "pause", isBreak: true });
+    egen = suggestEnd(p, "15:27"); // genoptaget fra pausens slut (15:25)
+    // 15:30 hjælp
+    const hs = helpStartHHMM("15:30", lastEntryEndHHMM(linjer));
+    gem(ownCloseUntil(egen, hs)!.startTime, hs, "15:30");
+    // 15:33 stop hjælp (3 min)
+    const he = helpEndHHMM(hs, "15:33")!;
+    gem(hs, he, "15:33", { note: helpNote("hjælpenote") });
+    egen = he;
+    // 15:36 omgøring fra aktiv opgave
+    const rs = suggestSwitchAt(egen, "15:36");
+    gem(ownCloseUntil(egen, rs)!.startTime, rs, "15:36");
+    // 15:39 afslut omgøring (formen foreslår kortets start)
+    gem(rs, suggestEnd(rs, "15:39"), "15:39", { isRedo: true, redoReason: "monteringsfejl" });
+    egen = suggestEnd(rs, "15:39");
+    // 15:42 afslut montage
+    gem(egen, suggestEnd(egen, "15:42"), "15:42");
+
+    expect(linjer.map((l) => `${l.startTime}-${l.endTime}`)).toEqual([
+      "15:10-15:14", "15:14-15:25", "15:25-15:30", "15:30-15:33", "15:33-15:36", "15:36-15:39", "15:39-15:42",
+    ]);
+    // Korte opgaver bevarer deres faktiske længde (3 min omgøring = 3 min, sidste montage = 3 min).
+    expect(linjer[linjer.length - 1].durationMinutes).toBe(3);
+    const dag = buildDayTimeline(linjer);
+    expect(dag.every((b) => !b.conflict)).toBe(true); // intet overlap
+    expect(dag.some((b) => b.kind === "gap")).toBe(false); // intet hul
+    expect(linjer.find((l) => isHelpNote(l.note))?.durationMinutes).toBe(3); // 3 min hjælp = 3 min
+  });
+
+  it("C: hjælpenoten bevares på den gemte hjælp-linje", () => {
+    const n = helpNote("hjælpenote");
+    expect(n).toBe(`${HELP_NOTE} — hjælpenote`);
+    expect(isHelpNote(n)).toBe(true);
+    expect(helpNote("")).toBe(HELP_NOTE);
+  });
+});
+
+describe("omgøring — markering", () => {
   it("buildEntry markerer omgøring med årsag/note", () => {
     const e = buildEntry({
-      ...ctx,
-      startTime: "10:00",
-      endTime: "10:20",
-      categoryId: "montage-ude",
-      subcategoryId: null,
-      orderNumber: "54442",
-      note: "",
-      isRedo: true,
-      redoReason: "produktionsfejl",
-      redoNote: "forkert mål",
+      ...ctx, startTime: "10:00", endTime: "10:20", categoryId: "montage-ude", subcategoryId: null,
+      orderNumber: "54442", note: "", isRedo: true, redoReason: "produktionsfejl", redoNote: "forkert mål",
     });
     expect(e.isRedo).toBe(true);
     expect(e.redoReason).toBe("produktionsfejl");
     expect(e.redoNote).toBe("forkert mål");
   });
-
   it("buildEntry uden redo-flag → ingen årsag", () => {
     const e = buildEntry({ ...ctx, startTime: "10:00", endTime: "10:20", categoryId: "montage-ude", subcategoryId: null, orderNumber: "1", note: "" });
     expect(e.isRedo).toBe(false);
     expect(e.redoReason).toBeNull();
   });
-
-  it("redoStartHHMM runder til nærmeste kvarter", () => {
-    expect(redoStartHHMM(hhmmToIsoToday("10:22"))).toBe("10:15");
-    expect(redoStartHHMM(hhmmToIsoToday("10:23"))).toBe("10:30");
-  });
-
-  it("start omgøring lukker oprindelig opgave frem til omgøring-start", () => {
-    const rs = redoStartHHMM(hhmmToIsoToday("10:20")); // 10:15
-    const own = redoOwnCloseTimes(hhmmToIsoToday("09:00"), rs)!;
-    expect(own.startTime).toBe("09:00");
-    expect(own.endTime).toBe(rs); // egen slut == omgøring start
-  });
-
-  it("oprindelig opgave aktiv < ét kvarter → ingen egen-linje", () => {
-    const rs = redoStartHHMM(hhmmToIsoToday("10:05")); // 10:00
-    expect(redoOwnCloseTimes(hhmmToIsoToday("10:00"), rs)).toBeNull();
-  });
-
-  it("omgøring-flow: egen → omgøring → genoptag uden overlap, markeret som omgøring", () => {
-    const rs = redoStartHHMM(hhmmToIsoToday("10:20")); // 10:15
-    const own = redoOwnCloseTimes(hhmmToIsoToday("09:00"), rs)!; // 09:00–10:15
-    const day = buildDayTimeline([
-      teLine(own.startTime, own.endTime, "montage-ude", ""),
-      te({ startTime: rs, endTime: "10:35", categoryId: "montage-ude", isRedo: true, redoReason: "produktionsfejl" }),
-      teLine("10:35", "11:00", "montage-ude", ""), // genoptaget egen
-    ]);
-    expect(day.filter((b) => b.kind !== "gap").every((b) => !b.conflict)).toBe(true);
-    expect(day.some((b) => b.kind === "redo")).toBe(true);
-    expect(day.filter((b) => b.kind === "work")).toHaveLength(2); // egen før + efter, IKKE omgøring
-  });
-
-  it("selvstændig omgøring (vej B): kæder efter seneste linje, ingen own-close, intet hul/overlap", () => {
-    // Ingen aktiv opgave → ingen own-close. Omgøring starter ved seneste sluttid.
-    const rs = redoStartHHMM(hhmmToIsoToday("09:03"), "09:00"); // klampet til 09:00
-    expect(rs).toBe("09:00");
-    const day = buildDayTimeline([
-      teLine("08:00", "09:00", "montage-ude", ""), // tidligere sag
-      te({ startTime: rs, endTime: "09:15", categoryId: "montage-ude", isRedo: true, redoReason: "tegnestuefejl", redoNote: "rettet mål" }),
-    ]);
-    expect(day.map((b) => b.kind)).toEqual(["work", "redo"]); // intet hul imellem
-    expect(day.every((b) => !b.conflict)).toBe(true); // intet overlap
-    expect(day[1].entry?.redoReason).toBe("tegnestuefejl");
-  });
 });
 
-describe("sammenhængende startforslag = seneste sluttid", () => {
-  it("lastEntryEndHHMM = seneste sluttid samme dag", () => {
-    expect(
-      lastEntryEndHHMM([
-        te({ startTime: "08:00", endTime: "09:15" }),
-        te({ startTime: "07:00", endTime: "08:00" }),
-      ])
-    ).toBe("09:15");
+describe("lastEntryEndHHMM", () => {
+  it("seneste sluttid samme dag", () => {
+    expect(lastEntryEndHHMM([te({ startTime: "08:00", endTime: "09:15" }), te({ startTime: "07:00", endTime: "08:00" })])).toBe("09:15");
   });
-  it("tom dag → null (brug første-start-logik)", () => {
+  it("tom dag → null", () => {
     expect(lastEntryEndHHMM([])).toBeNull();
   });
   it("slettede linjer ignoreres", () => {
     expect(lastEntryEndHHMM([te({ endTime: "10:00", slettet: true })])).toBeNull();
-  });
-
-  it("næste foreslåede start = seneste sluttid (ikke afrundet før/efter)", () => {
-    const last = lastEntryEndHHMM([te({ startTime: "08:45", endTime: "09:15" })]);
-    // I appen bruges: start = lastEnd ?? afrundet-fald-tilbage
-    expect(last).toBe("09:15");
-  });
-
-  it("own-close bruger seneste sluttid som start (intet hul)", () => {
-    // Egen opgave efter en linje der sluttede 09:15; hjælp starter 09:30.
-    const own = helpOwnCloseTimes(hhmmToIsoToday("09:20"), "09:30", "09:15")!;
-    expect(own.startTime).toBe("09:15"); // rører forrige linje — intet hul
-    expect(own.endTime).toBe("09:30");
-  });
-
-  it("omgøring own-close bruger seneste sluttid som start", () => {
-    const own = redoOwnCloseTimes(hhmmToIsoToday("09:20"), "09:30", "09:15")!;
-    expect(own.startTime).toBe("09:15");
-    expect(own.endTime).toBe("09:30");
-  });
-
-  it("split-start klampes: aldrig før seneste sluttid (intet overlap)", () => {
-    // Seneste linje slutter 11:45, men nu-afrunding ville give 11:30 → klamp til 11:45.
-    expect(redoStartHHMM(hhmmToIsoToday("11:37"), "11:45")).toBe("11:45");
-    expect(helpStartHHMM(hhmmToIsoToday("11:43"), "11:45")).toBe("11:45");
-    // Uden seneste linje: normal afrunding.
-    expect(redoStartHHMM(hhmmToIsoToday("11:37"), null)).toBe("11:30");
-  });
-
-  it("system-default skaber hverken hul eller overlap (kædet dag)", () => {
-    // normal 08:45–09:15, omgøring 09:15–09:30, normal 09:30–10:00
-    const day = buildDayTimeline([
-      teLine("08:45", "09:15", "montage-ude", ""),
-      te({ startTime: "09:15", endTime: "09:30", categoryId: "montage-ude", isRedo: true, redoReason: "produktionsfejl" }),
-      teLine("09:30", "10:00", "montage-ude", ""),
-    ]);
-    expect(day.every((b) => b.kind !== "gap")).toBe(true); // intet hul
-    expect(day.every((b) => !b.conflict)).toBe(true); // intet overlap
   });
 });
 
@@ -304,6 +283,11 @@ describe("buildEntry", () => {
     const e = buildEntry({ ...ctx, startTime: "12:00", endTime: "12:30", categoryId: "pause", subcategoryId: "pause__frokost", orderNumber: "", note: "" });
     expect(e.isBreak).toBe(true);
   });
+  it("lægger ALDRIG stille tid til: slut ≤ start kaster (tidligere +15 → fremtidig slut)", () => {
+    expect(() =>
+      buildEntry({ ...ctx, startTime: "15:45", endTime: "15:45", categoryId: "montage-ude", subcategoryId: null, orderNumber: "", note: "" })
+    ).toThrow(/slut skal være efter start/);
+  });
 });
 
 describe("isExactDuplicate (kun nøjagtig dublet)", () => {
@@ -312,10 +296,6 @@ describe("isExactDuplicate (kun nøjagtig dublet)", () => {
   });
   it("back-to-back (ikke dublet) → false", () => {
     const nyt = te({ startTime: "10:00", endTime: "11:00", customer: "99999" });
-    expect(isExactDuplicate(nyt, [te({ startTime: "08:00", endTime: "10:00" })])).toBe(false);
-  });
-  it("overlap men ikke identisk → false (ingen generel overlap-blokering)", () => {
-    const nyt = te({ startTime: "09:00", endTime: "11:00" });
     expect(isExactDuplicate(nyt, [te({ startTime: "08:00", endTime: "10:00" })])).toBe(false);
   });
   it("slettede linjer ignoreres", () => {

@@ -7,7 +7,7 @@ import { getPerson, loadPeople } from "../lib/people";
 import { resolveEmployeeIdentity } from "../lib/identity";
 import { initStore, store } from "../lib/storage";
 import { summarizeDay, expectedWorkMinutes } from "../lib/summary";
-import { todayIso, addDays, formatDanishDate } from "../lib/dates";
+import { todayIso, addDays, formatDanishDate, datoFraSoegning } from "../lib/dates";
 import { formatDuration } from "../lib/time";
 import { isSupabaseConfigured } from "../lib/supabaseClient";
 import { signOut } from "../lib/auth";
@@ -35,7 +35,22 @@ export default function EmployeeApp() {
 
   const today = todayIso();
   const [todayEntries, setTodayEntries] = useState<TimeEntry[]>([]); // til DayScreen (dublet-tjek)
-  const [historyDate, setHistoryDate] = useState<string>(today);
+  // Valgt dato i Min dag bevares i adressen (?dato=), så genindlæsning viser samme dag.
+  const [historyDate, setHistoryDate] = useState<string>(() => datoFraSoegning(window.location.search) ?? today);
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      if (historyDate === today) p.delete("dato");
+      else p.set("dato", historyDate);
+      const q = p.toString();
+      const ny = `${window.location.pathname}${q ? `?${q}` : ""}`;
+      if (ny !== `${window.location.pathname}${window.location.search}`) {
+        window.history.replaceState(window.history.state, "", ny);
+      }
+    } catch {
+      /* adressen er en bekvemmelighed — visningen virker uden */
+    }
+  }, [historyDate, today]);
   const [historyEntries, setHistoryEntries] = useState<TimeEntry[]>([]);
   const [historyAbsences, setHistoryAbsences] = useState<Absence[]>([]);
   // Read-only detaljevisning når man klikker en registrering i "Min dag".

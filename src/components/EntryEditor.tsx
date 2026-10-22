@@ -14,6 +14,8 @@ interface Props {
   initial: EntryDraft;
   /** Valgfri hjælpetekst øverst (fx ved "Afslut og registrér tid"). */
   hint?: string;
+  /** Fejl fra seneste gem-forsøg (vises i formularen, der forbliver åben). */
+  error?: string | null;
   /** Dagens øvrige linjer (den der redigeres er ekskluderet) — til overlap-tjek. */
   existing: TimeEntry[];
   /** Vis "Sæt også som aktuel opgave" (default true). Skjules i leder-korrektion. */
@@ -47,6 +49,7 @@ export default function EntryEditor({
   workDate,
   initial,
   hint,
+  error,
   existing,
   allowSetAsCurrent = true,
   onDelete,
@@ -88,6 +91,7 @@ export default function EntryEditor({
 
         <div className="sheet-body">
           {hint && <div className="msg info">{hint}</div>}
+          {error && <div className="msg error">{error}</div>}
           {touched && v.errors.length > 0 && (
             <div className="msg error">
               {v.errors.map((e) => (

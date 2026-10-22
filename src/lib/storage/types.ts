@@ -37,6 +37,12 @@ export interface TimeEntryStore {
   updateEntry(id: string, patch: Partial<TimeEntry>): Promise<void>;
   deleteEntry(id: string): Promise<void>;
   deleteSplitGroup(splitGroupId: string): Promise<void>;
+  /**
+   * Erstat en registrering ATOMISK: originalen (og dens frokost-split-gruppe) markeres
+   * slettet, og erstatningen indsættes — i én transaktion, ellers sker intet
+   * (tid_erstat_registrering, hub-migration 20261022180000). Kaster ved fejl.
+   */
+  replaceEntry(id: string, replacements: TimeEntry[]): Promise<void>;
 
   // "Aktuel opgave" — status, adskilt fra time entries (påvirker ingen tal).
   getCurrentTask(employeeId: string): Promise<CurrentTask | null>;

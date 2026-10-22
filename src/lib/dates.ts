@@ -74,3 +74,20 @@ export function isoWeekNumber(iso: string): number {
   firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDay + 3);
   return 1 + Math.round((date.getTime() - firstThursday.getTime()) / (7 * 24 * 3600 * 1000));
 }
+
+/**
+ * Gyldig dato fra adressens `?dato=YYYY-MM-DD`, ellers null. Bruges til at bevare den
+ * valgte dag ved genindlæsning (Min dag og leder-visningen).
+ */
+export function datoFraSoegning(search: string): string | null {
+  try {
+    const d = new URLSearchParams(search).get("dato");
+    if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
+    // Afvis ikke-eksisterende datoer (fx 2026-02-31).
+    const [y, mo, da] = d.split("-").map(Number);
+    const t = new Date(y, mo - 1, da);
+    return t.getFullYear() === y && t.getMonth() === mo - 1 && t.getDate() === da ? d : null;
+  } catch {
+    return null;
+  }
+}

@@ -65,6 +65,13 @@ export function ceilTo5Min(min: number): number {
 export function roundTo5(hhmm: string): string {
   return toHHMM(roundTo5Min(toMinutes(hhmm)));
 }
+export function floorTo5Min(min: number): number {
+  return min - (((min % 5) + 5) % 5);
+}
+/** Rund "HH:MM" NED til 5 min (fx 10:48 → 10:45, 10:45 → 10:45). Tidsforslag (Pakke 1). */
+export function floorTo5(hhmm: string): string {
+  return toHHMM(floorTo5Min(toMinutes(hhmm)));
+}
 /** Rund "HH:MM" OP til næste 5 min (fx 10:46 → 10:50, 10:45 → 10:45). */
 export function ceilTo5(hhmm: string): string {
   return toHHMM(ceilTo5Min(toMinutes(hhmm)));

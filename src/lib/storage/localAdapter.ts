@@ -96,6 +96,20 @@ export const localAdapter: TimeEntryStore = {
     saveAll(all);
   },
 
+  // Lokal dev-fallback: én synkron læs-ændr-skriv af hele listen = reelt atomisk.
+  async replaceEntry(id, replacements) {
+    const all = loadAll();
+    const old = all.find((e) => e.id === id && !e.slettet);
+    if (!old) throw new Error("Registreringen findes ikke eller er allerede ændret");
+    const now = nowIso();
+    const marked = all.map((e) =>
+      e.id === id || (old.splitGroupId && e.splitGroupId === old.splitGroupId)
+        ? { ...e, slettet: true, updatedAt: now }
+        : e
+    );
+    saveAll([...marked, ...replacements]);
+  },
+
   async deleteSplitGroup(splitGroupId) {
     const all = loadAll();
     let changed = false;

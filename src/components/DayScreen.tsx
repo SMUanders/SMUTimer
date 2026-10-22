@@ -12,10 +12,10 @@ import {
 } from "../data/categories";
 import { store, newId, nowIso } from "../lib/storage";
 import { getTaskStart, setTaskStart, clearTaskStart, isoToHHMM } from "../lib/currentTaskStart";
-import { formatDuration, roundTo15 } from "../lib/time";
+import { formatDuration, toMinutes } from "../lib/time";
 import { todayIso } from "../lib/dates";
 import { isDayEnded, setDayEnded } from "../lib/dayEnded";
-import { getHelp, setHelp, clearHelp, HELP_NOTE } from "../lib/helpContext";
+import { getHelp, setHelp, clearHelp, helpNote } from "../lib/helpContext";
 import type { OwnTask } from "../lib/helpContext";
 import { getPause, setPause, clearPause } from "../lib/pauseContext";
 import { getRedo, setRedo, clearRedo } from "../lib/redoContext";
@@ -24,16 +24,19 @@ import { ABSENCE_TYPES, absenceTypeName } from "../data/absences";
 import { activeAbsence, lastAbsenceEndHHMM } from "../lib/absence";
 import { getPersonName } from "../lib/people";
 import {
-  suggestFinishTimes,
   hhmmToIsoToday,
   buildEntry,
   isExactDuplicate,
+  suggestStart,
+  suggestEnd,
+  suggestSwitchAt,
+  activeStartHHMM,
+  ownCloseUntil,
   helpStartHHMM,
-  helpStopEndHHMM,
-  helpOwnCloseTimes,
-  redoStartHHMM,
-  redoOwnCloseTimes,
+  helpEndHHMM,
   lastEntryEndHHMM,
+  finishError,
+  switchError,
 } from "../lib/segment";
 import type { CurrentTask, TimeEntry, Absence } from "../types";
 import CategoryPicker from "./CategoryPicker";
@@ -167,15 +170,19 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
   const isHelp = !!helpOwn && !redoCtx && !!task && !isPause;
   // Aktivt fravær (ude nu) — vises i stedet for "Hvad nu?".
   const activeAbs = activeAbsence(absences);
-  // Sammenhængende tidslinje: næste foreslåede start = seneste registrerings
-  // ELLER fraværs sluttid samme dag (systemets default skaber aldrig hul/overlap).
+  // Seneste registrerings ELLER fraværs sluttid samme dag. Forslag starter aldrig før
+  // denne (intet overlap); i segment-reglerne klampes den til nu.
   const lastEnd = (() => {
     const e = lastEntryEndHHMM(entries);
     const a = lastAbsenceEndHHMM(absences);
     if (e && a) return Number(e.replace(":", "")) >= Number(a.replace(":", "")) ? e : a;
     return e ?? a;
   })();
-  const startHHMM = startedAt ? isoToHHMM(startedAt) : task ? isoToHHMM(task.updatedAt) : null;
+  // "Nu" som HH:MM (genberegnes ved hvert tick). Alle tidsforslag tager udgangspunkt i det.
+  void tick;
+  const nowHM = isoToHHMM(nowIso());
+  // Den aktive opgaves start: præcis det kortet viser OG det afslutningen foreslår.
+  const startHHMM = task ? activeStartHHMM(startedAt, task.updatedAt, nowHM, lastEnd) : null;
   const elapsedText = (() => {
     if (!startedAt) return null;
     void tick;
@@ -199,8 +206,13 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
     }
   }
 
+  // Friske tider i selve handlingen (ikke fra sidste render).
+  const nu = () => isoToHHMM(nowIso());
+  const egenStart = (t: CurrentTask) => activeStartHHMM(startedAt, t.updatedAt, nu(), lastEnd);
+
   function startWorkSubmit() {
     guarded(async () => {
+      const n = nu();
       await store().setCurrentTask({
         employeeId,
         categoryId: draft.categoryId,
@@ -214,7 +226,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         updatedAt: nowIso(),
         updatedBy: null,
       });
-      setTaskStart(employeeId, nowIso());
+      // Start = nu rundet ned til 5 min, aldrig før seneste sluttid. Kortet viser præcis denne.
+      setTaskStart(employeeId, hhmmToIsoToday(suggestStart(n, n, lastEnd)));
       setDayEnded(employeeId, today, false);
       clearHelp(employeeId); // en ny/ genoptaget normal opgave er ikke en hjælp-session
       clearRedo(employeeId); // …og ikke en omgøring
@@ -225,13 +238,19 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
   }
 
   function startPauseSubmit() {
+    const fejl = switchError(pauseStart, nu(), lastEnd);
+    if (fejl) {
+      setError(fejl);
+      return;
+    }
     guarded(async () => {
       // Pause tilbydes kun fra en NORMAL aktiv opgave eller fra "Hvad nu?" (task=null).
       // Er der en normal opgave aktiv, lukkes den til historik og huskes til genoptag.
       const resume = task && !isBreakCategory(task.categoryId) ? task : null;
       if (resume) {
-        // Luk den normale opgave frem til pausestart (rører, aldrig overlap).
-        const own = redoOwnCloseTimes(startedAt ?? resume.updatedAt, pauseStart, lastEnd);
+        // Luk den normale opgave frem til pausestart (rører, aldrig overlap). Null = under
+        // ét minut, eller pausen er sat før opgavens start → ingen egen-linje.
+        const own = ownCloseUntil(egenStart(resume), pauseStart);
         if (own) {
           const ownClose = buildEntry({
             employeeId,
@@ -398,10 +417,11 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
   function startHelpSubmit() {
     if (!task) return;
     guarded(async () => {
-      const hs = helpStartHHMM(nowIso(), lastEnd); // hjælpens start (aldrig før seneste sluttid)
-      // Luk egen opgave frem til hjælpens start (rører, aldrig overlap). Null =
-      // egen opgave var aktiv < ét interval → ingen egen-linje (undgå baguddatering).
-      const own = helpOwnCloseTimes(startedAt ?? task.updatedAt, hs, lastEnd);
+      // Hjælp er et stopur: start på det faktiske minut (aldrig før seneste sluttid).
+      const hs = helpStartHHMM(nu(), lastEnd);
+      // Luk egen opgave frem til hjælpens start (rører, aldrig overlap). Null = egen
+      // opgave var aktiv under ét minut → ingen egen-linje.
+      const own = ownCloseUntil(egenStart(task), hs);
       if (own) {
         const ownClose = buildEntry({
           employeeId,
@@ -460,26 +480,30 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
   function stopHelp() {
     if (!task || !helpOwn) return;
     guarded(async () => {
-      const hs = startedAt ? isoToHHMM(startedAt) : helpStartHHMM(nowIso(), lastEnd);
-      const he = helpStopEndHHMM(hs, nowIso()); // op til næste 5 min, min 5 min
-      const entry = buildEntry({
-        employeeId,
-        workDate: today,
-        startTime: hs,
-        endTime: he,
-        categoryId: task.categoryId,
-        subcategoryId: task.subcategoryId,
-        orderNumber: task.orderNumber ?? "",
-        sagId: task.sagId,
-        sagSmuNummer: task.sagSmuNummer,
-        enhedId: task.enhedId,
-        enhedVisning: task.enhedVisning,
-        note: HELP_NOTE,
-        newId,
-        nowIso: nowIso(),
-      });
-      if (!isExactDuplicate(entry, entries)) {
-        await store().addEntries([entry]);
+      const hs = egenStart(task);
+      // Præcise minutter, intet minimum: 3 min hjælp = 3 min. Under ét minut → ingen linje.
+      const he = helpEndHHMM(hs, nu());
+      if (he) {
+        const entry = buildEntry({
+          employeeId,
+          workDate: today,
+          startTime: hs,
+          endTime: he,
+          categoryId: task.categoryId,
+          subcategoryId: task.subcategoryId,
+          orderNumber: task.orderNumber ?? "",
+          sagId: task.sagId,
+          sagSmuNummer: task.sagSmuNummer,
+          enhedId: task.enhedId,
+          enhedVisning: task.enhedVisning,
+          // Hjælp-mærket + medarbejderens egen note fra hjælp-formularen (tidligere tabt).
+          note: helpNote(task.note ?? ""),
+          newId,
+          nowIso: nowIso(),
+        });
+        if (!isExactDuplicate(entry, entries)) {
+          await store().addEntries([entry]);
+        }
       }
       // Genoptag egen opgave automatisk fra hjælpens sluttid (intet overlap).
       await store().setCurrentTask({
@@ -495,7 +519,7 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         updatedAt: nowIso(),
         updatedBy: null,
       });
-      setTaskStart(employeeId, hhmmToIsoToday(he));
+      setTaskStart(employeeId, hhmmToIsoToday(he ?? hs));
       clearHelp(employeeId);
       setFormMode(null);
       await refresh();
@@ -510,11 +534,14 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
   //    opgave, ingen normal opgave at lukke, ingen genoptagelse.
   function startRedoSubmit() {
     guarded(async () => {
-      const rs = redoStartHHMM(nowIso(), lastEnd); // aldrig før seneste sluttid
+      // Vej A: skiftet sker nu (5-min-forslag efter egen start). Vej B: start som en ny
+      // opgave. Begge aldrig før seneste sluttid og aldrig efter nu.
+      const n = nu();
+      const rs = task ? suggestSwitchAt(egenStart(task), n) : suggestStart(n, n, lastEnd);
       let ownTask: OwnTask | null = null;
       if (task) {
         // Vej A: luk den aktive opgave frem til omgøringens start (rører, intet overlap).
-        const own = redoOwnCloseTimes(startedAt ?? task.updatedAt, rs, lastEnd);
+        const own = ownCloseUntil(egenStart(task), rs);
         if (own) {
           const ownClose = buildEntry({
             employeeId,
@@ -659,11 +686,10 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
   function returnFromAbsence() {
     if (!activeAbs) return;
     guarded(async () => {
-      const rt0 = roundTo15(isoToHHMM(nowIso()));
-      const rt =
-        Number(rt0.replace(":", "")) > Number(activeAbs.startTime.replace(":", ""))
-          ? rt0
-          : activeAbs.expectedEnd ?? rt0;
+      // Tilbage = nu (rundet ned til 5 min, aldrig efter nu). Startede fraværet først
+      // nu/senere, afsluttes det på sin starttid — aldrig på en fremtidig "forventet" tid.
+      const n = nu();
+      const rt = toMinutes(n) > toMinutes(activeAbs.startTime) ? suggestEnd(activeAbs.startTime, n) : activeAbs.startTime;
       await store().endAbsence(activeAbs.id, rt);
       await refresh();
       onChanged();
@@ -686,27 +712,34 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
   }
   function openStartPause(fromActive = false) {
     setPauseType(LUNCH_SUBCATEGORY_ID);
-    // Fra aktiv opgave: pausen starter nu (nærmeste kvarter, aldrig før seneste sluttid)
-    // — den aktive opgave lukkes frem til dette tidspunkt. Fra "Hvad nu?": fortsæt fra
-    // seneste sluttid (sammenhængende tidslinje), som hidtil.
-    setPauseStart(fromActive ? redoStartHHMM(nowIso(), lastEnd) : lastEnd ?? roundTo15(isoToHHMM(nowIso())));
+    // Fra aktiv opgave: pausen starter nu (rundet ned til 5 min efter opgavens start) —
+    // den aktive opgave lukkes frem til dette tidspunkt. Fra "Hvad nu?": nu rundet ned,
+    // aldrig før seneste sluttid. Medarbejderen kan rette tidspunktet i formen.
+    const n = nu();
+    setPauseStart(fromActive && task ? suggestSwitchAt(egenStart(task), n) : suggestStart(n, n, lastEnd));
     setFormMode("startPause");
   }
   function openEditWork() {
     if (task) setDraft(draftFromTask(task));
     setFormMode("editWork");
   }
+  // Afslutningsforslag: start = præcis den start kortet viser; slut = nu rundet ned til
+  // 5 min (det faktiske minut, hvis opgaven er kortere) — aldrig efter nu.
+  function finishSuggestion(): { startTime: string; endTime: string } {
+    const n = nu();
+    const start = task ? egenStart(task) : suggestStart(n, n, lastEnd);
+    return { startTime: start, endTime: suggestEnd(start, n) };
+  }
   function openFinishWork() {
-    const t = suggestFinishTimes(startedAt ?? task?.updatedAt ?? nowIso(), nowIso());
-    // Start = seneste sluttid (sammenhængende), ellers opgavens rundede start.
-    setFinish((f) => ({ ...f, startTime: lastEnd ?? t.startTime, endTime: t.endTime, note: task?.note ?? "" }));
+    const t = finishSuggestion();
+    setFinish((f) => ({ ...f, startTime: t.startTime, endTime: t.endTime, note: task?.note ?? "" }));
     setFormMode("finishWork");
   }
   function openFinishPause() {
-    const t = suggestFinishTimes(startedAt ?? task?.updatedAt ?? nowIso(), nowIso());
+    const t = finishSuggestion();
     setFinish((f) => ({
       ...f,
-      startTime: lastEnd ?? t.startTime,
+      startTime: t.startTime,
       endTime: t.endTime,
       pauseType: task?.subcategoryId ?? LUNCH_SUBCATEGORY_ID,
     }));
@@ -756,21 +789,26 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
     setFormMode("startRedo");
   }
   function openFinishRedo() {
-    const t = suggestFinishTimes(startedAt ?? task?.updatedAt ?? nowIso(), nowIso());
+    // Samme start som kortet viser (tidligere rundet igen til kvarter → overlap/hul).
+    const t = finishSuggestion();
     setFinish((f) => ({ ...f, startTime: t.startTime, endTime: t.endTime, note: redoCtx?.note ?? "" }));
     setRedoReason(redoCtx?.reason ?? REDO_REASONS[0].id);
     setFormMode("finishRedo");
   }
   function openRegisterAbsence() {
     setAbsType(ABSENCE_TYPES[0].id);
-    setAbsFrom(lastEnd ?? roundTo15(isoToHHMM(nowIso()))); // fra = seneste sluttid (sammenhængende)
+    const n = nu();
+    setAbsFrom(suggestStart(n, n, lastEnd)); // fra = nu rundet ned, aldrig før seneste sluttid
     setAbsTo("");
     setAbsNote("");
     setFormMode("registerAbsence");
   }
 
-  const finishValid =
-    Number(finish.endTime.replace(":", "")) > Number(finish.startTime.replace(":", ""));
+  // Validering af afslutningen: slut efter start, ikke efter nu, intet overlap.
+  const finishFejl = finishError(finish.startTime, finish.endTime, nowHM, entries);
+  const finishValid = finishFejl === null;
+  // Pausens starttid: ikke efter nu, ikke før seneste sluttid.
+  const pauseFejl = formMode === "startPause" ? switchError(pauseStart, nowHM, lastEnd) : null;
 
   // ---- gentaget UI ----
   const workFields = (
@@ -893,8 +931,9 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
               <TimeSelect value={pauseStart} onChange={setPauseStart} />
             </div>
           </div>
+          {pauseFejl && <div className="msg error">{pauseFejl}</div>}
           <div className="ds-actions">
-            <button className="smu-btn-primary ds-primary" onClick={startPauseSubmit} disabled={busy}>
+            <button className="smu-btn-primary ds-primary" onClick={startPauseSubmit} disabled={busy || !!pauseFejl}>
               <Coffee size={16} /> Start pause
             </button>
             <button className="smu-btn-secondary" onClick={() => setFormMode(null)} disabled={busy}>
@@ -939,7 +978,7 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
               placeholder="Valgfri"
             />
           </div>
-          {!finishValid && <div className="msg error">Slut skal være efter start.</div>}
+          {finishFejl && <div className="msg error">{finishFejl}</div>}
           <div className="ds-actions">
             <button className="smu-btn-primary ds-primary" onClick={finishWorkSubmit} disabled={busy || !finishValid}>
               <CheckCircle2 size={16} /> Gem afsluttet opgave
@@ -967,7 +1006,7 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
             </select>
           </div>
           {timePair}
-          {!finishValid && <div className="msg error">Slut skal være efter start.</div>}
+          {finishFejl && <div className="msg error">{finishFejl}</div>}
           <div className="ds-actions">
             <button className="smu-btn-primary ds-primary" onClick={finishPauseSubmit} disabled={busy || !finishValid}>
               <CheckCircle2 size={16} /> Gem pause
@@ -1130,7 +1169,7 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
               placeholder="Valgfri"
             />
           </div>
-          {!finishValid && <div className="msg error">Slut skal være efter start.</div>}
+          {finishFejl && <div className="msg error">{finishFejl}</div>}
           <div className="ds-actions">
             <button className="smu-btn-primary ds-primary" onClick={finishRedoSubmit} disabled={busy || !finishValid}>
               <CheckCircle2 size={16} /> Gem omgøring
