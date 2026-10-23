@@ -517,15 +517,32 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
   // Ingen afslut-form, ingen ekstra "Start opgave"-tryk.
   function stopHelp() {
     if (!task || !helpOwn) return;
-    guarded(async () => {
-      const hs = egenStart(task);
-      // Præcise minutter, intet minimum: 3 min hjælp = 3 min. Under ét minut → ingen linje.
-      // Valgte medarbejderen selv "start fra" en senere registreret sluttid, placeres den
-      // faktiske varighed efter den valgte start (aldrig opdigtet, aldrig forsvundet).
+    const hs = egenStart(task);
+    const n = nu();
+    if (toMinutes(n) <= toMinutes(hs)) {
+      // Stoppet FØR den valgte start (medarbejderen valgte "Start fra" en senere registreret
+      // sluttid). Løsning B (Anders 23. okt. 2026): intet gemmes automatisk — medarbejderen
+      // ser og bekræfter selv både start og slut. Forslag: valgt start + faktisk varighed.
       const faktiske = helpOwn.hjaelpTrykket
         ? Math.floor((Date.now() - Date.parse(helpOwn.hjaelpTrykket)) / 60000)
-        : undefined;
-      const he = helpEndHHMM(hs, nu(), faktiske);
+        : 0;
+      setFinish((f) => ({ ...f, startTime: hs, endTime: helpEndHHMM(hs, n, Math.max(1, faktiske)) ?? hs }));
+      setFormMode("finishHelp");
+      return;
+    }
+    // Normalt stop: præcise minutter, intet minimum (3 min hjælp = 3 min).
+    gemHjaelp(hs, helpEndHHMM(hs, n));
+  }
+
+  // Bekræftet hjælp (løsning B): gemmes præcis med de tider, medarbejderen har bekræftet.
+  function confirmHelpSubmit() {
+    gemHjaelp(finish.startTime, finish.endTime);
+  }
+
+  /** Gem hjælp-linjen (hvis den har varighed) og genoptag egen opgave fra dens slut. */
+  function gemHjaelp(hs: string, he: string | null) {
+    if (!task || !helpOwn) return;
+    guarded(async () => {
       if (he) {
         const entry = buildEntry({
           employeeId,
@@ -1080,6 +1097,32 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
           <div className="ds-actions">
             <button className="smu-btn-primary ds-primary" onClick={() => finishWorkSubmit()} disabled={busy || !finishValid}>
               <CheckCircle2 size={16} /> Gem afsluttet opgave
+            </button>
+            <button className="smu-btn-secondary" onClick={() => setFormMode(null)} disabled={busy}>
+              Annuller
+            </button>
+          </div>
+        </>
+      ) : formMode === "finishHelp" ? (
+        /* ---------- BEKRÆFT HJÆLP (stoppet før den valgte start — løsning B) ---------- */
+        <>
+          <div className="ds-title">Bekræft hjælp</div>
+          <div className="ds-help">
+            Du valgte at starte hjælpen fra {egenStart(task!)}, men stopper den nu kl. {nowHM}. Bekræft eller ret
+            start og slut — der gemmes intet, før du trykker Gem.
+          </div>
+          {timePair}
+          {finishFejl ? (
+            <div className="msg error">{finishFejl}</div>
+          ) : (
+            <div className="msg info">
+              Registreres: {finish.startTime}–{finish.endTime} (
+              {toMinutes(finish.endTime) - toMinutes(finish.startTime)} min)
+            </div>
+          )}
+          <div className="ds-actions">
+            <button className="smu-btn-primary ds-primary" onClick={confirmHelpSubmit} disabled={busy || !finishValid}>
+              <CheckCircle2 size={16} /> Gem hjælp
             </button>
             <button className="smu-btn-secondary" onClick={() => setFormMode(null)} disabled={busy}>
               Annuller
