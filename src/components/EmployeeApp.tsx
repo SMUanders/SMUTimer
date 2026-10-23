@@ -109,10 +109,11 @@ export default function EmployeeApp() {
   }
 
   // v2.1.1: medarbejderen redigerer KUN noten på egen afsluttet registrering.
-  // Sender kun note-feltet (ikke hele entry). RLS owner-scope tillader UPDATE på egne rækker.
+  // Går gennem databasefunktionen tid_ret_egen_note (kun egen række, kun noten) —
+  // direkte UPDATE er forbeholdt leder (Pakke 1.1).
   async function saveDetailNote(note: string) {
     if (!detailEntry) return;
-    await store().updateEntry(detailEntry.id, { note });
+    await store().updateOwnNote(detailEntry.id, note);
     setDetailEntry({ ...detailEntry, note }); // vis den nye note straks
     await loadHistory(employeeId, historyDate);
     await loadToday(employeeId);

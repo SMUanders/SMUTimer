@@ -36,8 +36,10 @@ import {
   helpEndHHMM,
   lastEntryEndHHMM,
   finishError,
-  switchError,
+  findOverlap,
+  konfliktVed,
 } from "../lib/segment";
+import type { Konflikt } from "../lib/segment";
 import type { CurrentTask, TimeEntry, Absence } from "../types";
 import CategoryPicker from "./CategoryPicker";
 import TimeSelect from "./TimeSelect";
@@ -183,6 +185,7 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
   const nowHM = isoToHHMM(nowIso());
   // Den aktive opgaves start: præcis det kortet viser OG det afslutningen foreslår.
   const startHHMM = task ? activeStartHHMM(startedAt, task.updatedAt, nowHM, lastEnd) : null;
+  const startLabel = startHHMM && toMinutes(startHHMM) > toMinutes(nowHM) ? "Starter" : "Startet";
   const elapsedText = (() => {
     if (!startedAt) return null;
     void tick;
@@ -198,8 +201,12 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
     setError(null);
     try {
       await run();
-    } catch {
-      setError("Kunne ikke gemme. Er databasen opdateret?");
+    } catch (e) {
+      // Databasefunktionerne giver danske, forståelige fejl (fx "Registreringen er ændret i
+      // mellemtiden — genindlæs dagen"); vis dem frem for en generisk tekst.
+      const besked = e && typeof e === "object" && "message" in e ? String((e as { message: unknown }).message) : "";
+      setError(besked ? `Kunne ikke gemme: ${besked}` : "Kunne ikke gemme. Prøv igen.");
+      await refresh();
     } finally {
       submittingRef.current = false;
       setBusy(false);
@@ -209,6 +216,25 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
   // Friske tider i selve handlingen (ikke fra sidste render).
   const nu = () => isoToHHMM(nowIso());
   const egenStart = (t: CurrentTask) => activeStartHHMM(startedAt, t.updatedAt, nu(), lastEnd);
+
+  // ---- Konflikt (Pakke 1.1): en faktisk aktivitet rammer ind i en registrering, der slutter
+  // senere. Intet forskydes eller afkortes automatisk — medarbejderen vælger selv.
+  // valg="afkort": afkort egen, seneste registrering til tidspunktet (databasefunktion med
+  // historik og beskyttelse mod samtidige ændringer). valg="startFra": brug den registrerede
+  // sluttid som start. Uden valg må en konflikt aldrig gemmes.
+  type Valg = { konflikt: Konflikt; valg: "afkort" | "startFra" } | null;
+  async function udfoerAfkort(v: Valg) {
+    if (v?.valg === "afkort" && v.konflikt.afkort) {
+      await store().shortenLatestEntry(v.konflikt.afkort.id, v.konflikt.tidspunkt, v.konflikt.afkort.endTime);
+    }
+  }
+  /** Tidspunktet efter medarbejderens valg; null = uløst konflikt (intet gemmes). */
+  function tidspunktEfterValg(t: string, v: Valg): string | null {
+    if (v?.valg === "startFra") return v.konflikt.registreretSlut;
+    if (v?.valg === "afkort") return v.konflikt.afkort ? v.konflikt.tidspunkt : null;
+    return konfliktVed(t, entries, lastEnd) ? null : t;
+  }
+  const UloestKonflikt = "Vælg først, hvordan konflikten med den tidligere registrering skal løses.";
 
   function startWorkSubmit() {
     guarded(async () => {
@@ -226,7 +252,8 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         updatedAt: nowIso(),
         updatedBy: null,
       });
-      // Start = nu rundet ned til 5 min, aldrig før seneste sluttid. Kortet viser præcis denne.
+      // Start = nu rundet ned til 5 min, men aldrig før seneste registrerede sluttid — også når
+      // den ligger efter nu (løsning A). Kortet viser præcis denne.
       setTaskStart(employeeId, hhmmToIsoToday(suggestStart(n, n, lastEnd)));
       setDayEnded(employeeId, today, false);
       clearHelp(employeeId); // en ny/ genoptaget normal opgave er ikke en hjælp-session
@@ -237,20 +264,21 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
     });
   }
 
-  function startPauseSubmit() {
-    const fejl = switchError(pauseStart, nu(), lastEnd);
-    if (fejl) {
-      setError(fejl);
+  function startPauseSubmit(v: Valg = null) {
+    const at = tidspunktEfterValg(pauseStart, v);
+    if (!at) {
+      setError(UloestKonflikt);
       return;
     }
     guarded(async () => {
+      await udfoerAfkort(v);
       // Pause tilbydes kun fra en NORMAL aktiv opgave eller fra "Hvad nu?" (task=null).
       // Er der en normal opgave aktiv, lukkes den til historik og huskes til genoptag.
       const resume = task && !isBreakCategory(task.categoryId) ? task : null;
       if (resume) {
         // Luk den normale opgave frem til pausestart (rører, aldrig overlap). Null = under
         // ét minut, eller pausen er sat før opgavens start → ingen egen-linje.
-        const own = ownCloseUntil(egenStart(resume), pauseStart);
+        const own = ownCloseUntil(egenStart(resume), at);
         if (own) {
           const ownClose = buildEntry({
             employeeId,
@@ -299,7 +327,7 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         updatedAt: nowIso(),
         updatedBy: null,
       });
-      setTaskStart(employeeId, hhmmToIsoToday(pauseStart));
+      setTaskStart(employeeId, hhmmToIsoToday(at));
       setDayEnded(employeeId, today, false);
       clearHelp(employeeId); // en pause er ikke en hjælp-session
       clearRedo(employeeId); // …og ikke en omgøring
@@ -331,9 +359,10 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
     });
   }
 
-  function finishWorkSubmit() {
+  function finishWorkSubmit(v: Valg = null) {
     if (!task) return;
     guarded(async () => {
+      await udfoerAfkort(v); // kun ved medarbejderens udtrykkelige valg "Afkort"
       const entry = buildEntry({
         employeeId,
         workDate: today,
@@ -363,9 +392,10 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
     });
   }
 
-  function finishPauseSubmit() {
+  function finishPauseSubmit(v: Valg = null) {
     if (!task) return;
     guarded(async () => {
+      await udfoerAfkort(v); // kun ved medarbejderens udtrykkelige valg "Afkort"
       const entry = buildEntry({
         employeeId,
         workDate: today,
@@ -414,11 +444,18 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
   // ---- Hjælp på anden opgave ----
   // Start hjælp: luk den EGNE opgave som historiklinje frem til nu, husk den til
   // genoptag, og gør hjælp-opgaven aktiv. Kun ÉN aktiv registrering ad gangen.
-  function startHelpSubmit() {
+  function startHelpSubmit(v: Valg = null) {
     if (!task) return;
+    // Hjælp er et stopur: start på det faktiske minut — aldrig forskudt. Rammer det ind i en
+    // registrering, der slutter senere, kræves medarbejderens eget valg (afkort/start fra).
+    const hs = tidspunktEfterValg(helpStartHHMM(nu()), v);
+    if (!hs) {
+      setError(UloestKonflikt);
+      return;
+    }
+    const trykket = nowIso();
     guarded(async () => {
-      // Hjælp er et stopur: start på det faktiske minut (aldrig før seneste sluttid).
-      const hs = helpStartHHMM(nu(), lastEnd);
+      await udfoerAfkort(v);
       // Luk egen opgave frem til hjælpens start (rører, aldrig overlap). Null = egen
       // opgave var aktiv under ét minut → ingen egen-linje.
       const own = ownCloseUntil(egenStart(task), hs);
@@ -453,6 +490,7 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
         enhedId: task.enhedId,
         enhedVisning: task.enhedVisning,
         note: task.note ?? "",
+        hjaelpTrykket: trykket, // faktisk start — bruges hvis medarbejderen valgte "start fra"
       });
       // Hjælp-opgaven bliver den aktive opgave; gem HS som starttidspunkt.
       await store().setCurrentTask({
@@ -482,7 +520,12 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
     guarded(async () => {
       const hs = egenStart(task);
       // Præcise minutter, intet minimum: 3 min hjælp = 3 min. Under ét minut → ingen linje.
-      const he = helpEndHHMM(hs, nu());
+      // Valgte medarbejderen selv "start fra" en senere registreret sluttid, placeres den
+      // faktiske varighed efter den valgte start (aldrig opdigtet, aldrig forsvundet).
+      const faktiske = helpOwn.hjaelpTrykket
+        ? Math.floor((Date.now() - Date.parse(helpOwn.hjaelpTrykket)) / 60000)
+        : undefined;
+      const he = helpEndHHMM(hs, nu(), faktiske);
       if (he) {
         const entry = buildEntry({
           employeeId,
@@ -532,12 +575,18 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
   //    omgøringens start, husk den til auto-genoptag.
   // B: fra "Hvad nu?" (ingen aktiv opgave) → SELVSTÆNDIG omgøring på en valgt
   //    opgave, ingen normal opgave at lukke, ingen genoptagelse.
-  function startRedoSubmit() {
+  function startRedoSubmit(v: Valg = null) {
+    // Vej A: skiftet sker nu (faktisk tidspunkt, 5-min-forslag efter egen start) — aldrig
+    // forskudt; rammer det en registrering, der slutter senere, kræves medarbejderens valg.
+    // Vej B: start som en ny opgave fra seneste registrerede sluttid (løsning A).
+    const n = nu();
+    const rs = tidspunktEfterValg(task ? suggestSwitchAt(egenStart(task), n) : suggestStart(n, n, lastEnd), v);
+    if (!rs) {
+      setError(UloestKonflikt);
+      return;
+    }
     guarded(async () => {
-      // Vej A: skiftet sker nu (5-min-forslag efter egen start). Vej B: start som en ny
-      // opgave. Begge aldrig før seneste sluttid og aldrig efter nu.
-      const n = nu();
-      const rs = task ? suggestSwitchAt(egenStart(task), n) : suggestStart(n, n, lastEnd);
+      await udfoerAfkort(v);
       let ownTask: OwnTask | null = null;
       if (task) {
         // Vej A: luk den aktive opgave frem til omgøringens start (rører, intet overlap).
@@ -600,9 +649,10 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
 
   // Afslut omgøring: gem struktureret omgøring (isRedo + årsag + note). Vej A →
   // auto-genoptag oprindelig opgave fra sluttid; vej B → tilbage til "Hvad nu?".
-  function finishRedoSubmit() {
+  function finishRedoSubmit(v: Valg = null) {
     if (!task || !redoCtx) return;
     guarded(async () => {
+      await udfoerAfkort(v); // kun ved medarbejderens udtrykkelige valg "Afkort"
       const entry = buildEntry({
         employeeId,
         workDate: today,
@@ -798,17 +848,55 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
   function openRegisterAbsence() {
     setAbsType(ABSENCE_TYPES[0].id);
     const n = nu();
-    setAbsFrom(suggestStart(n, n, lastEnd)); // fra = nu rundet ned, aldrig før seneste sluttid
+    // Fravær er uændret (Pakke 1.1): fra = nu rundet ned, aldrig før seneste sluttid — men en
+    // registrering, der slutter efter nu, skubber ikke fraværet frem i tiden.
+    const le = lastEnd && toMinutes(lastEnd) <= toMinutes(n) ? lastEnd : null;
+    setAbsFrom(suggestStart(n, n, le));
     setAbsTo("");
     setAbsNote("");
     setFormMode("registerAbsence");
   }
 
   // Validering af afslutningen: slut efter start, ikke efter nu, intet overlap.
-  const finishFejl = finishError(finish.startTime, finish.endTime, nowHM, entries);
+  // Afslutning: slut efter start og intet overlap. Slut må gerne ligge efter nu (manuel
+  // registrering, til og med 23:59). Ved overlap med dagens seneste registrering tilbydes
+  // medarbejderens egne valg (afkort / start fra registreret slut).
+  const finishFejl = finishError(finish.startTime, finish.endTime, entries);
   const finishValid = finishFejl === null;
-  // Pausens starttid: ikke efter nu, ikke før seneste sluttid.
-  const pauseFejl = formMode === "startPause" ? switchError(pauseStart, nowHM, lastEnd) : null;
+  const finishKonflikt =
+    finishFejl && findOverlap(finish.startTime, finish.endTime, entries)
+      ? konfliktVed(finish.startTime, entries, lastEnd)
+      : null;
+  // Konflikt ved start af pause/hjælp/omgøring (faktisk tidspunkt mod en registrering, der slutter senere).
+  const pauseKonflikt = formMode === "startPause" ? konfliktVed(pauseStart, entries, lastEnd) : null;
+  const hjaelpKonflikt = formMode === "startHelp" ? konfliktVed(helpStartHHMM(nowHM), entries, lastEnd) : null;
+  const redoKonflikt =
+    formMode === "startRedo" && task && startHHMM ? konfliktVed(suggestSwitchAt(startHHMM, nowHM), entries, lastEnd) : null;
+
+  // Konfliktvalg: tydelig besked + medarbejderens tre valg. Intet gemmes uden et valg.
+  function konfliktBoks(k: Konflikt, opts: { onAfkort: () => void; onStartFra: () => void; startFraTekst?: string }) {
+    return (
+      <div className="msg warn ds-konflikt" role="alert">
+        <div>
+          En tidligere registrering slutter {k.registreretSlut}, men du starter {k.tidspunkt}. Vælg, hvad der
+          skal ske — intet ændres automatisk.
+        </div>
+        <div className="ds-actions">
+          {k.afkort && (
+            <button className="smu-btn-secondary" onClick={opts.onAfkort} disabled={busy}>
+              Afkort forrige registrering til {k.tidspunkt}
+            </button>
+          )}
+          <button className="smu-btn-secondary" onClick={opts.onStartFra} disabled={busy}>
+            {opts.startFraTekst ?? `Start fra ${k.registreretSlut}`}
+          </button>
+          <button className="smu-btn-ghost" onClick={() => setFormMode(null)} disabled={busy}>
+            Annuller
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // ---- gentaget UI ----
   const workFields = (
@@ -931,9 +1019,13 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
               <TimeSelect value={pauseStart} onChange={setPauseStart} />
             </div>
           </div>
-          {pauseFejl && <div className="msg error">{pauseFejl}</div>}
+          {pauseKonflikt &&
+            konfliktBoks(pauseKonflikt, {
+              onAfkort: () => startPauseSubmit({ konflikt: pauseKonflikt, valg: "afkort" }),
+              onStartFra: () => startPauseSubmit({ konflikt: pauseKonflikt, valg: "startFra" }),
+            })}
           <div className="ds-actions">
-            <button className="smu-btn-primary ds-primary" onClick={startPauseSubmit} disabled={busy || !!pauseFejl}>
+            <button className="smu-btn-primary ds-primary" onClick={() => startPauseSubmit()} disabled={busy || !!pauseKonflikt}>
               <Coffee size={16} /> Start pause
             </button>
             <button className="smu-btn-secondary" onClick={() => setFormMode(null)} disabled={busy}>
@@ -978,9 +1070,15 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
               placeholder="Valgfri"
             />
           </div>
-          {finishFejl && <div className="msg error">{finishFejl}</div>}
+          {finishKonflikt
+            ? konfliktBoks(finishKonflikt, {
+                onAfkort: () => finishWorkSubmit({ konflikt: finishKonflikt, valg: "afkort" }),
+                onStartFra: () => setFinish((f) => ({ ...f, startTime: finishKonflikt.registreretSlut })),
+                startFraTekst: `Brug start ${finishKonflikt.registreretSlut}`,
+              })
+            : finishFejl && <div className="msg error">{finishFejl}</div>}
           <div className="ds-actions">
-            <button className="smu-btn-primary ds-primary" onClick={finishWorkSubmit} disabled={busy || !finishValid}>
+            <button className="smu-btn-primary ds-primary" onClick={() => finishWorkSubmit()} disabled={busy || !finishValid}>
               <CheckCircle2 size={16} /> Gem afsluttet opgave
             </button>
             <button className="smu-btn-secondary" onClick={() => setFormMode(null)} disabled={busy}>
@@ -1006,9 +1104,15 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
             </select>
           </div>
           {timePair}
-          {finishFejl && <div className="msg error">{finishFejl}</div>}
+          {finishKonflikt
+            ? konfliktBoks(finishKonflikt, {
+                onAfkort: () => finishPauseSubmit({ konflikt: finishKonflikt, valg: "afkort" }),
+                onStartFra: () => setFinish((f) => ({ ...f, startTime: finishKonflikt.registreretSlut })),
+                startFraTekst: `Brug start ${finishKonflikt.registreretSlut}`,
+              })
+            : finishFejl && <div className="msg error">{finishFejl}</div>}
           <div className="ds-actions">
-            <button className="smu-btn-primary ds-primary" onClick={finishPauseSubmit} disabled={busy || !finishValid}>
+            <button className="smu-btn-primary ds-primary" onClick={() => finishPauseSubmit()} disabled={busy || !finishValid}>
               <CheckCircle2 size={16} /> Gem pause
             </button>
             <button className="smu-btn-secondary" onClick={() => setFormMode(null)} disabled={busy}>
@@ -1061,8 +1165,13 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
             ordrenummer, stelnummer eller kunde).
           </div>
           {workFields}
+          {hjaelpKonflikt &&
+            konfliktBoks(hjaelpKonflikt, {
+              onAfkort: () => startHelpSubmit({ konflikt: hjaelpKonflikt, valg: "afkort" }),
+              onStartFra: () => startHelpSubmit({ konflikt: hjaelpKonflikt, valg: "startFra" }),
+            })}
           <div className="ds-actions">
-            <button className="smu-btn-primary ds-primary" onClick={startHelpSubmit} disabled={busy}>
+            <button className="smu-btn-primary ds-primary" onClick={() => startHelpSubmit()} disabled={busy || !!hjaelpKonflikt}>
               <Users size={16} /> Start hjælp
             </button>
             <button className="smu-btn-secondary" onClick={() => setFormMode(null)} disabled={busy}>
@@ -1136,8 +1245,13 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
               placeholder="Valgfri"
             />
           </div>
+          {redoKonflikt &&
+            konfliktBoks(redoKonflikt, {
+              onAfkort: () => startRedoSubmit({ konflikt: redoKonflikt, valg: "afkort" }),
+              onStartFra: () => startRedoSubmit({ konflikt: redoKonflikt, valg: "startFra" }),
+            })}
           <div className="ds-actions">
-            <button className="smu-btn-primary ds-primary" onClick={startRedoSubmit} disabled={busy}>
+            <button className="smu-btn-primary ds-primary" onClick={() => startRedoSubmit()} disabled={busy || !!redoKonflikt}>
               <RotateCcw size={16} /> Start omgøring
             </button>
             <button className="smu-btn-secondary" onClick={() => setFormMode(null)} disabled={busy}>
@@ -1169,9 +1283,15 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
               placeholder="Valgfri"
             />
           </div>
-          {finishFejl && <div className="msg error">{finishFejl}</div>}
+          {finishKonflikt
+            ? konfliktBoks(finishKonflikt, {
+                onAfkort: () => finishRedoSubmit({ konflikt: finishKonflikt, valg: "afkort" }),
+                onStartFra: () => setFinish((f) => ({ ...f, startTime: finishKonflikt.registreretSlut })),
+                startFraTekst: `Brug start ${finishKonflikt.registreretSlut}`,
+              })
+            : finishFejl && <div className="msg error">{finishFejl}</div>}
           <div className="ds-actions">
-            <button className="smu-btn-primary ds-primary" onClick={finishRedoSubmit} disabled={busy || !finishValid}>
+            <button className="smu-btn-primary ds-primary" onClick={() => finishRedoSubmit()} disabled={busy || !finishValid}>
               <CheckCircle2 size={16} /> Gem omgøring
             </button>
             <button className="smu-btn-secondary" onClick={() => setFormMode(null)} disabled={busy}>
@@ -1288,7 +1408,7 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
           </div>
           {startHHMM && (
             <div className="ds-timer">
-              <Clock size={14} /> Startet {startHHMM}
+              <Clock size={14} /> {startLabel} {startHHMM}
               {elapsedText ? ` · ${elapsedText}` : ""}
             </div>
           )}
@@ -1333,7 +1453,7 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
           {task.note && <div className="ds-note">{task.note}</div>}
           {startHHMM && (
             <div className="ds-timer">
-              <Clock size={14} /> Startet {startHHMM}
+              <Clock size={14} /> {startLabel} {startHHMM}
               {elapsedText ? ` · ${elapsedText} i gang` : ""}
             </div>
           )}
@@ -1377,7 +1497,7 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
           {task.note && <div className="ds-note">{task.note}</div>}
           {startHHMM && (
             <div className="ds-timer">
-              <Clock size={14} /> Startet {startHHMM}
+              <Clock size={14} /> {startLabel} {startHHMM}
               {elapsedText ? ` · ${elapsedText} i gang` : ""}
             </div>
           )}
@@ -1418,7 +1538,7 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
           {task.note && <div className="ds-note">{task.note}</div>}
           {startHHMM && (
             <div className="ds-timer">
-              <Clock size={14} /> Startet {startHHMM}
+              <Clock size={14} /> {startLabel} {startHHMM}
               {elapsedText ? ` · ${elapsedText} i gang` : ""}
             </div>
           )}

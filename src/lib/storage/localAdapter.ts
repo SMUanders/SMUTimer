@@ -1,6 +1,6 @@
 import type { TimeEntry, CurrentTask, Absence } from "../../types";
 import type { TimeEntryStore } from "./types";
-import { nowIso } from "./types";
+import { nowIso, newId } from "./types";
 
 const ABSENCES_KEY = "smu-tid.absences.v1";
 function loadAbsences(): Absence[] {
@@ -108,6 +108,34 @@ export const localAdapter: TimeEntryStore = {
         : e
     );
     saveAll([...marked, ...replacements]);
+  },
+
+  // Lokal dev-fallback for afkortning: samme afgrænsning som databasefunktionen
+  // (seneste, ikke split, kun kortere, uændret siden brugeren så den), med historik.
+  async shortenLatestEntry(id, newEnd, expectedEnd) {
+    const all = loadAll();
+    const r = all.find((e) => e.id === id && !e.slettet);
+    if (!r) throw new Error("Registreringen findes ikke eller er allerede ændret");
+    if (r.endTime !== expectedEnd) throw new Error("Registreringen er ændret i mellemtiden");
+    if (r.splitGroupId) throw new Error("En registrering delt omkring frokost kan ikke afkortes her");
+    const senere = all.some(
+      (e) => !e.slettet && e.id !== r.id && e.employeeId === r.employeeId && e.workDate === r.workDate && e.endTime > r.endTime
+    );
+    if (senere) throw new Error("Kun dagens seneste registrering kan afkortes");
+    if (!(newEnd > r.startTime && newEnd < r.endTime)) throw new Error("Ny sluttid skal ligge efter start og før nuværende slut");
+    const now = nowIso();
+    const [sh, sm] = r.startTime.split(":").map(Number);
+    const [eh, em] = newEnd.split(":").map(Number);
+    const kopi = { ...r, id: newId(), endTime: newEnd, durationMinutes: eh * 60 + em - (sh * 60 + sm), createdAt: now, updatedAt: now };
+    saveAll([...all.map((e) => (e.id === id ? { ...e, slettet: true, updatedAt: now } : e)), kopi]);
+  },
+
+  async updateOwnNote(id, note) {
+    const all = loadAll();
+    const idx = all.findIndex((e) => e.id === id && !e.slettet);
+    if (idx === -1) throw new Error("Registreringen findes ikke eller er slettet");
+    all[idx] = { ...all[idx], note, updatedAt: nowIso() };
+    saveAll(all);
   },
 
   async deleteSplitGroup(splitGroupId) {

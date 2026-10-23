@@ -277,6 +277,22 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
       if (error) throw error;
     },
 
+    // Medarbejderens egne rettelser går KUN gennem databasefunktioner, der selv håndhæver
+    // afgrænsningen (direkte UPDATE/DELETE er forbeholdt leder, hub-migration 20261023100000).
+    async shortenLatestEntry(id, newEnd, expectedEnd) {
+      const { error } = await client.rpc("tid_afkort_seneste_registrering", {
+        p_id: id,
+        p_ny_slut: newEnd,
+        p_forventet_slut: expectedEnd,
+      });
+      if (error) throw error;
+    },
+
+    async updateOwnNote(id, note) {
+      const { error } = await client.rpc("tid_ret_egen_note", { p_id: id, p_note: note });
+      if (error) throw error;
+    },
+
     // ---- Aktuel opgave ----
     // Læsninger fejler blødt (returnerer null/[]), så appen ikke knækker hvis
     // migration 0005 endnu ikke er kørt. Skrivninger kaster (UI viser fejl).

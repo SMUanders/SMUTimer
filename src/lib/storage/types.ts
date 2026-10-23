@@ -43,6 +43,14 @@ export interface TimeEntryStore {
    * (tid_erstat_registrering, hub-migration 20261022180000). Kaster ved fejl.
    */
   replaceEntry(id: string, replacements: TimeEntry[]): Promise<void>;
+  /**
+   * Medarbejderen afkorter sin EGEN, seneste registrering fra i dag (kun sluttid) —
+   * atomisk med historik. `expectedEnd` = den sluttid, brugeren så (samtidige ændringer
+   * afvises). Håndhæves af tid_afkort_seneste_registrering (hub-migration 20261023100000).
+   */
+  shortenLatestEntry(id: string, newEnd: string, expectedEnd: string): Promise<void>;
+  /** Medarbejderen retter noten på sin egen registrering (tid_ret_egen_note). */
+  updateOwnNote(id: string, note: string): Promise<void>;
 
   // "Aktuel opgave" — status, adskilt fra time entries (påvirker ingen tal).
   getCurrentTask(employeeId: string): Promise<CurrentTask | null>;

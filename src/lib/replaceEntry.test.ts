@@ -55,3 +55,35 @@ describe("replaceEntry — atomisk lederrettelse", () => {
     expect(dag.map((e) => `${e.startTime}-${e.endTime}`)).toEqual(["11:00-13:00"]);
   });
 });
+
+describe("Pakke 1.1 — afkort egen, seneste registrering (lokal kontrakt = DB-afgrænsning)", () => {
+  it("09:00–09:45 afkortes til 09:38: originalen bevares som slettet, kopien slutter 09:38", async () => {
+    const org = linje("09:00", "09:45");
+    await localAdapter.addEntries([org]);
+    await localAdapter.shortenLatestEntry(org.id, "09:38", "09:45");
+    const dag = await localAdapter.getEntriesForDate("andreas", "2026-10-22");
+    expect(dag.map((e) => `${e.startTime}-${e.endTime} ${e.durationMinutes}`)).toEqual(["09:00-09:38 38"]);
+  });
+  it("samtidig ændring (forventet slut passer ikke) afvises", async () => {
+    const org = linje("09:00", "09:45");
+    await localAdapter.addEntries([org]);
+    await expect(localAdapter.shortenLatestEntry(org.id, "09:38", "09:50")).rejects.toThrow(/ændret/);
+  });
+  it("kun dagens seneste, kun kortere, ikke split", async () => {
+    const a = linje("08:00", "09:00");
+    const b = linje("09:00", "09:45");
+    const s = linje("12:30", "13:00", { splitGroupId: "g" });
+    await localAdapter.addEntries([a, b]);
+    await expect(localAdapter.shortenLatestEntry(a.id, "08:30", "09:00")).rejects.toThrow(/seneste/);
+    await expect(localAdapter.shortenLatestEntry(b.id, "09:50", "09:45")).rejects.toThrow();
+    await localAdapter.addEntries([s]);
+    await expect(localAdapter.shortenLatestEntry(s.id, "12:45", "13:00")).rejects.toThrow(/frokost/);
+  });
+  it("egen note kan rettes", async () => {
+    const org = linje("10:00", "10:30");
+    await localAdapter.addEntries([org]);
+    await localAdapter.updateOwnNote(org.id, "ny note");
+    const dag = await localAdapter.getEntriesForDate("andreas", "2026-10-22");
+    expect(dag[0].note).toBe("ny note");
+  });
+});

@@ -23,6 +23,12 @@ export interface OwnTask {
   /** Display-snapshot af enheden ("#3 · beskrivelse · reg.nr"). */
   enhedVisning?: string | null;
   note: string;
+  /**
+   * Kun ved hjælp: det faktiske tidspunkt (ISO), hvor hjælpen blev startet. Bruges, hvis
+   * medarbejderen selv valgte at starte hjælpen fra en senere registreret sluttid — så
+   * placeres den faktiske varighed efter den valgte start (Pakke 1.1).
+   */
+  hjaelpTrykket?: string;
 }
 
 type Store = Record<string, { ownTask: OwnTask }>;

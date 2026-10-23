@@ -1,23 +1,27 @@
 // SMU Tid — enkel segment-logik. Ren og testbar, ingen UI.
 //
-// Model: man starter noget, afslutter det med BEKRÆFTEDE tider, og vælger så
-// næste handling. Medarbejderen kan altid rette de foreslåede tider manuelt.
+// SMU Tid er manuel arbejdstidsregistrering, ikke et stempelur (Pakke 1.1, Anders 23. okt.
+// 2026). Medarbejderen afslutter med frit valgte tider; systemet foreslår kun.
 //
-// Regelsæt for tidsforslag (Pakke 1, besluttet af Anders 22. okt. 2026):
-//  1. Ét forslag: tidspunktet rundet NED til 5 minutter, ud fra de faktiske tider.
-//  2. En sluttid foreslås aldrig efter nu.
-//  3. En start foreslås aldrig før seneste sluttid (klampet til nu) → ingen overlap.
-//  4. Slut ligger altid efter start: er der under 5 minutter, bruges det faktiske
-//     minut, så korte opgaver ikke forsvinder.
-//  5. Den start, der vises på kortet, er præcis den start, afslutningen foreslår.
-//  6. Hjælp er et stopur med præcise minutter (3 min hjælp = 3 min) og intet minimum.
+// Regelsæt:
+//  1. Forslag: faktiske tider rundet NED til 5 min. Et forslag ligger aldrig efter nu —
+//     undtagen når starten selv ligger efter nu (se 2); så foreslås næste 5-minutters
+//     tidspunkt efter starten. Medarbejderens manuelle tider har forrang — også en sluttid
+//     efter nu (til og med 23:59).
+//  2. Næste opgave foreslås fra seneste registrerede sluttid, også når den ligger efter nu.
+//  3. Slut ligger altid efter start; varer noget under 5 min, bruges de faktiske minutter.
+//  4. Den start, kortet viser, er præcis den start, afslutningen foreslår.
+//  5. Faktiske pauser, hjælp og omgøring forskydes ALDRIG automatisk. Rammer de ind i en
+//     registrering, der slutter senere, vises en konflikt, og medarbejderen vælger selv:
+//     afkort forrige registrering, start fra den registrerede sluttid, eller annuller.
+//  6. Overlap med andre registreringer afvises ved gem. Intet ændres automatisk.
+//  7. Hjælp er et stopur med præcise minutter og intet minimum.
 //
-// Alle funktioner tager "nu" som "HH:MM" (lokal tid), så de er tidszone-uafhængige
-// at teste.
+// Alle funktioner tager "nu" som "HH:MM" (lokal tid), så de er tidszone-uafhængige at teste.
 
 import type { TimeEntry } from "../types";
 import { isBreakCategory } from "../data/categories";
-import { durationMinutes, toMinutes, floorTo5 } from "./time";
+import { durationMinutes, toMinutes, toHHMM, floorTo5, ceilTo5Min } from "./time";
 import { isoToHHMM } from "./currentTaskStart";
 
 export interface FinishTimes {
@@ -25,37 +29,35 @@ export interface FinishTimes {
   endTime: string;
 }
 
+/** Seneste mulige sluttid på registreringsdagen. */
+export const DAGENS_SIDSTE = "23:59";
+
 const m = toMinutes;
 const senesteAf = (a: string, b: string) => (m(a) >= m(b) ? a : b);
 const tidligsteAf = (a: string, b: string) => (m(a) <= m(b) ? a : b);
 
 /**
- * Seneste sluttid samme dag, men aldrig efter nu. En registrering, der (fejlagtigt)
- * slutter i fremtiden, må ikke skubbe alle senere forslag frem i tiden.
- */
-export function lastEndNotAfterNow(lastEndHHMM: string | null | undefined, nowHHMM: string): string | null {
-  if (!lastEndHHMM) return null;
-  return tidligsteAf(lastEndHHMM, nowHHMM);
-}
-
-/**
- * Startforslag: tidspunktet rundet NED til 5 min — aldrig efter nu og aldrig før
- * seneste sluttid (rører forrige linje i stedet for at overlappe den).
+ * Startforslag: tidspunktet rundet NED til 5 min (aldrig efter nu), men aldrig før
+ * seneste registrerede sluttid — heller ikke når den ligger efter nu (løsning A).
  */
 export function suggestStart(atHHMM: string, nowHHMM: string, lastEndHHMM?: string | null): string {
   const s = floorTo5(tidligsteAf(atHHMM, nowHHMM));
-  const le = lastEndNotAfterNow(lastEndHHMM, nowHHMM);
-  return le ? senesteAf(s, le) : s;
+  return lastEndHHMM ? senesteAf(s, lastEndHHMM) : s;
 }
 
 /**
- * Slutforslag: nu rundet NED til 5 min — aldrig efter nu. Varer opgaven under 5
- * minutter, bruges det faktiske minut, så en kort opgave (fx 3 min) hverken forsvinder
- * eller krymper. Er der ikke gået et helt minut, er slut = start (formen viser det
- * som ugyldigt).
+ * Slutforslag: nu rundet NED til 5 min. Varer opgaven under 5 minutter, bruges det
+ * faktiske minut, så en kort opgave hverken forsvinder eller krymper. Ligger starten
+ * efter nu (næste opgave efter en registrering, der slutter senere), foreslås næste
+ * 5-minutters tidspunkt efter starten. Er der ikke gået et helt minut, er slut = start.
  */
 export function suggestEnd(startHHMM: string, nowHHMM: string): string {
-  if (m(nowHHMM) - m(startHHMM) < 5) return senesteAf(nowHHMM, startHHMM);
+  if (m(nowHHMM) < m(startHHMM)) {
+    if (m(startHHMM) >= m(DAGENS_SIDSTE)) return startHHMM;
+    // Regn i minutter, så et forslag tæt på midnat ikke ruller over til 00:00.
+    return toHHMM(Math.min(ceilTo5Min(m(startHHMM) + 1), m(DAGENS_SIDSTE)));
+  }
+  if (m(nowHHMM) - m(startHHMM) < 5) return nowHHMM;
   const f = floorTo5(nowHHMM);
   return m(f) > m(startHHMM) ? f : nowHHMM;
 }
@@ -63,7 +65,7 @@ export function suggestEnd(startHHMM: string, nowHHMM: string): string {
 /**
  * Den aktive opgaves start — præcis den værdi kortet viser OG afslutningen foreslår.
  * Den gemte start (sat da opgaven startede) bruges uændret; mangler den (fx anden
- * enhed), afledes et forslag af updatedAt. Aldrig før seneste sluttid, aldrig efter nu.
+ * enhed), afledes et forslag af updatedAt. Aldrig før seneste registrerede sluttid.
  */
 export function activeStartHHMM(
   storedStartIso: string | null,
@@ -71,39 +73,45 @@ export function activeStartHHMM(
   nowHHMM: string,
   lastEndHHMM?: string | null
 ): string {
-  const base = storedStartIso
-    ? tidligsteAf(isoToHHMM(storedStartIso), nowHHMM)
-    : suggestStart(isoToHHMM(fallbackIso), nowHHMM);
-  const le = lastEndNotAfterNow(lastEndHHMM, nowHHMM);
-  return le ? senesteAf(base, le) : base;
+  const base = storedStartIso ? isoToHHMM(storedStartIso) : suggestStart(isoToHHMM(fallbackIso), nowHHMM);
+  return lastEndHHMM ? senesteAf(base, lastEndHHMM) : base;
 }
 
 /**
  * Luk den EGNE opgave ved et skifte (pause/hjælp/omgøring). Returnerer null, hvis der
- * ikke er gået et helt minut — så fabrikeres ingen tom eller baguddateret linje.
+ * ikke er gået et helt minut (eller opgavens start ligger efter skiftet) — så fabrikeres
+ * ingen tom eller baguddateret linje.
  */
 export function ownCloseUntil(ownStartHHMM: string, switchHHMM: string): FinishTimes | null {
   if (m(switchHHMM) <= m(ownStartHHMM)) return null;
   return { startTime: ownStartHHMM, endTime: switchHHMM };
 }
 
-/** Skiftetidspunkt for pause/omgøring fra en aktiv opgave (5-min-forslag, se suggestEnd). */
+/**
+ * Faktisk skiftetidspunkt for pause/omgøring fra en aktiv opgave: 5-min-forslag efter
+ * opgavens start. Er opgavens start endnu ikke nået, er skiftet det faktiske minut —
+ * aldrig forskudt.
+ */
 export function suggestSwitchAt(ownStartHHMM: string, nowHHMM: string): string {
-  return suggestEnd(ownStartHHMM, nowHHMM);
+  return m(nowHHMM) > m(ownStartHHMM) ? suggestEnd(ownStartHHMM, nowHHMM) : nowHHMM;
 }
 
-/** Hjælp starter på det faktiske minut (stopur), aldrig før seneste sluttid. */
-export function helpStartHHMM(nowHHMM: string, lastEndHHMM?: string | null): string {
-  const le = lastEndNotAfterNow(lastEndHHMM, nowHHMM);
-  return le ? senesteAf(nowHHMM, le) : nowHHMM;
+/** Hjælp starter på det faktiske minut (stopur) — aldrig forskudt. */
+export function helpStartHHMM(nowHHMM: string): string {
+  return nowHHMM;
 }
 
 /**
- * Hjælp slutter på det faktiske minut — intet minimum, ingen afrunding op.
+ * Hjælp slutter på det faktiske minut — intet minimum, ingen afrunding.
+ * Har medarbejderen selv valgt at starte hjælpen fra en senere registreret sluttid,
+ * placeres den faktiske varighed (`faktiskeMinutter`) efter den valgte start.
  * Returnerer null, hvis hjælpen varede under ét minut (ingen hjælp-linje).
  */
-export function helpEndHHMM(startHHMM: string, nowHHMM: string): string | null {
-  return m(nowHHMM) > m(startHHMM) ? nowHHMM : null;
+export function helpEndHHMM(startHHMM: string, nowHHMM: string, faktiskeMinutter?: number): string | null {
+  if (m(nowHHMM) > m(startHHMM)) return nowHHMM;
+  if (faktiskeMinutter === undefined || faktiskeMinutter < 1) return null;
+  const slut = Math.min(m(startHHMM) + faktiskeMinutter, m(DAGENS_SIDSTE));
+  return slut > m(startHHMM) ? toHHMM(slut) : null;
 }
 
 /**
@@ -116,6 +124,13 @@ export function lastEntryEndHHMM(entries: TimeEntry[]): string | null {
   return ends.reduce((max, e) => (m(e) > m(max) ? e : max));
 }
 
+/** Dagens seneste registrering (højeste sluttid) — samme definition som databasen bruger. */
+export function senesteRegistrering(entries: TimeEntry[]): TimeEntry | null {
+  const aktive = entries.filter((e) => !e.slettet);
+  if (aktive.length === 0) return null;
+  return aktive.reduce((a, b) => (m(b.endTime) > m(a.endTime) ? b : a));
+}
+
 /** ISO-tidsstempel for i dag på et "HH:MM" (til at gemme en valgt starttid). */
 export function hhmmToIsoToday(hhmm: string): string {
   const [h, mm] = hhmm.split(":").map((n) => parseInt(n, 10));
@@ -126,7 +141,7 @@ export function hhmmToIsoToday(hhmm: string): string {
 
 /**
  * Forslag til lederens "Afslut opgave": start = opgavens start rundet ned til 5 min,
- * slut = nu efter samme regel (aldrig efter nu, altid efter start når muligt).
+ * slut = nu efter samme regel.
  */
 export function suggestFinishTimes(startedAtIso: string, nowIso: string): FinishTimes {
   const now = isoToHHMM(nowIso);
@@ -134,36 +149,49 @@ export function suggestFinishTimes(startedAtIso: string, nowIso: string): Finish
   return { startTime, endTime: suggestEnd(startTime, now) };
 }
 
+/** Første ikke-slettede registrering, som intervallet overlapper, eller null. */
+export function findOverlap(startHHMM: string, endHHMM: string, others: TimeEntry[]): TimeEntry | null {
+  return (
+    others.filter((e) => !e.slettet).find((e) => m(startHHMM) < m(e.endTime) && m(e.startTime) < m(endHHMM)) ?? null
+  );
+}
+
 /**
  * Validering af en afslutning, før den gemmes. Returnerer en fejltekst eller null.
- *  - slut skal ligge efter start
- *  - slut må ikke ligge efter nu (kun når registreringen gælder i dag; nowHHMM=null ellers)
- *  - må ikke overlappe en anden (ikke-slettet) registrering samme dag
+ * Slut må gerne ligge efter nu (manuel registrering), men skal ligge efter start og
+ * må ikke overlappe en anden (ikke-slettet) registrering samme dag.
  */
-export function finishError(
-  startHHMM: string,
-  endHHMM: string,
-  nowHHMM: string | null,
-  others: TimeEntry[]
-): string | null {
+export function finishError(startHHMM: string, endHHMM: string, others: TimeEntry[]): string | null {
   if (m(endHHMM) <= m(startHHMM)) return "Slut skal være efter start.";
-  if (nowHHMM && m(endHHMM) > m(nowHHMM)) return `Slut kan ikke ligge efter nu (${nowHHMM}).`;
-  const konflikt = others
-    .filter((e) => !e.slettet)
-    .find((e) => m(startHHMM) < m(e.endTime) && m(e.startTime) < m(endHHMM));
-  if (konflikt) return `Overlapper registreringen ${konflikt.startTime}–${konflikt.endTime}. Ret tiderne.`;
+  const o = findOverlap(startHHMM, endHHMM, others);
+  if (o) return `Overlapper registreringen ${o.startTime}–${o.endTime}.`;
   return null;
 }
 
 /**
- * Validering af et skiftetidspunkt (fx pausens start): ikke efter nu og ikke før
- * seneste sluttid (ellers overlapper det en tidligere registrering).
+ * Konflikt: en aktivitet, der starter `tidspunkt`, rammer ind i dagens seneste
+ * registrering (eller fravær), som slutter senere. Medarbejderen vælger selv løsningen.
+ *  - `afkort`: den registrering, der må afkortes til `tidspunkt` — kun dagens seneste,
+ *    ikke delt omkring frokost, startet før `tidspunkt`, og ingen anden registrering
+ *    rækker ud over `tidspunkt` (samme afgrænsning som databasefunktionen).
+ *  - `registreretSlut`: alternativet "start fra den registrerede sluttid".
  */
-export function switchError(atHHMM: string, nowHHMM: string, lastEndHHMM?: string | null): string | null {
-  if (m(atHHMM) > m(nowHHMM)) return `Starttiden kan ikke ligge efter nu (${nowHHMM}).`;
-  const le = lastEndNotAfterNow(lastEndHHMM, nowHHMM);
-  if (le && m(atHHMM) < m(le)) return `Starttiden overlapper seneste registrering, der slutter ${le}.`;
-  return null;
+export interface Konflikt {
+  tidspunkt: string;
+  registreretSlut: string;
+  afkort: TimeEntry | null;
+}
+
+export function konfliktVed(tidspunkt: string, entries: TimeEntry[], lastEndHHMM: string | null): Konflikt | null {
+  if (!lastEndHHMM || m(tidspunkt) >= m(lastEndHHMM)) return null;
+  const seneste = senesteRegistrering(entries);
+  const kanAfkorte =
+    !!seneste &&
+    seneste.endTime === lastEndHHMM &&
+    !seneste.splitGroupId &&
+    m(seneste.startTime) < m(tidspunkt) &&
+    entries.every((e) => e.slettet || e.id === seneste.id || m(e.endTime) <= m(tidspunkt));
+  return { tidspunkt, registreretSlut: lastEndHHMM, afkort: kanAfkorte ? seneste : null };
 }
 
 export interface BuildParams {

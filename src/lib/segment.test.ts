@@ -8,9 +8,10 @@ import {
   ownCloseUntil,
   helpStartHHMM,
   helpEndHHMM,
-  lastEndNotAfterNow,
   finishError,
-  switchError,
+  findOverlap,
+  konfliktVed,
+  senesteRegistrering,
   buildEntry,
   isExactDuplicate,
   hhmmToIsoToday,
@@ -59,8 +60,8 @@ describe("suggestStart — nu rundet ned, aldrig før seneste sluttid, aldrig ef
   it("klampes til seneste sluttid (intet overlap)", () => {
     expect(suggestStart("15:12", "15:12", "15:11")).toBe("15:11");
   });
-  it("seneste sluttid i fremtiden klampes til nu", () => {
-    expect(suggestStart("15:40", "15:40", "16:00")).toBe("15:40");
+  it("seneste sluttid efter nu: næste start følger den (løsning A, Pakke 1.1)", () => {
+    expect(suggestStart("15:40", "15:40", "16:00")).toBe("16:00");
   });
   it("et tidspunkt efter nu foreslås aldrig", () => {
     expect(suggestStart("16:30", "15:42")).toBe("15:40");
@@ -83,10 +84,21 @@ describe("suggestEnd — aldrig efter nu, altid efter start når muligt", () => 
   it("under ét minut → slut = start (formen viser det som ugyldigt)", () => {
     expect(suggestEnd("15:30", "15:30")).toBe("15:30");
   });
-  it("ALDRIG fremtidig sluttid (tidligere +15 min)", () => {
+  it("aldrig fremtidig sluttid, når starten er nået (tidligere +15 min)", () => {
     for (const [start, now] of [["15:30", "15:32"], ["15:45", "15:47"], ["10:00", "10:00"], ["09:12", "11:58"]]) {
       expect(efter(suggestEnd(start, now), now)).toBe(false);
     }
+  });
+});
+
+describe("suggestEnd — start efter nu (Pakke 1.1)", () => {
+  it("starten ligger efter nu → næste 5-minutters tidspunkt efter starten", () => {
+    expect(suggestEnd("09:45", "09:33")).toBe("09:50");
+    expect(suggestEnd("09:47", "09:33")).toBe("09:50");
+  });
+  it("aldrig ud over 23:59", () => {
+    expect(suggestEnd("23:57", "23:00")).toBe("23:59");
+    expect(suggestEnd("23:59", "23:00")).toBe("23:59");
   });
 });
 
@@ -100,8 +112,8 @@ describe("activeStartHHMM — kortets start = afslutningens start", () => {
   it("aldrig før seneste sluttid (fx en linje tilføjet af leder bagefter)", () => {
     expect(activeStartHHMM(hhmmToIsoToday("15:00"), hhmmToIsoToday("15:00"), "15:50", "15:20")).toBe("15:20");
   });
-  it("aldrig efter nu", () => {
-    expect(activeStartHHMM(hhmmToIsoToday("16:00"), hhmmToIsoToday("16:00"), "15:40")).toBe("15:40");
+  it("gemt start efter nu bruges uændret (næste opgave efter en registrering, der slutter senere)", () => {
+    expect(activeStartHHMM(hhmmToIsoToday("16:00"), hhmmToIsoToday("15:33"), "15:40", "16:00")).toBe("16:00");
   });
 });
 
@@ -129,36 +141,62 @@ describe("hjælp er et stopur — præcise minutter, intet minimum", () => {
   it("under ét minut → ingen hjælp-linje", () => {
     expect(helpEndHHMM("10:35", "10:35")).toBeNull();
   });
-  it("start aldrig før seneste sluttid", () => {
-    expect(helpStartHHMM("15:31", "15:33")).toBe("15:31"); // seneste sluttid i fremtiden klampes
-    expect(helpStartHHMM("15:31", "15:30")).toBe("15:31");
+  it("start er det faktiske minut — aldrig forskudt", () => {
+    expect(helpStartHHMM("15:31")).toBe("15:31");
+  });
+  it("valgt 'start fra' en senere sluttid: faktisk varighed placeres efter den valgte start", () => {
+    expect(helpEndHHMM("09:45", "09:41", 3)).toBe("09:48");
+    expect(helpEndHHMM("09:45", "09:41", 0)).toBeNull();
+    expect(helpEndHHMM("23:58", "23:50", 5)).toBe("23:59");
   });
 });
 
-describe("finishError / switchError — validering før gem", () => {
+describe("finishError — validering før gem (Pakke 1.1)", () => {
   const dag = [line("15:00", "15:30")];
   it("slut skal være efter start", () => {
-    expect(finishError("15:30", "15:30", "15:40", [])).toMatch(/efter start/);
+    expect(finishError("15:30", "15:30", [])).toMatch(/efter start/);
   });
-  it("slut må ikke ligge efter nu", () => {
-    expect(finishError("15:30", "16:00", "15:35", [])).toMatch(/efter nu/);
+  it("slut efter nu er tilladt (manuel registrering, til og med 23:59)", () => {
+    expect(finishError("09:00", "09:45", [])).toBeNull();
+    expect(finishError("22:00", "23:59", [])).toBeNull();
   });
   it("overlap afvises med den registrering, der konflikter", () => {
-    expect(finishError("15:15", "15:40", "15:45", dag)).toMatch(/15:00–15:30/);
+    expect(finishError("15:15", "15:40", dag)).toMatch(/15:00–15:30/);
+    expect(findOverlap("15:15", "15:40", dag)?.startTime).toBe("15:00");
   });
   it("back-to-back er OK", () => {
-    expect(finishError("15:30", "15:40", "15:45", dag)).toBeNull();
+    expect(finishError("15:30", "15:40", dag)).toBeNull();
   });
   it("slettede linjer ignoreres", () => {
-    expect(finishError("15:15", "15:40", "15:45", [line("15:00", "15:30", { slettet: true })])).toBeNull();
+    expect(finishError("15:15", "15:40", [line("15:00", "15:30", { slettet: true })])).toBeNull();
   });
-  it("andre dage (nu=null) tjekkes ikke mod nu", () => {
-    expect(finishError("15:30", "18:00", null, [])).toBeNull();
+});
+
+describe("konfliktVed — medarbejderen vælger selv (Pakke 1.1)", () => {
+  const dag = [line("08:00", "09:00"), line("09:00", "09:45", { id: "seneste" })];
+  it("09:00–09:45 gemt kl. 09:32; ny aktivitet kl. 09:38 → konflikt med begge valg", () => {
+    const k = konfliktVed("09:38", dag, "09:45")!;
+    expect(k.tidspunkt).toBe("09:38");
+    expect(k.registreretSlut).toBe("09:45");
+    expect(k.afkort?.id).toBe("seneste");
   });
-  it("pausestart: ikke efter nu, ikke før seneste sluttid", () => {
-    expect(switchError("15:50", "15:45", null)).toMatch(/efter nu/);
-    expect(switchError("15:20", "15:45", "15:30")).toMatch(/15:30/);
-    expect(switchError("15:30", "15:45", "15:30")).toBeNull();
+  it("ingen konflikt, når aktiviteten starter ved eller efter den registrerede slut", () => {
+    expect(konfliktVed("09:45", dag, "09:45")).toBeNull();
+    expect(konfliktVed("10:00", dag, "09:45")).toBeNull();
+    expect(konfliktVed("09:38", [], null)).toBeNull();
+  });
+  it("afkort tilbydes ikke, når tidspunktet ligger før den seneste registrerings start", () => {
+    expect(konfliktVed("08:30", dag, "09:45")!.afkort).toBeNull();
+  });
+  it("afkort tilbydes ikke for en registrering delt omkring frokost", () => {
+    expect(konfliktVed("12:40", [line("12:30", "13:00", { splitGroupId: "g" })], "13:00")!.afkort).toBeNull();
+  });
+  it("afkort tilbydes ikke, når seneste sluttid kommer fra fravær", () => {
+    expect(konfliktVed("09:38", dag, "10:00")!.afkort).toBeNull();
+  });
+  it("seneste = højeste sluttid (samme definition som databasen)", () => {
+    expect(senesteRegistrering(dag)?.id).toBe("seneste");
+    expect(senesteRegistrering([line("08:00", "09:00", { slettet: true })])).toBeNull();
   });
 });
 
@@ -175,15 +213,17 @@ describe("REGRESSION — Manus QA 22. okt. 2026", () => {
     // Afslutningen foreslår start = kortets start, slut aldrig efter nu.
     const slut = suggestEnd(kort, "15:38");
     expect(slut).toBe("15:38");
-    expect(finishError(kort, slut, "15:38", [line("15:30", "15:35", { note: HELP_NOTE })])).toBeNull();
+    expect(finishError(kort, slut, [line("15:30", "15:35", { note: HELP_NOTE })])).toBeNull();
   });
 
-  it("A3: afslutning efter en (forkert) fremtidig sluttid giver ikke slut ≤ start", () => {
-    // Gammel data: en linje slutter 16:00, men klokken er 15:47.
-    const le = lastEntryEndHHMM([line("15:15", "16:00")]);
-    const start = activeStartHHMM(hhmmToIsoToday("15:45"), hhmmToIsoToday("15:45"), "15:47", le);
-    expect(lastEndNotAfterNow(le, "15:47")).toBe("15:47");
-    expect(efter(start, "15:47")).toBe(false);
+  it("A3 (Pakke 1.1): 09:00–09:45 gemt kl. 09:32 → næste opgave foreslås fra 09:45, uden overlap", () => {
+    const dag = [line("09:00", "09:45")];
+    expect(finishError("09:00", "09:45", [])).toBeNull(); // slut efter nu accepteres
+    const le = lastEntryEndHHMM(dag);
+    const start = suggestStart("09:33", "09:33", le);
+    expect(start).toBe("09:45");
+    expect(activeStartHHMM(hhmmToIsoToday(start), hhmmToIsoToday("09:33"), "09:50", le)).toBe("09:45");
+    expect(finishError(start, suggestEnd(start, "09:50"), dag)).toBeNull();
   });
 
   it("A4: lederens Afslut opgave foreslår aldrig sluttid efter nu (tidligere +15)", () => {
@@ -195,7 +235,8 @@ describe("REGRESSION — Manus QA 22. okt. 2026", () => {
   it("Hele Manus-forløbet med de nye regler: intet overlap, ingen fremtidig slut, intet opslugt", () => {
     const linjer: TimeEntry[] = [];
     const gem = (start: string, slut: string, nu: string, o: Partial<TimeEntry> = {}) => {
-      expect(finishError(start, slut, nu, linjer)).toBeNull();
+      void nu;
+      expect(finishError(start, slut, linjer)).toBeNull();
       linjer.push(line(start, slut, o));
     };
     // 15:12 start montage
@@ -207,7 +248,7 @@ describe("REGRESSION — Manus QA 22. okt. 2026", () => {
     gem(p, suggestEnd(p, "15:27"), "15:27", { categoryId: "pause", isBreak: true });
     egen = suggestEnd(p, "15:27"); // genoptaget fra pausens slut (15:25)
     // 15:30 hjælp
-    const hs = helpStartHHMM("15:30", lastEntryEndHHMM(linjer));
+    const hs = helpStartHHMM("15:30");
     gem(ownCloseUntil(egen, hs)!.startTime, hs, "15:30");
     // 15:33 stop hjælp (3 min)
     const he = helpEndHHMM(hs, "15:33")!;

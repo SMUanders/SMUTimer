@@ -69,9 +69,15 @@ ligne SMU":
 ## Domæne-noter (SMU Tid-specifikt)
 - Frokost-split: man–tor 12:00–12:30, fre 10:00–10:30, weekend intet. Pause tælles
   ikke som arbejdstid. Ren logik i `src/lib/lunch.ts` (unit-testet).
-- Overlap: medarbejderens afslutningsformer blokerer slut efter nu og overlap (`finishError` i
-  `src/lib/segment.ts`); lederens editor bruger `src/lib/validation.ts`. Tidsforslag: faktiske tider rundet
-  NED til 5 min, aldrig efter nu, aldrig før seneste sluttid; hjælp = præcise minutter (Pakke 1, v2.2.2).
+- Manuel tidsregistrering, ikke stempelur (Pakke 1.1, v2.2.3): forslag = faktiske tider rundet NED til 5 min;
+  medarbejderens tider har forrang, også sluttid efter nu (til og med 23:59). Næste opgave foreslås fra seneste
+  registrerede sluttid, også efter nu. Overlap afvises (`finishError`/`konfliktVed` i `src/lib/segment.ts`);
+  faktiske pauser/hjælp/omgøring forskydes aldrig — ved konflikt vælger medarbejderen: afkort egen seneste
+  registrering, start fra registreret slut, eller annuller. Hjælp = præcise minutter. Lederens editor bruger
+  `src/lib/validation.ts`.
+- Medarbejderens rettelser går KUN gennem databasefunktioner: `tid_afkort_seneste_registrering` (egen, seneste
+  fra i dag, kun sluttid, atomisk med historik) og `tid_ret_egen_note`. Direkte UPDATE/DELETE på
+  `tid_time_entries` er forbeholdt leder (hub-migration `20261023100000`). INSERT er fortsat bred (se TR-104).
 - Lederrettelse = atomisk erstatning via `tid_erstat_registrering` (SECURITY INVOKER, hub-migration
   `20261022180000`): originalen blødt slettet + erstatning indsat i én transaktion — eller intet.
 - Valgt dato bevares i adressen (`?dato=`) i Min dag og leder-visningen.
