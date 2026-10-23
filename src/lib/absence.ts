@@ -53,3 +53,47 @@ export function activeAbsence(absences: Absence[]): Absence | null {
   if (act.length === 0) return null;
   return act.reduce((newest, a) => (a.updatedAt > newest.updatedAt ? a : newest));
 }
+
+/** Et fravær, som det redigeres i fraværseditoren (tom streng = ikke angivet). */
+export interface AbsenceDraft {
+  absenceType: string;
+  startTime: string;
+  expectedEnd: string;
+  ended: string;
+  note: string;
+}
+
+/**
+ * Validering af et fravær før gem. Returnerer en forståelig fejltekst eller null.
+ *  - "Fra" skal være en gyldig tid; "Forventet tilbage" og "Tilbage" er valgfri, men skal
+ *    ligge efter "Fra", når de er udfyldt (tom "Tilbage" = stadig væk / åbent fravær).
+ *  - Må ikke overlappe arbejdstid eller et andet fravær samme dag.
+ */
+export function absenceError(
+  d: AbsenceDraft,
+  entries: { startTime: string; endTime: string; slettet?: boolean }[],
+  andreFravaer: Absence[]
+): string | null {
+  const gyldig = (t: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
+  if (!gyldig(d.startTime)) return "Angiv hvornår fraværet starter (TT:MM).";
+  for (const [felt, navn] of [[d.expectedEnd, "Forventet tilbage"], [d.ended, "Tilbage"]] as const) {
+    if (felt === "") continue;
+    if (!gyldig(felt)) return `${navn} skal være en tid (TT:MM) eller tom.`;
+    if (toMinutes(felt) <= toMinutes(d.startTime)) return `${navn} skal ligge efter "Fra".`;
+  }
+  // Fraværets tidsrum: til faktisk retur, ellers forventet retur, ellers kun starttidspunktet.
+  const s = toMinutes(d.startTime);
+  const sl = d.ended || d.expectedEnd;
+  const e = sl ? toMinutes(sl) : s + 1;
+  const rammer = (a: number, b: number) => s < b && a < e;
+  const arbejde = entries.find((x) => !x.slettet && rammer(toMinutes(x.startTime), toMinutes(x.endTime)));
+  if (arbejde) return `Fraværet overlapper registreringen ${arbejde.startTime}–${arbejde.endTime}.`;
+  const andet = andreFravaer.find((a) => {
+    if (a.slettet) return false;
+    const as = toMinutes(a.startTime);
+    const ae = effectiveEnd(a);
+    return rammer(as, ae ? toMinutes(ae) : as + 1);
+  });
+  if (andet) return `Fraværet overlapper et andet fravær fra ${andet.startTime}.`;
+  return null;
+}

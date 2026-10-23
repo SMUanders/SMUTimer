@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { EntryDraft, TimeEntry } from "../types";
-import { CATEGORIES, REDO_REASONS } from "../data/categories";
+import { CATEGORIES, REDO_REASONS, getRedoReason } from "../data/categories";
 import { validateEntry } from "../lib/validation";
 import { getLunchWindow } from "../lib/lunch";
 import { overlaps as intervalsOverlap, toMinutes, isValidTime } from "../lib/time";
@@ -24,6 +24,11 @@ interface Props {
   onDelete?: () => void;
   onSave: (draft: EntryDraft, setAsCurrent: boolean) => void;
   onClose: () => void;
+  /**
+   * Medarbejderen retter sin egen registrering: kun start, slut, aktivitet og note kan
+   * ændres (sag, enhed og omgøring vises som tekst). Ingen automatisk frokost-opdeling.
+   */
+  medarbejder?: boolean;
 }
 
 const emptyDraft = (): EntryDraft => ({
@@ -55,6 +60,7 @@ export default function EntryEditor({
   onDelete,
   onSave,
   onClose,
+  medarbejder = false,
 }: Props) {
   const [draft, setDraft] = useState<EntryDraft>(initial);
   const [touched, setTouched] = useState(false);
@@ -122,7 +128,7 @@ export default function EntryEditor({
             </div>
           </div>
 
-          {hitsLunch && lunch && (
+          {!medarbejder && hitsLunch && lunch && (
             <div className="msg info">
               Foreslået frokost {lunch.startTime}–{lunch.endTime} håndteres automatisk,
               når du gemmer.
@@ -139,8 +145,21 @@ export default function EntryEditor({
             />
           </div>
 
+          {medarbejder && (draft.sagSmuNummer || draft.customer || draft.enhedVisning || draft.isRedo) && (
+            <div className="ds-field-hint" style={{ marginBottom: 10 }}>
+              {[
+                draft.sagSmuNummer || draft.customer,
+                draft.enhedVisning,
+                draft.isRedo ? `Omgøring: ${getRedoReason(draft.redoReason)?.name ?? "årsag ukendt"}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </div>
+          )}
+
           {/* "Ordre / sag": forberedt til SMU-numre. DB-feltet hedder fortsat
               `customer` (ingen migration); bruges reelt til ordre/sag, ikke kunde. */}
+          {!medarbejder && (
           <div className="field">
             <label>Ordre / sag</label>
             <input
@@ -151,9 +170,11 @@ export default function EntryEditor({
               onChange={(e) => set("customer", e.target.value)}
             />
           </div>
+          )}
 
           {/* Enhed (TR-088): kun når registreringen er knyttet til en SMU-sag. Leder kan rette
               en forkert enhed; sagen ændres ikke her. */}
+          {!medarbejder && (
           <EnhedPicker
             sagId={draft.sagId}
             categoryId={draft.categoryId}
@@ -161,6 +182,7 @@ export default function EntryEditor({
             enhedVisning={draft.enhedVisning}
             onChange={(n) => setDraft((d) => ({ ...d, enhedId: n.enhedId, enhedVisning: n.enhedVisning }))}
           />
+          )}
 
           <div className="field">
             <label>Note</label>
@@ -172,6 +194,7 @@ export default function EntryEditor({
             />
           </div>
 
+          {!medarbejder && (
           <div className="field toggle">
             <input
               id="redo"
@@ -191,8 +214,9 @@ export default function EntryEditor({
               Omgøring (arbejde der skal laves om)
             </label>
           </div>
+          )}
 
-          {draft.isRedo && (
+          {!medarbejder && draft.isRedo && (
             <div className="redo-panel">
               <div className="field">
                 <label>Omgøring årsag</label>

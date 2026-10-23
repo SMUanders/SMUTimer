@@ -31,6 +31,9 @@ import DaySummary from "./DaySummary";
 import DayTimeline from "./DayTimeline";
 import EntryEditor, { emptyDraft } from "./EntryEditor";
 import LunchSplitDialog from "./LunchSplitDialog";
+import AbsenceEditor, { absenceDraftFrom } from "./AbsenceEditor";
+import type { AbsenceDraft } from "../lib/absence";
+import { isoToHHMM } from "../lib/currentTaskStart";
 import { UpdateBanner } from "../platform-update/UpdateBanner";
 import { appBuildIdShort } from "../platform-update/buildId";
 import { appProductVersion } from "../lib/version";
@@ -109,6 +112,8 @@ export default function LeaderDay() {
   // Sandt når editoren blev åbnet via "Afslut opgave" — ryd aktuel opgave efter gem.
   const [clearCurrentOnSave, setClearCurrentOnSave] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // Fravær på medarbejderens vegne: registrér, ret, slet eller afslut (eksisterende RLS: leder).
+  const [fravaer, setFravaer] = useState<{ absence: Absence | null } | null>(null);
 
   // Valgt dato bevares i adressen (?dato=), så genindlæsning og deling viser samme dag.
   useEffect(() => {
@@ -308,6 +313,54 @@ export default function LeaderDay() {
     });
   }
 
+  // ---------- fravær (leder på medarbejderens vegne) ----------
+  async function gemFravaer(d: AbsenceDraft) {
+    if (!employeeId || !fravaer) return;
+    setSaveError(null);
+    try {
+      if (fravaer.absence) {
+        await store().updateAbsence(fravaer.absence, {
+          absenceType: d.absenceType,
+          startTime: d.startTime,
+          expectedEnd: d.expectedEnd || null,
+          ended: d.ended || null,
+          note: d.note.trim(),
+        });
+      } else {
+        await store().addAbsence({
+          id: newId(),
+          employeeId,
+          workDate: date,
+          startTime: d.startTime,
+          expectedEnd: d.expectedEnd || null,
+          ended: d.ended || null,
+          absenceType: d.absenceType,
+          note: d.note.trim(),
+          slettet: false,
+          createdAt: nowIso(),
+          updatedAt: nowIso(),
+        });
+      }
+      setFravaer(null);
+      await refresh();
+    } catch (e) {
+      const besked = e && typeof e === "object" && "message" in e ? String((e as { message: unknown }).message) : "";
+      setSaveError(`Fraværet blev ikke gemt. ${besked}`.trim());
+    }
+  }
+  async function sletFravaer() {
+    if (!fravaer?.absence || !window.confirm("Slet dette fravær?")) return;
+    setSaveError(null);
+    try {
+      await store().deleteAbsence(fravaer.absence);
+      setFravaer(null);
+      await refresh();
+    } catch (e) {
+      const besked = e && typeof e === "object" && "message" in e ? String((e as { message: unknown }).message) : "";
+      setSaveError(`Fraværet blev ikke slettet. ${besked}`.trim());
+    }
+  }
+
   // "Afslut opgave": åbn editor forudfyldt fra medarbejderens aktuelle opgave.
   // Start = cirka-start (task.updatedAt), slut = nu — begge redigerbare. Systemet
   // GÆTTER ikke et endeligt sluttidspunkt; lederen bekræfter/retter og gemmer.
@@ -425,7 +478,7 @@ export default function LeaderDay() {
         </button>
       </div>
 
-      {saveError && !editor && <div className="msg error">{saveError}</div>}
+      {saveError && !editor && !fravaer && <div className="msg error">{saveError}</div>}
 
       {/* Aktiv opgave (status). Vises hvis medarbejderen har en igangværende opgave. */}
       {currentTask && (
@@ -464,6 +517,14 @@ export default function LeaderDay() {
           blocks={timeline}
           onEditEntry={canCorrect ? openEdit : undefined}
           onFillGap={canCorrect ? (s, e) => openNew({ startTime: s, endTime: e }) : undefined}
+          onEditAbsence={
+            canCorrect
+              ? (a) => {
+                  setSaveError(null);
+                  setFravaer({ absence: a });
+                }
+              : undefined
+          }
         />
       )}
 
@@ -471,6 +532,15 @@ export default function LeaderDay() {
         <div className="add-bar">
           <button className="smu-btn-secondary" onClick={() => openNew()}>
             <Plus size={16} /> Tilføj registrering
+          </button>
+          <button
+            className="smu-btn-secondary"
+            onClick={() => {
+              setSaveError(null);
+              setFravaer({ absence: null });
+            }}
+          >
+            <Plus size={16} /> Registrér fravær
           </button>
         </div>
       )}
@@ -490,6 +560,27 @@ export default function LeaderDay() {
             setEditor(null);
             setSaveError(null);
             setClearCurrentOnSave(false);
+          }}
+        />
+      )}
+
+      {fravaer && (
+        <AbsenceEditor
+          mode={fravaer.absence ? "edit" : "new"}
+          initial={
+            fravaer.absence
+              ? absenceDraftFrom(fravaer.absence)
+              : { absenceType: "syg", startTime: "07:00", expectedEnd: "", ended: "", note: "" }
+          }
+          entries={entries}
+          andreFravaer={absences.filter((a) => a.id !== fravaer.absence?.id)}
+          nuHHMM={date === todayIso() ? isoToHHMM(nowIso()) : null}
+          error={saveError}
+          onSave={gemFravaer}
+          onDelete={fravaer.absence ? sletFravaer : undefined}
+          onClose={() => {
+            setFravaer(null);
+            setSaveError(null);
           }}
         />
       )}

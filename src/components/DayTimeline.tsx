@@ -1,14 +1,14 @@
 import type React from "react";
 import { AlertTriangle, Coffee, Users, RotateCcw, UserMinus, Pencil, Plus, ChevronRight } from "lucide-react";
-import type { TimeEntry } from "../types";
+import type { TimeEntry, Absence } from "../types";
 import type { TimelineBlock } from "../lib/dayTimeline";
 import { getCategory, getSubcategory, getRedoReason } from "../data/categories";
 import { absenceTypeName } from "../data/absences";
 import { formatDuration } from "../lib/time";
 
 // Lodret dags-tidslinje ("Min dag"). Samme visning for medarbejder og leder.
-// Medarbejder: READ-ONLY (ingen handlers). Leder: hvis onEditEntry/onFillGap gives,
-// bliver registrerings-blokke klikbare til korrektion og hul-blokke til "udfyld her".
+// Registrerings-blokke er klikbare, når onEditEntry gives (medarbejderen retter egne,
+// lederen korrigerer); fravær-blokke, når onEditAbsence gives; hul-blokke ved onFillGap.
 // Blokke fylder fysisk efter varighed, så dagen kan læses som en tidsplan.
 const PX_PER_MIN = 1.5;
 const MIN_H = 34;
@@ -89,21 +89,25 @@ interface Props {
   onEditEntry?: (entry: TimeEntry) => void;
   /** Leder-korrektion: klik på et hul for at udfylde det (start/slut prefilles). */
   onFillGap?: (startTime: string, endTime: string) => void;
-  /** Read-only: klik på en registrerings-blok for at se detaljer (medarbejder). */
+  /** Read-only: klik på en registrerings-blok for at se detaljer. */
   onSelectEntry?: (entry: TimeEntry) => void;
+  /** Klik på en fravær-blok for at rette/slette/afslutte fraværet. */
+  onEditAbsence?: (absence: Absence) => void;
 }
 
-export default function DayTimeline({ blocks, onEditEntry, onFillGap, onSelectEntry }: Props) {
+export default function DayTimeline({ blocks, onEditEntry, onFillGap, onSelectEntry, onEditAbsence }: Props) {
   return (
     <div className="timeline">
       {blocks.map((b, i) => {
         // onEditEntry (leder-korrektion) har forrang; ellers onSelectEntry (read-only detalje).
         const entryHandler = onEditEntry ?? onSelectEntry;
         const editable = !!entryHandler && !!b.entry; // arbejde/hjælp/omgøring/pause
+        const absEditable = !!onEditAbsence && !!b.absence; // fravær
         const fillable = !!onFillGap && b.kind === "gap";
-        const interactive = editable || fillable;
+        const interactive = editable || absEditable || fillable;
         const activate = () => {
           if (editable && b.entry) entryHandler!(b.entry);
+          else if (absEditable && b.absence) onEditAbsence!(b.absence);
           else if (fillable) onFillGap!(b.startTime, b.endTime);
         };
         return (
@@ -126,12 +130,12 @@ export default function DayTimeline({ blocks, onEditEntry, onFillGap, onSelectEn
                         activate();
                       }
                     },
-                    title: onEditEntry ? "Ret registrering" : editable ? "Se detaljer" : "Udfyld hul",
+                    title: absEditable ? "Ret fravær" : onEditEntry ? "Ret registrering" : editable ? "Se detaljer" : "Udfyld hul",
                   }
                 : {})}
             >
               <BlockBody b={b} />
-              {editable && onEditEntry && <Pencil className="tl-edit-ic" size={13} />}
+              {((editable && onEditEntry) || absEditable) && <Pencil className="tl-edit-ic" size={13} />}
               {editable && !onEditEntry && <ChevronRight className="tl-edit-ic" size={14} />}
               {fillable && <Plus className="tl-edit-ic" size={13} />}
             </div>

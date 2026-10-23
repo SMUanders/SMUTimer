@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { LogOut, LayoutGrid, ChevronLeft, ChevronRight } from "lucide-react";
-import type { TimeEntry, Absence } from "../types";
+import type { TimeEntry, Absence, EntryDraft } from "../types";
 import { getSupabaseClient } from "../lib/supabaseClient";
 import { AppSwitcher } from "../platform-nav/AppSwitcher";
 import { getPerson, loadPeople } from "../lib/people";
 import { resolveEmployeeIdentity } from "../lib/identity";
-import { initStore, store } from "../lib/storage";
+import { initStore, store, newId, nowIso } from "../lib/storage";
 import { summarizeDay, expectedWorkMinutes } from "../lib/summary";
 import { todayIso, addDays, formatDanishDate, datoFraSoegning } from "../lib/dates";
 import { formatDuration } from "../lib/time";
@@ -14,7 +14,11 @@ import { signOut } from "../lib/auth";
 import EmployeeSelect from "./EmployeeSelect";
 import DayScreen from "./DayScreen";
 import DayTimeline from "./DayTimeline";
-import EntryDetail from "./EntryDetail";
+import EntryEditor from "./EntryEditor";
+import AbsenceEditor, { absenceDraftFrom } from "./AbsenceEditor";
+import type { AbsenceDraft } from "../lib/absence";
+import { HELP_NOTE, helpNote, isHelpNote } from "../lib/helpContext";
+import { isoToHHMM } from "../lib/currentTaskStart";
 import { buildDayTimeline } from "../lib/dayTimeline";
 import { UpdateBanner } from "../platform-update/UpdateBanner";
 import { appBuildIdShort } from "../platform-update/buildId";
@@ -53,8 +57,12 @@ export default function EmployeeApp() {
   }, [historyDate, today]);
   const [historyEntries, setHistoryEntries] = useState<TimeEntry[]>([]);
   const [historyAbsences, setHistoryAbsences] = useState<Absence[]>([]);
-  // Read-only detaljevisning når man klikker en registrering i "Min dag".
-  const [detailEntry, setDetailEntry] = useState<TimeEntry | null>(null);
+  // Rettelser i "Min dag": medarbejderen retter/sletter selv egne registreringer og eget fravær.
+  const [retter, setRetter] = useState<TimeEntry | null>(null);
+  const [fravaer, setFravaer] = useState<{ absence: Absence | null } | null>(null);
+  const [gemFejl, setGemFejl] = useState<string | null>(null);
+  // Fortæller DayScreen, at dagens data er ændret her (fx fravær), så den genindlæser.
+  const [dagVersion, setDagVersion] = useState(0);
 
   async function loadToday(emp = employeeId) {
     setTodayEntries(emp ? await store().getEntriesForDate(emp, today) : []);
@@ -108,15 +116,91 @@ export default function EmployeeApp() {
     if (historyDate === today) await loadHistory(employeeId, today);
   }
 
-  // v2.1.1: medarbejderen redigerer KUN noten på egen afsluttet registrering.
-  // Går gennem databasefunktionen tid_ret_egen_note (kun egen række, kun noten) —
-  // direkte UPDATE er forbeholdt leder (Pakke 1.1).
-  async function saveDetailNote(note: string) {
-    if (!detailEntry) return;
-    await store().updateOwnNote(detailEntry.id, note);
-    setDetailEntry({ ...detailEntry, note }); // vis den nye note straks
+  // ---- Medarbejderen retter selv (egne registreringer og eget fravær, alle datoer) ----
+  // Registreringer går gennem databasefunktioner med ejer-, overlap- og samtidighedskontrol
+  // og historik (tid_ret_egen_registrering / tid_slet_egen_registrering). Fravær går via
+  // eksisterende owner-scope og afvises, hvis det er ændret i mellemtiden.
+  const fejltekst = (e: unknown) =>
+    e && typeof e === "object" && "message" in e ? String((e as { message: unknown }).message) : "Kunne ikke gemme. Prøv igen.";
+
+  async function efterRettelse() {
+    setRetter(null);
+    setFravaer(null);
+    setGemFejl(null);
     await loadHistory(employeeId, historyDate);
     await loadToday(employeeId);
+    setDagVersion((v) => v + 1);
+  }
+
+  function aabnRegistrering(e: TimeEntry) {
+    setGemFejl(null);
+    setRetter(e);
+  }
+  async function gemRegistrering(d: EntryDraft) {
+    if (!retter) return;
+    try {
+      await store().updateOwnEntry(retter, {
+        startTime: d.startTime,
+        endTime: d.endTime,
+        categoryId: d.categoryId,
+        subcategoryId: d.subcategoryId,
+        // Hjælp-linjer beholder deres mærke foran medarbejderens egen note.
+        note: isHelpNote(retter.note) ? helpNote(d.note) : d.note.trim(),
+      });
+      await efterRettelse();
+    } catch (e) {
+      setGemFejl(fejltekst(e));
+    }
+  }
+  async function sletRegistrering() {
+    if (!retter || !window.confirm("Slet denne registrering?")) return;
+    try {
+      await store().deleteOwnEntry(retter);
+      await efterRettelse();
+    } catch (e) {
+      setGemFejl(fejltekst(e));
+    }
+  }
+
+  async function gemFravaer(d: AbsenceDraft) {
+    if (!employeeId || !fravaer) return;
+    try {
+      if (fravaer.absence) {
+        await store().updateAbsence(fravaer.absence, {
+          absenceType: d.absenceType,
+          startTime: d.startTime,
+          expectedEnd: d.expectedEnd || null,
+          ended: d.ended || null,
+          note: d.note.trim(),
+        });
+      } else {
+        await store().addAbsence({
+          id: newId(),
+          employeeId,
+          workDate: historyDate,
+          startTime: d.startTime,
+          expectedEnd: d.expectedEnd || null,
+          ended: d.ended || null,
+          absenceType: d.absenceType,
+          note: d.note.trim(),
+          slettet: false,
+          createdAt: nowIso(),
+          updatedAt: nowIso(),
+        });
+      }
+      await efterRettelse();
+    } catch (e) {
+      setGemFejl(fejltekst(e));
+    }
+  }
+  async function sletFravaer() {
+    if (!fravaer?.absence || !window.confirm("Slet dette fravær?")) return;
+    try {
+      await store().deleteAbsence(fravaer.absence);
+      await efterRettelse();
+    } catch (e) {
+      setGemFejl(fejltekst(e));
+    }
   }
 
   const summary = useMemo(
@@ -203,9 +287,9 @@ export default function EmployeeApp() {
         </div>
       </header>
 
-      <DayScreen employeeId={employeeId} entries={todayEntries} onChanged={onChanged} />
+      <DayScreen employeeId={employeeId} entries={todayEntries} onChanged={onChanged} opdateret={dagVersion} />
 
-      {/* Min dag — read-only historik (med dato-navigation) */}
+      {/* Min dag — tryk på en registrering eller et fravær for at rette eller slette det */}
       <div className="history">
         <div className="history-head">
           <span className="history-title">Min dag</span>
@@ -246,16 +330,73 @@ export default function EmployeeApp() {
               : "Ingen registreringer denne dag."}
           </div>
         ) : (
-          <DayTimeline blocks={timeline} onSelectEntry={setDetailEntry} />
+          <DayTimeline
+            blocks={timeline}
+            onEditEntry={aabnRegistrering}
+            onEditAbsence={(a) => {
+              setGemFejl(null);
+              setFravaer({ absence: a });
+            }}
+          />
         )}
+        <div className="add-bar">
+          <button
+            className="smu-btn-secondary"
+            onClick={() => {
+              setGemFejl(null);
+              setFravaer({ absence: null });
+            }}
+          >
+            Registrér fravær denne dag
+          </button>
+        </div>
       </div>
 
-      {detailEntry && (
-        <EntryDetail
-          entry={detailEntry}
-          onClose={() => setDetailEntry(null)}
-          // Kun egne registreringer må note-redigeres (employee_id = den indloggede bruger).
-          onSaveNote={detailEntry.employeeId === employeeId ? saveDetailNote : undefined}
+      {retter && (
+        <EntryEditor
+          mode="edit"
+          medarbejder
+          workDate={retter.workDate}
+          initial={{
+            startTime: retter.startTime,
+            endTime: retter.endTime,
+            categoryId: retter.categoryId,
+            subcategoryId: retter.subcategoryId,
+            customer: retter.customer,
+            sagId: retter.sagId,
+            sagSmuNummer: retter.sagSmuNummer,
+            enhedId: retter.enhedId,
+            enhedVisning: retter.enhedVisning,
+            // Hjælp-mærket vises ikke i feltet; det bevares automatisk ved gem.
+            note: isHelpNote(retter.note) ? retter.note.slice(HELP_NOTE.length).replace(/^ — /, "") : retter.note,
+            isRedo: retter.isRedo,
+            redoReason: retter.redoReason,
+            redoNote: retter.redoNote,
+          }}
+          error={gemFejl}
+          existing={historyEntries.filter((e) => e.id !== retter.id)}
+          allowSetAsCurrent={false}
+          onDelete={sletRegistrering}
+          onSave={(d) => gemRegistrering(d)}
+          onClose={() => setRetter(null)}
+        />
+      )}
+
+      {fravaer && (
+        <AbsenceEditor
+          mode={fravaer.absence ? "edit" : "new"}
+          initial={
+            fravaer.absence
+              ? absenceDraftFrom(fravaer.absence)
+              : { absenceType: "syg", startTime: viewingToday ? isoToHHMM(nowIso()) : "07:00", expectedEnd: "", ended: "", note: "" }
+          }
+          entries={historyEntries}
+          andreFravaer={historyAbsences.filter((a) => a.id !== fravaer.absence?.id)}
+          nuHHMM={viewingToday ? isoToHHMM(nowIso()) : null}
+          error={gemFejl}
+          onSave={gemFravaer}
+          onDelete={fravaer.absence ? sletFravaer : undefined}
+          onClose={() => setFravaer(null)}
         />
       )}
 

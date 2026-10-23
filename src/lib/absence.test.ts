@@ -5,6 +5,7 @@ import {
   activeAbsence,
   isAbsenceActive,
   effectiveEnd,
+  absenceError,
 } from "./absence";
 import { summarizeDay } from "./summary";
 import { buildDayTimeline } from "./dayTimeline";
@@ -128,5 +129,32 @@ describe("buildDayTimeline med fravær", () => {
     const blocks = buildDayTimeline([], [abs({ expectedEnd: null, ended: null })]);
     expect(blocks[0].kind).toBe("fravaer");
     expect(blocks[0].open).toBe(true);
+  });
+});
+
+describe("absenceError — fravær kan rettes/registreres uden konflikter", () => {
+  const d = (o: Partial<import("./absence").AbsenceDraft> = {}) => ({ absenceType: "syg", startTime: "08:00", expectedEnd: "", ended: "", note: "", ...o });
+  const arb = [{ startTime: "06:00", endTime: "07:30" }, { startTime: "12:00", endTime: "13:00" }];
+  it("gyldigt fravær uden sluttid (stadig væk)", () => {
+    expect(absenceError(d(), arb, [])).toBeNull();
+  });
+  it("tom eller ugyldig fra-tid afvises", () => {
+    expect(absenceError(d({ startTime: "" }), arb, [])).toMatch(/starter/);
+  });
+  it("tilbage og forventet tilbage skal ligge efter fra", () => {
+    expect(absenceError(d({ ended: "08:00" }), arb, [])).toMatch(/Tilbage skal ligge efter/);
+    expect(absenceError(d({ expectedEnd: "07:59" }), arb, [])).toMatch(/Forventet tilbage skal ligge efter/);
+  });
+  it("overlap med arbejdstid giver forståelig fejl", () => {
+    expect(absenceError(d({ ended: "12:30" }), arb, [])).toMatch(/overlapper registreringen 12:00–13:00/);
+    expect(absenceError(d({ startTime: "07:00", ended: "08:00" }), arb, [])).toMatch(/06:00–07:30/);
+  });
+  it("back-to-back med arbejdstid er OK", () => {
+    expect(absenceError(d({ startTime: "07:30", ended: "12:00" }), arb, [])).toBeNull();
+  });
+  it("overlap med et andet fravær afvises; slettede ignoreres", () => {
+    const andet = abs({ startTime: "09:00", expectedEnd: null, ended: "10:00" });
+    expect(absenceError(d({ ended: "09:30" }), arb, [andet])).toMatch(/andet fravær fra 09:00/);
+    expect(absenceError(d({ ended: "09:30" }), arb, [{ ...andet, slettet: true }])).toBeNull();
   });
 });

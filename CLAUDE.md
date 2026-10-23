@@ -75,9 +75,15 @@ ligne SMU":
   faktiske pauser/hjælp/omgøring forskydes aldrig — ved konflikt vælger medarbejderen: afkort egen seneste
   registrering, start fra registreret slut, eller annuller. Hjælp = præcise minutter. Lederens editor bruger
   `src/lib/validation.ts`.
-- Medarbejderens rettelser går KUN gennem databasefunktioner: `tid_afkort_seneste_registrering` (egen, seneste
-  fra i dag, kun sluttid, atomisk med historik) og `tid_ret_egen_note`. Direkte UPDATE/DELETE på
-  `tid_time_entries` er forbeholdt leder (hub-migration `20261023100000`). INSERT er fortsat bred (se TR-104).
+- Medarbejderens rettelser går KUN gennem databasefunktioner: `tid_ret_egen_registrering` (egen registrering,
+  alle datoer: start, slut, aktivitet, note — overlap-, samtidigheds- og ejerkontrol, historik),
+  `tid_slet_egen_registrering` (blød sletning), `tid_afkort_seneste_registrering` (konfliktvalget) og
+  `tid_ret_egen_note`. Direkte UPDATE/DELETE på `tid_time_entries` er forbeholdt leder (hub-migrationer
+  `20261023100000`, `20261023140000`). INSERT er fortsat bred (se TR-104).
+- "Min dag" (v2.3): tryk på en egen registrering → `EntryEditor` i medarbejdertilstand (kun start/slut/aktivitet/note;
+  sag, enhed og omgøring vises som tekst). Tryk på et fravær → `AbsenceEditor` (ret, slet, afslut). "Registrér fravær
+  denne dag" på enhver dato. Lederen har samme fraværseditor i leder-visningen (på medarbejderens vegne). Fravær
+  rettes via eksisterende owner-scope-RLS med versionskontrol (`updated_at`); validering i `absenceError`.
 - Lederrettelse = atomisk erstatning via `tid_erstat_registrering` (SECURITY INVOKER, hub-migration
   `20261022180000`): originalen blødt slettet + erstatning indsat i én transaktion — eller intet.
 - Valgt dato bevares i adressen (`?dato=`) i Min dag og leder-visningen.

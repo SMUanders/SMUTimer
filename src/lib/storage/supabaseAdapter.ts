@@ -293,6 +293,27 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
       if (error) throw error;
     },
 
+    async updateOwnEntry(entry, patch) {
+      const { error } = await client.rpc("tid_ret_egen_registrering", {
+        p_id: entry.id,
+        p_forventet_opdateret: entry.updatedAt,
+        p_start: patch.startTime,
+        p_slut: patch.endTime,
+        p_kategori: patch.categoryId,
+        p_underkategori: patch.subcategoryId,
+        p_note: patch.note,
+      });
+      if (error) throw error;
+    },
+
+    async deleteOwnEntry(entry) {
+      const { error } = await client.rpc("tid_slet_egen_registrering", {
+        p_id: entry.id,
+        p_forventet_opdateret: entry.updatedAt,
+      });
+      if (error) throw error;
+    },
+
     // ---- Aktuel opgave ----
     // Læsninger fejler blødt (returnerer null/[]), så appen ikke knækker hvis
     // migration 0005 endnu ikke er kørt. Skrivninger kaster (UI viser fejl).
@@ -414,6 +435,37 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
     async endAbsence(id, ended) {
       const { error } = await client.from(ABSENCES_TABLE).update({ ended }).eq("id", id);
       if (error) throw error;
+    },
+
+    // Ret/slet fravær: eksisterende RLS (medarbejder egne, leder alle). Opdateringen rammer
+    // kun rækken, hvis den stadig har den version, brugeren så (updated_at) — ellers afvises
+    // den i stedet for at overskrive en andens ændring.
+    async updateAbsence(absence, patch) {
+      const row: Record<string, unknown> = {};
+      if (patch.startTime !== undefined) row.start_time = patch.startTime;
+      if (patch.expectedEnd !== undefined) row.expected_end = patch.expectedEnd;
+      if (patch.ended !== undefined) row.ended = patch.ended;
+      if (patch.absenceType !== undefined) row.absence_type = patch.absenceType;
+      if (patch.note !== undefined) row.note = patch.note;
+      const { data, error } = await client
+        .from(ABSENCES_TABLE)
+        .update(row)
+        .eq("id", absence.id)
+        .eq("updated_at", absence.updatedAt)
+        .select("id");
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error("Fraværet er ændret i mellemtiden — genindlæs dagen");
+    },
+
+    async deleteAbsence(absence) {
+      const { data, error } = await client
+        .from(ABSENCES_TABLE)
+        .update({ slettet: true })
+        .eq("id", absence.id)
+        .eq("updated_at", absence.updatedAt)
+        .select("id");
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error("Fraværet er ændret i mellemtiden — genindlæs dagen");
     },
 
     // ---- SMU-sag søgning (OS-ejet read-contract) ----

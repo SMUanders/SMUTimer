@@ -23,6 +23,18 @@ export interface SagEnhed {
 // Fælles storage-interface. Al persistering går gennem dette — resten af appen
 // kender ikke til om data ligger i localStorage eller Supabase.
 // Alle metoder er async, så adapterne kan være netværksbaserede (Supabase).
+/** Det, en medarbejder må ændre på sin egen registrering. */
+export interface OwnEntryPatch {
+  startTime: string;
+  endTime: string;
+  categoryId: string;
+  subcategoryId: string | null;
+  note: string;
+}
+
+/** Det, der kan rettes på et fravær. */
+export type AbsencePatch = Partial<Pick<Absence, "startTime" | "expectedEnd" | "ended" | "absenceType" | "note">>;
+
 export interface TimeEntryStore {
   readonly name: "local" | "supabase";
   getEntriesForDate(employeeId: string, isoDate: string): Promise<TimeEntry[]>;
@@ -51,6 +63,14 @@ export interface TimeEntryStore {
   shortenLatestEntry(id: string, newEnd: string, expectedEnd: string): Promise<void>;
   /** Medarbejderen retter noten på sin egen registrering (tid_ret_egen_note). */
   updateOwnNote(id: string, note: string): Promise<void>;
+  /**
+   * Medarbejderen retter sin EGEN registrering (start, slut, aktivitet, note) — atomisk med
+   * historik, overlapkontrol og samtidighedskontrol (`entry.updatedAt` = den version, brugeren
+   * så). Håndhæves af tid_ret_egen_registrering (hub-migration 20261023140000).
+   */
+  updateOwnEntry(entry: TimeEntry, patch: OwnEntryPatch): Promise<void>;
+  /** Medarbejderen sletter (blødt) sin egen registrering (tid_slet_egen_registrering). */
+  deleteOwnEntry(entry: TimeEntry): Promise<void>;
 
   // "Aktuel opgave" — status, adskilt fra time entries (påvirker ingen tal).
   getCurrentTask(employeeId: string): Promise<CurrentTask | null>;
@@ -66,8 +86,15 @@ export interface TimeEntryStore {
   /** Aktivt fravær (ude nu) for én medarbejder, hvis noget. */
   getActiveAbsence(employeeId: string): Promise<Absence | null>;
   addAbsence(absence: Absence): Promise<void>;
-  /** Afslut fravær ("Jeg er tilbage"): sæt active=false + faktisk sluttid. */
+  /** Afslut fravær ("Jeg er tilbage"): sæt faktisk sluttid. */
   endAbsence(id: string, endTime: string): Promise<void>;
+  /**
+   * Ret fravær (medarbejder: eget; leder: alle — eksisterende RLS). Afvises, hvis fraværet er
+   * ændret siden `absence.updatedAt` (beskyttelse mod utilsigtet overskrivning).
+   */
+  updateAbsence(absence: Absence, patch: AbsencePatch): Promise<void>;
+  /** Slet fravær (blødt: slettet=true) — samme regler som updateAbsence. */
+  deleteAbsence(absence: Absence): Promise<void>;
 
   // SMU-sag: søg eksisterende OS-sager via OS-ejet read-contract (tid_sag_search).
   // Kræver ingen 'os'-adgang. Local-adapter returnerer [] (ingen OS i dev).

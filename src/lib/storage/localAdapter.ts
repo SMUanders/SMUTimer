@@ -130,6 +130,38 @@ export const localAdapter: TimeEntryStore = {
     saveAll([...all.map((e) => (e.id === id ? { ...e, slettet: true, updatedAt: now } : e)), kopi]);
   },
 
+  // Lokal dev-fallback: samme kontrakt som tid_ret_egen_registrering (version, overlap, historik).
+  async updateOwnEntry(entry, patch) {
+    const all = loadAll();
+    const r = all.find((e) => e.id === entry.id && !e.slettet);
+    if (!r) throw new Error("Registreringen findes ikke eller er allerede ændret — genindlæs dagen");
+    if (r.updatedAt !== entry.updatedAt) throw new Error("Registreringen er ændret i mellemtiden — genindlæs dagen");
+    if (!(patch.endTime > patch.startTime)) throw new Error("Slut skal være efter start");
+    const k = all.find(
+      (o) => !o.slettet && o.id !== r.id && o.employeeId === r.employeeId && o.workDate === r.workDate &&
+        o.startTime < patch.endTime && o.endTime > patch.startTime
+    );
+    if (k) throw new Error(`Overlapper registreringen ${k.startTime}–${k.endTime}`);
+    const now = nowIso();
+    const [sh, sm] = patch.startTime.split(":").map(Number);
+    const [eh, em] = patch.endTime.split(":").map(Number);
+    const kopi: TimeEntry = {
+      ...r, id: newId(), startTime: patch.startTime, endTime: patch.endTime, durationMinutes: eh * 60 + em - (sh * 60 + sm),
+      categoryId: patch.categoryId, subcategoryId: patch.subcategoryId, note: patch.note, isBreak: patch.categoryId === "pause",
+      createdAt: now, updatedAt: now,
+    };
+    saveAll([...all.map((e) => (e.id === r.id ? { ...e, slettet: true, updatedAt: now } : e)), kopi]);
+  },
+
+  async deleteOwnEntry(entry) {
+    const all = loadAll();
+    const r = all.find((e) => e.id === entry.id && !e.slettet);
+    if (!r) throw new Error("Registreringen findes ikke eller er allerede slettet — genindlæs dagen");
+    if (r.updatedAt !== entry.updatedAt) throw new Error("Registreringen er ændret i mellemtiden — genindlæs dagen");
+    const now = nowIso();
+    saveAll(all.map((e) => (e.id === r.id || (r.splitGroupId && e.splitGroupId === r.splitGroupId) ? { ...e, slettet: true, updatedAt: now } : e)));
+  },
+
   async updateOwnNote(id, note) {
     const all = loadAll();
     const idx = all.findIndex((e) => e.id === id && !e.slettet);
@@ -200,6 +232,22 @@ export const localAdapter: TimeEntryStore = {
     const idx = all.findIndex((a) => a.id === id);
     if (idx === -1) return;
     all[idx] = { ...all[idx], ended, updatedAt: nowIso() };
+    saveAbsences(all);
+  },
+
+  async updateAbsence(absence, patch) {
+    const all = loadAbsences();
+    const idx = all.findIndex((a) => a.id === absence.id && a.updatedAt === absence.updatedAt);
+    if (idx === -1) throw new Error("Fraværet er ændret i mellemtiden — genindlæs dagen");
+    all[idx] = { ...all[idx], ...patch, updatedAt: nowIso() };
+    saveAbsences(all);
+  },
+
+  async deleteAbsence(absence) {
+    const all = loadAbsences();
+    const idx = all.findIndex((a) => a.id === absence.id && a.updatedAt === absence.updatedAt);
+    if (idx === -1) throw new Error("Fraværet er ændret i mellemtiden — genindlæs dagen");
+    all[idx] = { ...all[idx], slettet: true, updatedAt: nowIso() };
     saveAbsences(all);
   },
 

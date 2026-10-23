@@ -50,6 +50,8 @@ interface Props {
   employeeId: string;
   entries: TimeEntry[]; // dagens historik (til eksakt-dublet-tjek)
   onChanged: () => void;
+  /** Øges, når dagens data er ændret uden for DayScreen (fx fravær rettet i "Min dag"). */
+  opdateret?: number;
 }
 
 interface WorkDraft {
@@ -106,7 +108,7 @@ function draftFromTask(t: CurrentTask): WorkDraft {
   };
 }
 
-export default function DayScreen({ employeeId, entries, onChanged }: Props) {
+export default function DayScreen({ employeeId, entries, onChanged, opdateret = 0 }: Props) {
   const [task, setTask] = useState<CurrentTask | null>(null);
   const [startedAt, setStartedAt] = useState<string | null>(null);
   const [dayEnded, setDayEndedState] = useState(false);
@@ -159,6 +161,12 @@ export default function DayScreen({ employeeId, entries, onChanged }: Props) {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employeeId]);
+
+  // Data ændret i "Min dag" (fx fravær rettet/afsluttet) → genindlæs status og fravær.
+  useEffect(() => {
+    if (opdateret > 0) refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opdateret]);
 
   useEffect(() => {
     const id = window.setInterval(() => setTick((t) => t + 1), 30000);
