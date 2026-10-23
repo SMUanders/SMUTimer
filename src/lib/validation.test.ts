@@ -33,3 +33,11 @@ describe("validateEntry", () => {
     expect(r.errors).toContain("Der er allerede registreret tid i dette tidsrum.");
   });
 });
+
+describe("B-01 (Manus Test B): lederens editor med tømt sluttid", () => {
+  it("tom sluttid giver en blokerende fejltekst — intet nedbrud", () => {
+    expect(() => validateEntry("08:00", "", "montage-ude", [])).not.toThrow();
+    const r = validateEntry("08:00", "", "montage-ude", []);
+    expect(r.errors.join(" ")).toMatch(/Sluttid er ugyldig/);
+  });
+});

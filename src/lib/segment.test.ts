@@ -3,7 +3,8 @@ import {
   suggestStart,
   suggestEnd,
   suggestSwitchAt,
-  suggestFinishTimes,
+  lederAfslutForslag,
+  lederOpgaveStart,
   activeStartHHMM,
   ownCloseUntil,
   helpStartHHMM,
@@ -226,10 +227,21 @@ describe("REGRESSION — Manus QA 22. okt. 2026", () => {
     expect(finishError(start, suggestEnd(start, "09:50"), dag)).toBeNull();
   });
 
-  it("A4: lederens Afslut opgave foreslår aldrig sluttid efter nu (tidligere +15)", () => {
-    const t = suggestFinishTimes(hhmmToIsoToday("15:45"), hhmmToIsoToday("15:47"));
-    expect(t.startTime).toBe("15:45");
-    expect(t.endTime).toBe("15:47");
+  it("B-02 (Manus Test B): lederens afslutning foreslår præcis aktivkortets start (08:47, ikke 08:45)", () => {
+    const opdateret = hhmmToIsoToday("08:47");
+    expect(lederOpgaveStart(opdateret)).toBe("08:47");
+    const t = lederAfslutForslag(opdateret, hhmmToIsoToday("09:20"));
+    expect(t.startTime).toBe("08:47");
+    expect(t.endTime).toBe("09:20");
+    expect(lederAfslutForslag(opdateret, hhmmToIsoToday("08:49")).endTime).toBe("08:49");
+  });
+
+  it("B-01 (Manus Test B): tomt eller ufærdigt tidsfelt giver en fejltekst, ikke et nedbrud", () => {
+    expect(() => finishError("08:00", "", [])).not.toThrow();
+    expect(finishError("08:00", "", [])).toMatch(/Angiv både start og slut/);
+    expect(finishError("", "09:00", [])).toMatch(/Angiv både start og slut/);
+    expect(findOverlap("08:00", "", [line("07:00", "09:00")])).toBeNull();
+    expect(konfliktVed("", [line("07:00", "09:00")], "09:00")).toBeNull();
   });
 
   it("Hele Manus-forløbet med de nye regler: intet overlap, ingen fremtidig slut, intet opslugt", () => {

@@ -17,12 +17,12 @@ import { isBreakCategory, getCategory, getSubcategory } from "../data/categories
 import { getPerson, loadPeople } from "../lib/people";
 import { initStore, store, newId, nowIso } from "../lib/storage";
 import { buildEntries } from "../lib/entries";
-import { suggestFinishTimes } from "../lib/segment";
+import { lederAfslutForslag, lederOpgaveStart } from "../lib/segment";
 import { buildDayTimeline } from "../lib/dayTimeline";
 import { proposeLunchSplit, type LunchWindow } from "../lib/lunch";
 import { summarizeDay, expectedWorkMinutes } from "../lib/summary";
 import { suggestNextSlot } from "../lib/suggest";
-import { getTaskStart, clearTaskStart, isoToHHMM } from "../lib/currentTaskStart";
+import { clearTaskStart } from "../lib/currentTaskStart";
 import { durationMinutes } from "../lib/time";
 import { todayIso, addDays, formatDanishDate, datoFraSoegning } from "../lib/dates";
 import { signOut } from "../lib/auth";
@@ -313,10 +313,9 @@ export default function LeaderDay() {
   // GÆTTER ikke et endeligt sluttidspunkt; lederen bekræfter/retter og gemmer.
   function endActiveTask(task: CurrentTask) {
     if (!employeeId) return;
-    // Samme afrundingsregel som medarbejderens egen afslutning (nærmeste kvarter +
-    // guard), via den fælles helper — så lederflow og medarbejderflow er konsistente.
-    const startIso = getTaskStart(employeeId) ?? task.updatedAt;
-    const { startTime, endTime } = suggestFinishTimes(startIso, nowIso());
+    // B-02: samme start som aktivkortet viser (den registrerede start), ikke afrundet og
+    // ikke læst fra lederens egen browser.
+    const { startTime, endTime } = lederAfslutForslag(task.updatedAt, nowIso());
     setClearCurrentOnSave(true);
     setEditor({
       mode: "new",
@@ -363,7 +362,7 @@ export default function LeaderDay() {
   const editingExisting = editor?.editingId
     ? entries.filter((e) => e.id !== editor.editingId)
     : entries;
-  const activeTaskStart = currentTask ? isoToHHMM(currentTask.updatedAt) : null;
+  const activeTaskStart = currentTask ? lederOpgaveStart(currentTask.updatedAt) : null;
 
   return (
     <div className="app">

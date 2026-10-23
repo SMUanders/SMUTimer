@@ -21,7 +21,7 @@
 
 import type { TimeEntry } from "../types";
 import { isBreakCategory } from "../data/categories";
-import { durationMinutes, toMinutes, toHHMM, floorTo5, ceilTo5Min } from "./time";
+import { durationMinutes, toMinutes, toHHMM, floorTo5, ceilTo5Min, isValidTime } from "./time";
 import { isoToHHMM } from "./currentTaskStart";
 
 export interface FinishTimes {
@@ -140,17 +140,21 @@ export function hhmmToIsoToday(hhmm: string): string {
 }
 
 /**
- * Forslag til lederens "Afslut opgave": start = opgavens start rundet ned til 5 min,
- * slut = nu efter samme regel.
+ * Lederens "Afslut opgave" (B-02, Manus Test B): startforslaget er PRÆCIS den start,
+ * lederens aktivkort viser — den registrerede start i databasen (`updated_at`), uden
+ * afrunding og uden at læse lederens egen browser. Slut = nu efter de normale regler.
  */
-export function suggestFinishTimes(startedAtIso: string, nowIso: string): FinishTimes {
-  const now = isoToHHMM(nowIso);
-  const startTime = suggestStart(isoToHHMM(startedAtIso), now);
-  return { startTime, endTime: suggestEnd(startTime, now) };
+export function lederOpgaveStart(updatedAtIso: string): string {
+  return isoToHHMM(updatedAtIso);
+}
+export function lederAfslutForslag(updatedAtIso: string, nowIso: string): FinishTimes {
+  const startTime = lederOpgaveStart(updatedAtIso);
+  return { startTime, endTime: suggestEnd(startTime, isoToHHMM(nowIso)) };
 }
 
 /** Første ikke-slettede registrering, som intervallet overlapper, eller null. */
 export function findOverlap(startHHMM: string, endHHMM: string, others: TimeEntry[]): TimeEntry | null {
+  if (!isValidTime(startHHMM) || !isValidTime(endHHMM)) return null;
   return (
     others.filter((e) => !e.slettet).find((e) => m(startHHMM) < m(e.endTime) && m(e.startTime) < m(endHHMM)) ?? null
   );
@@ -162,6 +166,8 @@ export function findOverlap(startHHMM: string, endHHMM: string, others: TimeEntr
  * må ikke overlappe en anden (ikke-slettet) registrering samme dag.
  */
 export function finishError(startHHMM: string, endHHMM: string, others: TimeEntry[]): string | null {
+  // Et tømt eller ufærdigt tidsfelt må aldrig vælte siden (B-01) — det er blot en fejltekst.
+  if (!isValidTime(startHHMM) || !isValidTime(endHHMM)) return "Angiv både start og slut (TT:MM).";
   if (m(endHHMM) <= m(startHHMM)) return "Slut skal være efter start.";
   const o = findOverlap(startHHMM, endHHMM, others);
   if (o) return `Overlapper registreringen ${o.startTime}–${o.endTime}.`;
@@ -183,7 +189,7 @@ export interface Konflikt {
 }
 
 export function konfliktVed(tidspunkt: string, entries: TimeEntry[], lastEndHHMM: string | null): Konflikt | null {
-  if (!lastEndHHMM || m(tidspunkt) >= m(lastEndHHMM)) return null;
+  if (!isValidTime(tidspunkt) || !lastEndHHMM || m(tidspunkt) >= m(lastEndHHMM)) return null;
   const seneste = senesteRegistrering(entries);
   const kanAfkorte =
     !!seneste &&

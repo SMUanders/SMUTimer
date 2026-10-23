@@ -3,7 +3,7 @@ import type { EntryDraft, TimeEntry } from "../types";
 import { CATEGORIES, REDO_REASONS } from "../data/categories";
 import { validateEntry } from "../lib/validation";
 import { getLunchWindow } from "../lib/lunch";
-import { overlaps as intervalsOverlap, toMinutes } from "../lib/time";
+import { overlaps as intervalsOverlap, toMinutes, isValidTime } from "../lib/time";
 import CategoryPicker from "./CategoryPicker";
 import TimeSelect from "./TimeSelect";
 import EnhedPicker from "./EnhedPicker";
@@ -65,8 +65,12 @@ export default function EntryEditor({
 
   // Rammer registreringen den FORESLÅEDE frokost? (håndteres automatisk ved gem)
   const lunch = getLunchWindow(workDate);
+  // B-01 (Manus Test B): et tømt/ufærdigt tidsfelt må ikke vælte siden — kun gyldige tider
+  // sammenlignes; validateEntry viser selv fejlteksten.
   const hitsLunch =
     !!lunch &&
+    isValidTime(draft.startTime) &&
+    isValidTime(draft.endTime) &&
     intervalsOverlap(
       { start: toMinutes(draft.startTime), end: toMinutes(draft.endTime) },
       { start: toMinutes(lunch.startTime), end: toMinutes(lunch.endTime) }
