@@ -54,7 +54,7 @@ function draftFromEntry(e: TimeEntry): EntryDraft {
     categoryId: e.categoryId,
     subcategoryId: e.subcategoryId,
     customer: e.customer,
-    // Bevar sag-referencen ved leder-korrektion (round-trip, ingen picker i v2.1).
+    // Sag-referencen følger med ved leder-korrektion; lederens editor har sagsvælger (v2.3.1).
     sagId: e.sagId,
     sagSmuNummer: e.sagSmuNummer,
     enhedId: e.enhedId,

@@ -7,6 +7,7 @@ import { overlaps as intervalsOverlap, toMinutes, isValidTime } from "../lib/tim
 import CategoryPicker from "./CategoryPicker";
 import TimeSelect from "./TimeSelect";
 import EnhedPicker from "./EnhedPicker";
+import SagPicker from "./SagPicker";
 
 interface Props {
   mode: "new" | "edit";
@@ -157,23 +158,30 @@ export default function EntryEditor({
             </div>
           )}
 
-          {/* "Ordre / sag": forberedt til SMU-numre. DB-feltet hedder fortsat
-              `customer` (ingen migration); bruges reelt til ordre/sag, ikke kunde. */}
+          {/* Ordre / SMU-sag: samme sagsvælger som medarbejderens flow (OS-ejet tid_sag_search).
+              Valgt sag giver rigtig sag_id (tæller i Sag-overblik og OS' tidsforbrug); fri tekst
+              (fx ordrenummer) er stadig muligt. Skift af sag nulstiller enheden. */}
           {!medarbejder && (
-          <div className="field">
-            <label>Ordre / sag</label>
-            <input
-              className="smu-input"
-              type="text"
-              placeholder="Fx 54277 eller SMU-0042"
-              value={draft.customer}
-              onChange={(e) => set("customer", e.target.value)}
-            />
-          </div>
+            <div className="field">
+              <SagPicker
+                label="Ordre / SMU-sag"
+                customer={draft.customer}
+                sagId={draft.sagId}
+                sagSmuNummer={draft.sagSmuNummer}
+                onChange={(n) =>
+                  setDraft((d) => ({
+                    ...d,
+                    customer: n.customer,
+                    sagId: n.sagId,
+                    sagSmuNummer: n.sagSmuNummer,
+                    ...(n.sagId !== d.sagId ? { enhedId: null, enhedVisning: null } : {}),
+                  }))
+                }
+              />
+            </div>
           )}
 
-          {/* Enhed (TR-088): kun når registreringen er knyttet til en SMU-sag. Leder kan rette
-              en forkert enhed; sagen ændres ikke her. */}
+          {/* Enhed (TR-088): kun når registreringen er knyttet til en SMU-sag. */}
           {!medarbejder && (
           <EnhedPicker
             sagId={draft.sagId}
