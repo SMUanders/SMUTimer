@@ -106,7 +106,7 @@ export const PLATFORM_APPS: Record<string, AppMeta> = {
     url: 'https://tid.smu.signmeup.dk',
     maalUrl: 'https://tid.smu.signmeup.dk',
     icon: '/icons/apps/smu-tid.svg',
-    sortOrder: 20,
+    sortOrder: 40,
     status: 'frigivet',
     synlighed: 'discoverable',
   },
@@ -121,7 +121,7 @@ export const PLATFORM_APPS: Record<string, AppMeta> = {
     url: 'https://apv.smu.signmeup.dk',
     maalUrl: 'https://apv.smu.signmeup.dk',
     icon: '/icons/apps/smu-apv.svg',
-    sortOrder: 30,
+    sortOrder: 80,
     status: 'frigivet',
     synlighed: 'discoverable',
   },
@@ -136,7 +136,7 @@ export const PLATFORM_APPS: Record<string, AppMeta> = {
     url: 'https://wiki.smu.signmeup.dk',
     maalUrl: 'https://wiki.smu.signmeup.dk',
     icon: '/icons/apps/smu-wiki.svg',
-    sortOrder: 40,
+    sortOrder: 100,
     status: 'frigivet',
     synlighed: 'discoverable',
   },
@@ -173,7 +173,7 @@ export const PLATFORM_APPS: Record<string, AppMeta> = {
     url: 'https://source.smu.signmeup.dk',
     maalUrl: 'https://source.smu.signmeup.dk',
     icon: '/icons/apps/smu-source.svg', // egen officiel identitet findes allerede
-    sortOrder: 60,
+    sortOrder: 90,
     status: 'frigivet',
     synlighed: 'privat',
   },
@@ -202,7 +202,7 @@ export const PLATFORM_APPS: Record<string, AppMeta> = {
     description: 'Miljø- og bæredygtighedsdokumentation',
     url: null,
     icon: PAA_VEJ_IKON,
-    sortOrder: 80,
+    sortOrder: 110,
     status: 'paa_vej',
     synlighed: 'discoverable',
   },
@@ -219,7 +219,7 @@ export const PLATFORM_APPS: Record<string, AppMeta> = {
     url: 'https://mus.smu.signmeup.dk',
     maalUrl: 'https://mus.smu.signmeup.dk',
     icon: '/icons/apps/smu-mus.svg',
-    sortOrder: 90,
+    sortOrder: 120,
     status: 'frigivet',
     // Fortrolige personoplysninger: brugere uden mus-adgang skal ikke kunne se,
     // at appen overhovedet findes — derfor hverken kort eller "Ingen adgang".
@@ -242,7 +242,7 @@ export const PLATFORM_APPS: Record<string, AppMeta> = {
     maalUrl: 'https://kalkulation.smu.signmeup.dk',
     // Officielt app-ikon: lommeregner i SMU-ikonstilen (besluttet 20. okt. 2026, TR-099).
     icon: '/icons/apps/smu-kalkulation.svg',
-    sortOrder: 100,
+    sortOrder: 60,
     status: 'frigivet',
     synlighed: 'discoverable',
   },
@@ -261,7 +261,7 @@ export const PLATFORM_APPS: Record<string, AppMeta> = {
     // MIDLERTIDIGT IKON: SMU Lager har endnu ingen officiel identitet. Den neutrale
     // platform-placeholder må aldrig blive appens officielle ikon.
     icon: PAA_VEJ_IKON,
-    sortOrder: 110,
+    sortOrder: 130,
     status: 'frigivet',
     synlighed: 'discoverable',
   },
@@ -277,7 +277,7 @@ export const PLATFORM_APPS: Record<string, AppMeta> = {
     url: 'https://kapacitet.smu.signmeup.dk',
     maalUrl: 'https://kapacitet.smu.signmeup.dk',
     icon: '/icons/apps/smu-kapacitet.svg', // enkelt kalenderikon (besluttet 8. okt. 2026)
-    sortOrder: 120,
+    sortOrder: 20,
     status: 'frigivet',
     synlighed: 'discoverable',
   },
@@ -297,7 +297,7 @@ export const PLATFORM_APPS: Record<string, AppMeta> = {
     // MIDLERTIDIGT IKON (godkendt 8. okt. 2026): appens eget midlertidige P-skilt-ikon.
     // Erstattes af en officiel identitet før bred frigivelse.
     icon: '/icons/apps/smu-pladsliste.svg',
-    sortOrder: 130,
+    sortOrder: 30,
     status: 'frigivet',
     synlighed: 'privat',
   },
