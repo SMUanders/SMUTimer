@@ -25,7 +25,8 @@
  * 26. aug. 2026: Arkiv (arkiv.smu.signmeup.dk); 28. aug. 2026: Tid (tid.smu.signmeup.dk).
  * 15. sep. 2026: Source (source.smu.signmeup.dk) — cutover; frigivet 16. sep. 2026 med synlighed privat.
  * 6. okt. 2026: Color (color.smu.signmeup.dk) — cutover.
- * 8. okt. 2026: Kapacitet (kapacitet.smu.signmeup.dk) — live (frigivet, synlig for brugere med adgang).
+ * 8. okt. 2026: Kapacitet (kapacitet.smu.signmeup.dk) — live (frigivet, synlig for brugere med adgang);
+ * omdøbt 3. nov. 2026 til Planlægning (planlaegning.smu.signmeup.dk).
  * 9. okt. 2026: Pladsliste (pladsliste.smu.signmeup.dk) — live i intern testfase (frigivet + privat, kun brugere med adgang).
  * Den delte cookie-session (SSO) virker KUN på *.smu.signmeup.dk — så et hop til en
  * netlify.app-adresse kan kræve nyt login.
@@ -265,18 +266,20 @@ export const PLATFORM_APPS: Record<string, AppMeta> = {
     status: 'frigivet',
     synlighed: 'discoverable',
   },
-  kapacitet: {
-    key: 'kapacitet',
-    appKey: 'kapacitet', // app-key + roller observatoer/bruger/admin er live (20261008130000)
-    displayName: 'SMU Kapacitet',
+  planlaegning: {
+    key: 'planlaegning',
+    // App-key + roller observatoer/bruger/admin (20261103120000). Hed 'kapacitet' indtil omdøbningen
+    // 3. nov. 2026; adgangene spejles mellem de to nøgler, indtil M3 fjerner 'kapacitet'.
+    appKey: 'planlaegning',
+    displayName: 'SMU Planlægning',
     description: 'Montageplanlægning',
-    // Selvstændig Small App, live 8. okt. 2026 på custom domain med Let's Encrypt og tvungen
-    // HTTPS. Frigivet + discoverable som Lager: kortet ses kun af brugere med en aktiv
-    // kapacitet-adgang (20261008140000: anders admin, natasha og marie bruger).
-    // https://smu-kapacitet.netlify.app linkes ikke — den deler ikke platform-cookien.
-    url: 'https://kapacitet.smu.signmeup.dk',
-    maalUrl: 'https://kapacitet.smu.signmeup.dk',
-    icon: '/icons/apps/smu-kapacitet.svg', // enkelt kalenderikon (besluttet 8. okt. 2026)
+    // Selvstændig Small App, live 8. okt. 2026 (som SMU Kapacitet) på custom domain med Let's Encrypt
+    // og tvungen HTTPS. Omdøbt 3. nov. 2026; kapacitet.smu.signmeup.dk 301-redirecter hertil (≥ 3 mdr.).
+    // Frigivet + discoverable som Lager: kortet ses kun af brugere med en aktiv planlaegning-adgang.
+    // https://smu-planlaegning.netlify.app linkes ikke — den deler ikke platform-cookien.
+    url: 'https://planlaegning.smu.signmeup.dk',
+    maalUrl: 'https://planlaegning.smu.signmeup.dk',
+    icon: '/icons/apps/smu-planlaegning.svg', // enkelt kalenderikon (besluttet 8. okt. 2026)
     sortOrder: 20,
     status: 'frigivet',
     synlighed: 'discoverable',
@@ -289,7 +292,7 @@ export const PLATFORM_APPS: Record<string, AppMeta> = {
     // Selvstændig Small App (v0.1), live 9. okt. 2026 på custom domain med Let's Encrypt og
     // tvungen HTTPS. INTERN TESTFASE: frigivet + PRIVAT — kortet er klikbart for brugere med en
     // aktiv pladsliste-adgang (20261009100000: 11 × bruger) og slet ikke synligt for andre.
-    // privat (frem for discoverable som Kapacitet) gør, at appen heller ikke kan dukke op som
+    // privat (frem for discoverable som Planlægning) gør, at appen heller ikke kan dukke op som
     // "På vej"-teaser, hvis status senere ændres. Laila har udelukkende SMU MUS og ser den ikke.
     // https://smu-pladsliste.netlify.app linkes ikke — den deler ikke platform-cookien.
     url: 'https://pladsliste.smu.signmeup.dk',
