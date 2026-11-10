@@ -8,6 +8,7 @@
 import type { TimeEntry } from "../types";
 import { getCategory, getSubcategory, isBreakCategory } from "../data/categories";
 import { isHelpNote } from "./helpContext";
+import type { FastHurtigvalg } from "./storage/types";
 
 export interface Hurtigvalg {
   categoryId: string;
@@ -58,4 +59,50 @@ export function hurtigvalg(entries: TimeEntry[], employeeId: string): Hurtigvalg
     .sort((a, b) => b.antal - a.antal || b.senest.localeCompare(a.senest))
     .slice(0, HURTIGVALG_MAX)
     .map(({ categoryId, subcategoryId, navn, antal }) => ({ categoryId, subcategoryId, navn, antal }));
+}
+
+/** Et hurtigvalg, som det vises: fastgjort (id sat) eller automatisk forslag. */
+export interface VistHurtigvalg {
+  categoryId: string;
+  subcategoryId: string | null;
+  navn: string;
+  /** Sat for fastgjorte (til "fjern"). */
+  fastId: string | null;
+}
+
+export const HURTIGVALG_MAX_FASTGJORTE = 8;
+
+const noegle = (c: string, s: string | null) => `${c}|${s ?? ""}`;
+
+/** Navn på en aktivitet fra Tids katalog; null, hvis den ikke (længere) findes. */
+export function aktivitetNavn(categoryId: string, subcategoryId: string | null): string | null {
+  const cat = getCategory(categoryId);
+  if (!cat) return null;
+  if (!subcategoryId) return cat.name;
+  return getSubcategory(categoryId, subcategoryId)?.name ?? null;
+}
+
+/**
+ * Fastgjorte først (i den rækkefølge, de blev fastgjort), derefter de automatiske forslag, der ikke
+ * allerede er fastgjort — aldrig dubletter. Fastgjorte aktiviteter, der er udgået af kataloget, vises ikke.
+ */
+export function vistHurtigvalg(fastgjorte: FastHurtigvalg[], forslag: Hurtigvalg[]): { fastgjorte: VistHurtigvalg[]; forslag: VistHurtigvalg[] } {
+  const set = new Set<string>();
+  const fast: VistHurtigvalg[] = [];
+  for (const f of fastgjorte) {
+    const navn = aktivitetNavn(f.categoryId, f.subcategoryId);
+    const k = noegle(f.categoryId, f.subcategoryId);
+    if (!navn || set.has(k)) continue;
+    set.add(k);
+    fast.push({ categoryId: f.categoryId, subcategoryId: f.subcategoryId, navn, fastId: f.id });
+  }
+  const fors = forslag
+    .filter((h) => !set.has(noegle(h.categoryId, h.subcategoryId)))
+    .map((h) => ({ categoryId: h.categoryId, subcategoryId: h.subcategoryId, navn: h.navn, fastId: null }));
+  return { fastgjorte: fast, forslag: fors };
+}
+
+/** Det fastgjorte hurtigvalg for en aktivitet, hvis den er fastgjort. */
+export function fastgjortFor(fastgjorte: FastHurtigvalg[], categoryId: string, subcategoryId: string | null): FastHurtigvalg | null {
+  return fastgjorte.find((f) => f.categoryId === categoryId && (f.subcategoryId ?? null) === (subcategoryId ?? null)) ?? null;
 }

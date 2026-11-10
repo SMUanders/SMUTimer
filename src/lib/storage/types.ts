@@ -33,6 +33,13 @@ export interface PladsEnhed extends SagEnhed {
   zone: string | null;
 }
 
+/** Et fastgjort hurtigvalg (tid_hurtigvalg) — medarbejderens egen indstilling, følger profilen. */
+export interface FastHurtigvalg {
+  id: string;
+  categoryId: string;
+  subcategoryId: string | null;
+}
+
 // Fælles storage-interface. Al persistering går gennem dette — resten af appen
 // kender ikke til om data ligger i localStorage eller Supabase.
 // Alle metoder er async, så adapterne kan være netværksbaserede (Supabase).
@@ -122,6 +129,13 @@ export interface TimeEntryStore {
   // Trucking V1: alle OS-enheder på pladsen nu (Pladsliste er autoritativ). Kræver kun 'tid'-adgang.
   // Søgningen sker i appen (src/lib/pladsEnheder.ts). Local-adapter returnerer et lille demo-sæt.
   getEnhederPaaPladsen(): Promise<PladsEnhed[]>;
+
+  // Personlige hurtigvalg (tid_hurtigvalg): KUN egne (RLS). Læsning fejler blødt (tom liste).
+  getFastgjorteHurtigvalg(employeeId: string): Promise<FastHurtigvalg[]>;
+  /** Fastgør en aktivitet. Allerede fastgjort = ingen ændring. Kaster ved fejl (fx højst 8). */
+  fastgoerHurtigvalg(employeeId: string, categoryId: string, subcategoryId: string | null): Promise<void>;
+  /** Fjern (blødt) et fastgjort hurtigvalg. */
+  fjernHurtigvalg(id: string): Promise<void>;
 }
 
 // ID/tidsstempel — bruges når nye entries bygges. crypto.randomUUID giver et

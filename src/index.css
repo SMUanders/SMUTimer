@@ -207,6 +207,12 @@ body {
 /* Personlige hurtigvalg + skift (Min dag) */
 .ds-hurtig { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
 .ds-hurtig .ds-big { flex: 1 1 140px; width: auto; }
+.ds-hvadnu .ds-hurtig { margin-bottom: 0; }
+.ds-forslag { align-items: center; }
+.ds-forslag .ds-skift-label { flex: 0 0 100%; }
+.cp-fastgoer { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 6px 8px; border-radius: 8px; font-size: 13px; }
+.cp-fastgoer.is-fastgjort { color: var(--color-text-muted); }
+.cp-fastgoer:disabled { color: var(--color-text-muted); cursor: default; }
 .ds-skift { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
 .ds-skift .smu-btn-secondary { display: inline-flex; align-items: center; gap: 6px; }
 .ds-skift-label { font-size: 12px; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; }

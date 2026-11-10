@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { hurtigvalg } from "./hurtigvalg";
+import { describe, it, expect, vi } from "vitest";
+import { hurtigvalg, vistHurtigvalg, fastgjortFor, aktivitetNavn } from "./hurtigvalg";
 import type { TimeEntry } from "../types";
 
 let n = 0;
@@ -66,5 +66,55 @@ describe("personlige hurtigvalg", () => {
     ];
     const navne = hurtigvalg(rows, "S").map((h) => h.subcategoryId);
     expect(navne).toEqual(["montage-internt__montering", "montage-internt__trucking", "montage-internt__afmontering"]);
+  });
+});
+
+describe("fastgjorte hurtigvalg", () => {
+  const fast = (id: string, sub: string | null, cat = "montage-internt") => ({ id, categoryId: cat, subcategoryId: sub });
+  const forslag = [
+    { categoryId: "montage-internt", subcategoryId: "montage-internt__trucking", navn: "Trucking", antal: 9 },
+    { categoryId: "montage-internt", subcategoryId: "montage-internt__montering", navn: "Montering", antal: 5 },
+  ];
+  it("fastgjorte først i fastgjort rækkefølge; forslag uden dubletter", () => {
+    const v = vistHurtigvalg([fast("a", "montage-internt__vask-ekstra"), fast("b", "montage-internt__trucking")], forslag);
+    expect(v.fastgjorte.map((h) => [h.navn, h.fastId])).toEqual([["Vask (ekstra)", "a"], ["Trucking", "b"]]);
+    expect(v.forslag.map((h) => h.navn)).toEqual(["Montering"]);
+  });
+  it("fastgjorte forsvinder ikke, selv uden brug (ingen 14-dages-regel)", () => {
+    const v = vistHurtigvalg([fast("a", "uproduktiv-tid__oprydning", "uproduktiv-tid")], []);
+    expect(v.fastgjorte.map((h) => h.navn)).toEqual(["Oprydning"]);
+  });
+  it("udgåede aktiviteter og dubletter vises ikke", () => {
+    const v = vistHurtigvalg([fast("a", "montage-internt__findes-ikke"), fast("b", null, "findes-ikke"), fast("c", "montage-internt__trucking"), fast("d", "montage-internt__trucking")], []);
+    expect(v.fastgjorte.map((h) => h.fastId)).toEqual(["c"]);
+  });
+  it("fastgjortFor finder aktiviteten (null-underpunkt håndteres)", () => {
+    const l = [fast("a", "montage-internt__trucking"), fast("b", null, "andet")];
+    expect(fastgjortFor(l, "montage-internt", "montage-internt__trucking")?.id).toBe("a");
+    expect(fastgjortFor(l, "andet", null)?.id).toBe("b");
+    expect(fastgjortFor(l, "montage-internt", "montage-internt__montering")).toBeNull();
+    expect(aktivitetNavn("andet", null)).toBe("Andet");
+  });
+});
+
+describe("lokal adapter: hurtigvalg følger medarbejderen", () => {
+  it("fastgør, ingen dubletter, fjern, højst 8", async () => {
+    const mem: Record<string, string> = {};
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => mem[k] ?? null,
+      setItem: (k: string, v: string) => { mem[k] = v; },
+      removeItem: (k: string) => { delete mem[k]; },
+    });
+    const { localAdapter } = await import("./storage/localAdapter");
+    await localAdapter.fastgoerHurtigvalg("S", "montage-internt", "montage-internt__trucking");
+    await localAdapter.fastgoerHurtigvalg("S", "montage-internt", "montage-internt__trucking");
+    expect(await localAdapter.getFastgjorteHurtigvalg("S")).toHaveLength(1);
+    expect(await localAdapter.getFastgjorteHurtigvalg("andenperson")).toEqual([]);
+    const [h] = await localAdapter.getFastgjorteHurtigvalg("S");
+    await localAdapter.fjernHurtigvalg(h.id);
+    expect(await localAdapter.getFastgjorteHurtigvalg("S")).toEqual([]);
+    for (let i = 0; i < 8; i++) await localAdapter.fastgoerHurtigvalg("S", "andet", `andet__${i}`);
+    await expect(localAdapter.fastgoerHurtigvalg("S", "andet", "andet__9")).rejects.toThrow(/højst have 8/);
+    vi.unstubAllGlobals();
   });
 });

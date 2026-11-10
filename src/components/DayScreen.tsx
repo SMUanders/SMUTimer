@@ -47,8 +47,9 @@ import SagPicker from "./SagPicker";
 import EnhedPicker from "./EnhedPicker";
 import EnhedsVaelger from "./EnhedsVaelger";
 import { erFordelingsAktivitet, fordelingTekst } from "../lib/fordeling";
-import { hurtigvalg, HURTIGVALG_DAGE } from "../lib/hurtigvalg";
-import type { Hurtigvalg } from "../lib/hurtigvalg";
+import { hurtigvalg, HURTIGVALG_DAGE, HURTIGVALG_MAX_FASTGJORTE, vistHurtigvalg, fastgjortFor } from "../lib/hurtigvalg";
+import type { Hurtigvalg, VistHurtigvalg } from "../lib/hurtigvalg";
+import type { FastHurtigvalg } from "../lib/storage/types";
 
 interface Props {
   employeeId: string;
@@ -141,6 +142,8 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
   });
   // Personlige hurtigvalg (mest brugte aktiviteter de seneste dage) — ét tryk starter dem.
   const [hurtig, setHurtig] = useState<Hurtigvalg[]>([]);
+  // Fastgjorte hurtigvalg (medarbejderens egne; følger profilen via tid_hurtigvalg).
+  const [fastgjorte, setFastgjorte] = useState<FastHurtigvalg[]>([]);
   // Trucking V1: enheder på den aktive opgave (gemmes løbende, mens der arbejdes).
   const [aktiveEnheder, setAktiveEnheder] = useState<FordeltEnhed[]>([]);
   const enhedsGem = useRef<number | null>(null);
@@ -191,6 +194,11 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
       .getEntriesInRange(addDays(today, -HURTIGVALG_DAGE), today)
       .then((rows) => aktiv && setHurtig(hurtigvalg(rows, employeeId)))
       .catch(() => aktiv && setHurtig([]));
+    setFastgjorte([]);
+    store()
+      .getFastgjorteHurtigvalg(employeeId)
+      .then((rows) => aktiv && setFastgjorte(rows))
+      .catch(() => aktiv && setFastgjorte([]));
     return () => {
       aktiv = false;
     };
@@ -311,7 +319,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
 
   // Hurtigvalg (ét tryk): start aktiviteten NU. Er en normal opgave i gang, lukkes den til
   // skiftetidspunktet (samme regel som pause fra en aktiv opgave) — ingen formular.
-  function startHurtigvalg(h: Hurtigvalg) {
+  function startHurtigvalg(h: Pick<Hurtigvalg, "categoryId" | "subcategoryId">) {
     guarded(async () => {
       const n = nu();
       let start = suggestStart(n, n, lastEnd);
@@ -400,6 +408,23 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
       ventendeEnheder.current = null;
       await gemAktiveEnheder(next);
     }
+  }
+
+  // Fastgør/fjern et hurtigvalg fra aktivitetsvælgeren (øjeblikkeligt; ingen bekræftelse).
+  async function toggleFastgjort(categoryId: string, subcategoryId: string | null) {
+    const fast = fastgjortFor(fastgjorte, categoryId, subcategoryId);
+    try {
+      if (fast) {
+        setFastgjorte((l) => l.filter((f) => f.id !== fast.id));
+        await store().fjernHurtigvalg(fast.id);
+      } else {
+        await store().fastgoerHurtigvalg(employeeId, categoryId, subcategoryId);
+      }
+    } catch (e) {
+      const besked = e && typeof e === "object" && "message" in e ? String((e as { message: unknown }).message) : "";
+      setError(besked ? `Kunne ikke gemme hurtigvalget: ${besked}` : "Kunne ikke gemme hurtigvalget. Prøv igen.");
+    }
+    setFastgjorte(await store().getFastgjorteHurtigvalg(employeeId));
   }
 
   function startPauseSubmit(v: Valg = null) {
@@ -1086,6 +1111,11 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
               fordelteEnheder: erFordelingsAktivitet(sub) ? d.fordelteEnheder : [],
             }))
           }
+          hurtigvalg={{
+            fastgjort: !!fastgjortFor(fastgjorte, draft.categoryId, draft.subcategoryId),
+            fuld: fastgjorte.length >= HURTIGVALG_MAX_FASTGJORTE,
+            onToggle: () => void toggleFastgjort(draft.categoryId, draft.subcategoryId),
+          }}
         />
       </div>
       {erFordelingsAktivitet(draft.subcategoryId) && (
@@ -1173,6 +1203,21 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
         ))}
       </select>
     </div>
+  );
+
+  // Hurtigvalg som vist: fastgjorte + forslag uden dubletter.
+  const vist = vistHurtigvalg(fastgjorte, hurtig);
+  const hurtigKnap = (h: VistHurtigvalg, stor: boolean) => (
+    <button
+      key={`${h.categoryId}|${h.subcategoryId}`}
+      className={stor ? "smu-btn-secondary ds-big" : "smu-btn-secondary"}
+      onClick={() => startHurtigvalg(h)}
+      disabled={busy}
+      title={h.fastId ? "Fastgjort hurtigvalg" : "Forslag ud fra dine registreringer de seneste 14 dage"}
+    >
+      {erFordelingsAktivitet(h.subcategoryId) ? <Truck size={stor ? 16 : 15} /> : <Play size={stor ? 16 : 15} />}{" "}
+      {stor ? `Start ${h.navn}` : h.navn}
+    </button>
   );
 
   return (
@@ -1612,24 +1657,22 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
         ) : (
           <>
             <div className="ds-title">Hvad nu?</div>
-            {hurtig.length > 0 && (
-              <div className="ds-hurtig">
-                {hurtig.map((h) => (
-                  <button
-                    key={`${h.categoryId}|${h.subcategoryId}`}
-                    className="smu-btn-primary ds-big"
-                    onClick={() => startHurtigvalg(h)}
-                    disabled={busy}
-                  >
-                    {erFordelingsAktivitet(h.subcategoryId) ? <Truck size={16} /> : <Play size={16} />} Start {h.navn}
-                  </button>
-                ))}
-              </div>
-            )}
             <div className="ds-hvadnu">
               <button className="smu-btn-primary ds-big" onClick={openStartWork} disabled={busy}>
                 <Play size={16} /> Start opgave
               </button>
+              {/* Hurtigvalg lige under "Start opgave": fastgjorte først, derefter forslag (uden dubletter). */}
+              {vist.fastgjorte.length > 0 && (
+                <div className="ds-hurtig" aria-label="Dine hurtigvalg">
+                  {vist.fastgjorte.map((h) => hurtigKnap(h, true))}
+                </div>
+              )}
+              {vist.forslag.length > 0 && (
+                <div className="ds-hurtig ds-forslag" aria-label="Forslag ud fra dine registreringer">
+                  <span className="ds-skift-label">Forslag</span>
+                  {vist.forslag.map((h) => hurtigKnap(h, true))}
+                </div>
+              )}
               <button className="smu-btn-secondary ds-big" onClick={openStartRedoStandalone} disabled={busy}>
                 <RotateCcw size={16} /> Start omgøring
               </button>
@@ -1809,23 +1852,17 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
               <RotateCcw size={15} /> Start omgøring
             </button>
           </div>
-          {hurtig.some((h) => h.categoryId !== task.categoryId || h.subcategoryId !== task.subcategoryId) && (
-            <div className="ds-skift">
-              <span className="ds-skift-label">Skift til</span>
-              {hurtig
-                .filter((h) => h.categoryId !== task.categoryId || h.subcategoryId !== task.subcategoryId)
-                .map((h) => (
-                  <button
-                    key={`${h.categoryId}|${h.subcategoryId}`}
-                    className="smu-btn-secondary"
-                    onClick={() => startHurtigvalg(h)}
-                    disabled={busy}
-                  >
-                    {erFordelingsAktivitet(h.subcategoryId) ? <Truck size={15} /> : <Play size={15} />} {h.navn}
-                  </button>
-                ))}
-            </div>
-          )}
+          {(() => {
+            const skift = [...vist.fastgjorte, ...vist.forslag].filter(
+              (h) => h.categoryId !== task.categoryId || h.subcategoryId !== task.subcategoryId
+            );
+            return skift.length > 0 ? (
+              <div className="ds-skift">
+                <span className="ds-skift-label">Skift til</span>
+                {skift.map((h) => hurtigKnap(h, false))}
+              </div>
+            ) : null;
+          })()}
           <div className="ds-secondary">
             <button className="smu-btn-ghost" onClick={openEditWork} disabled={busy}>
               <Pencil size={14} /> Ret aktiv opgave

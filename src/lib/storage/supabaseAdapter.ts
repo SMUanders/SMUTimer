@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TimeEntry, CurrentTask, Absence, FordeltEnhed } from "../../types";
-import type { TimeEntryStore, SagRef, SagEnhed, PladsEnhed } from "./types";
+import type { TimeEntryStore, SagRef, SagEnhed, PladsEnhed, FastHurtigvalg } from "./types";
 
 const TASKS_TABLE = "tid_current_tasks";
 
@@ -547,6 +547,37 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
     // ---- Trucking V1 — enheder på pladsen (Pladsliste-ejet læsekontrakt) ----
     // public.pladsliste_tid_enheder_paa_pladsen(null) = alle OS-enheder med et aktivt ophold.
     // Håndhæver har_app_adgang('tid'); kun identitetsfelter. Fejler blødt (tom liste).
+    // ---- Personlige hurtigvalg (tid_hurtigvalg; RLS: kun egne rækker) ----
+    async getFastgjorteHurtigvalg(employeeId) {
+      try {
+        const { data, error } = await client
+          .from("tid_hurtigvalg")
+          .select("id, category_id, subcategory_id")
+          .eq("employee_id", employeeId)
+          .eq("slettet", false)
+          .order("created_at", { ascending: true });
+        if (error || !data) return [];
+        return (data as { id: string; category_id: string; subcategory_id: string | null }[]).map(
+          (r): FastHurtigvalg => ({ id: r.id, categoryId: r.category_id, subcategoryId: r.subcategory_id })
+        );
+      } catch {
+        return [];
+      }
+    },
+
+    async fastgoerHurtigvalg(employeeId, categoryId, subcategoryId) {
+      const { error } = await client
+        .from("tid_hurtigvalg")
+        .insert({ employee_id: employeeId, category_id: categoryId, subcategory_id: subcategoryId });
+      // 23505 = allerede fastgjort (fx fra en anden enhed) — ønsket tilstand er nået.
+      if (error && error.code !== "23505") throw error;
+    },
+
+    async fjernHurtigvalg(id) {
+      const { error } = await client.from("tid_hurtigvalg").update({ slettet: true }).eq("id", id);
+      if (error) throw error;
+    },
+
     async getEnhederPaaPladsen() {
       try {
         const { data, error } = await client.rpc("pladsliste_tid_enheder_paa_pladsen", { p_q: null });

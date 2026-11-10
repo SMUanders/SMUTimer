@@ -1,5 +1,5 @@
 import type { TimeEntry, CurrentTask, Absence } from "../../types";
-import type { TimeEntryStore, PladsEnhed } from "./types";
+import type { TimeEntryStore, PladsEnhed, FastHurtigvalg } from "./types";
 import { erFordelingsAktivitet } from "../fordeling";
 import { nowIso, newId } from "./types";
 
@@ -275,7 +275,35 @@ export const localAdapter: TimeEntryStore = {
   async getEnhederPaaPladsen() {
     return DEMO_PLADS;
   },
+
+  // Lokal dev: hurtigvalg i localStorage (samme regler som tid_hurtigvalg: ingen dubletter, højst 8).
+  async getFastgjorteHurtigvalg(employeeId) {
+    return loadHurtigvalg()[employeeId] ?? [];
+  },
+  async fastgoerHurtigvalg(employeeId, categoryId, subcategoryId) {
+    const alle = loadHurtigvalg();
+    const mine = alle[employeeId] ?? [];
+    if (mine.some((h) => h.categoryId === categoryId && h.subcategoryId === subcategoryId)) return;
+    if (mine.length >= 8) throw new Error("Du kan højst have 8 hurtigvalg — fjern et først");
+    alle[employeeId] = [...mine, { id: newId(), categoryId, subcategoryId }];
+    localStorage.setItem(HURTIGVALG_KEY, JSON.stringify(alle));
+  },
+  async fjernHurtigvalg(id) {
+    const alle = loadHurtigvalg();
+    for (const k of Object.keys(alle)) alle[k] = alle[k].filter((h) => h.id !== id);
+    localStorage.setItem(HURTIGVALG_KEY, JSON.stringify(alle));
+  },
 };
+
+const HURTIGVALG_KEY = "smu-tid.hurtigvalg.v1";
+function loadHurtigvalg(): Record<string, FastHurtigvalg[]> {
+  try {
+    const raw = localStorage.getItem(HURTIGVALG_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, FastHurtigvalg[]>) : {};
+  } catch {
+    return {};
+  }
+}
 
 function demo(n: number, sag: string, smu: string, titel: string, loeb: number, besk: string | null, reg: string | null, stel: string | null = null): PladsEnhed {
   return {
