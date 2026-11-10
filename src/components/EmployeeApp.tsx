@@ -275,6 +275,10 @@ export default function EmployeeApp() {
           </div>
         </div>
         <div className="header-actions">
+          {/* Kort manual (tekst, ikke ikon — som i SMU Pladsliste) */}
+          <a className="smu-btn-ghost hj-link" href="/hjaelp">
+            Hjælp
+          </a>
           {/* Diskret skift til Hub og brugerens oevrige SMU-apps */}
           {getSupabaseClient() && (
             <AppSwitcher supabase={getSupabaseClient()!} currentAppKey="tid" />

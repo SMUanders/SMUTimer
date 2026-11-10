@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { hurtigvalg, vistHurtigvalg, fastgjortFor, aktivitetNavn } from "./hurtigvalg";
+import { hurtigvalg, vistHurtigvalg, fastgjortFor, aktivitetNavn, starterDirekte } from "./hurtigvalg";
 import type { TimeEntry } from "../types";
 
 let n = 0;
@@ -116,5 +116,18 @@ describe("lokal adapter: hurtigvalg følger medarbejderen", () => {
     for (let i = 0; i < 8; i++) await localAdapter.fastgoerHurtigvalg("S", "andet", `andet__${i}`);
     await expect(localAdapter.fastgoerHurtigvalg("S", "andet", "andet__9")).rejects.toThrow(/højst have 8/);
     vi.unstubAllGlobals();
+  });
+});
+
+describe("hurtigvalg: ét tryk eller vælg sag", () => {
+  it("Trucking, Uproduktiv tid og Pause starter med ét tryk", () => {
+    expect(starterDirekte("montage-internt", "montage-internt__trucking")).toBe(true);
+    expect(starterDirekte("uproduktiv-tid", "uproduktiv-tid__oprydning")).toBe(true);
+    expect(starterDirekte("pause", "pause__frokost")).toBe(true);
+  });
+  it("aktiviteter med sag åbner Start opgave (fx Ny tegning, Montering)", () => {
+    expect(starterDirekte("tegnestue-grafik", "tegnestue-grafik__ny-tegning")).toBe(false);
+    expect(starterDirekte("montage-internt", "montage-internt__montering")).toBe(false);
+    expect(starterDirekte("print-og-skaer", "print-og-skaer__print")).toBe(false);
   });
 });

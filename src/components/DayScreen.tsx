@@ -47,7 +47,7 @@ import SagPicker from "./SagPicker";
 import EnhedPicker from "./EnhedPicker";
 import EnhedsVaelger from "./EnhedsVaelger";
 import { erFordelingsAktivitet, fordelingTekst } from "../lib/fordeling";
-import { hurtigvalg, HURTIGVALG_DAGE, HURTIGVALG_MAX_FASTGJORTE, vistHurtigvalg, fastgjortFor } from "../lib/hurtigvalg";
+import { hurtigvalg, HURTIGVALG_DAGE, HURTIGVALG_MAX_FASTGJORTE, vistHurtigvalg, fastgjortFor, starterDirekte } from "../lib/hurtigvalg";
 import type { Hurtigvalg, VistHurtigvalg } from "../lib/hurtigvalg";
 import type { FastHurtigvalg } from "../lib/storage/types";
 
@@ -289,37 +289,13 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
   const UloestKonflikt = "Vælg først, hvordan konflikten med den tidligere registrering skal løses.";
 
   function startWorkSubmit() {
-    guarded(async () => {
-      const n = nu();
-      await store().setCurrentTask({
-        employeeId,
-        categoryId: draft.categoryId,
-        subcategoryId: draft.subcategoryId,
-        orderNumber: draft.orderNumber.trim() || null,
-        sagId: draft.sagId,
-        sagSmuNummer: draft.sagSmuNummer,
-        enhedId: draft.enhedId,
-        enhedVisning: draft.enhedVisning,
-        fordelteEnheder: draft.fordelteEnheder,
-        note: draft.note.trim() || null,
-        updatedAt: nowIso(),
-        updatedBy: null,
-      });
-      // Start = nu rundet ned til 5 min, men aldrig før seneste registrerede sluttid — også når
-      // den ligger efter nu (løsning A). Kortet viser præcis denne.
-      setTaskStart(employeeId, hhmmToIsoToday(suggestStart(n, n, lastEnd)));
-      setDayEnded(employeeId, today, false);
-      clearHelp(employeeId); // en ny/ genoptaget normal opgave er ikke en hjælp-session
-      clearRedo(employeeId); // …og ikke en omgøring
-      setFormMode(null);
-      await refresh();
-      onChanged();
-    });
+    startNyOpgave(draft);
   }
 
-  // Hurtigvalg (ét tryk): start aktiviteten NU. Er en normal opgave i gang, lukkes den til
-  // skiftetidspunktet (samme regel som pause fra en aktiv opgave) — ingen formular.
-  function startHurtigvalg(h: Pick<Hurtigvalg, "categoryId" | "subcategoryId">) {
+  // Start en opgave NU (fra "Start opgave" eller et hurtigvalg). Er en normal opgave i gang (skift),
+  // lukkes den til skiftetidspunktet (samme regel som pause fra en aktiv opgave). Ellers starter den
+  // nye ved nu rundet ned til 5 min, aldrig før seneste registrerede sluttid (løsning A).
+  function startNyOpgave(ny: WorkDraft) {
     guarded(async () => {
       const n = nu();
       let start = suggestStart(n, n, lastEnd);
@@ -353,15 +329,15 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
       }
       await store().setCurrentTask({
         employeeId,
-        categoryId: h.categoryId,
-        subcategoryId: h.subcategoryId,
-        orderNumber: null,
-        sagId: null,
-        sagSmuNummer: null,
-        enhedId: null,
-        enhedVisning: null,
-        fordelteEnheder: [],
-        note: null,
+        categoryId: ny.categoryId,
+        subcategoryId: ny.subcategoryId,
+        orderNumber: ny.orderNumber.trim() || null,
+        sagId: ny.sagId,
+        sagSmuNummer: ny.sagSmuNummer,
+        enhedId: ny.enhedId,
+        enhedVisning: ny.enhedVisning,
+        fordelteEnheder: erFordelingsAktivitet(ny.subcategoryId) ? ny.fordelteEnheder : [],
+        note: ny.note.trim() || null,
         updatedAt: nowIso(),
         updatedBy: null,
       });
@@ -373,6 +349,19 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
       await refresh();
       onChanged();
     });
+  }
+
+  // Hurtigvalg (Anders 10. nov. 2026): aktiviteter uden sag (Trucking — enheder i stedet —, Uproduktiv tid,
+  // Pause) starter med ét tryk. Øvrige åbner "Start opgave" med aktiviteten valgt, så sagen kan vælges; uret
+  // starter først ved "Start opgave" (og en aktiv opgave lukkes først dér).
+  function vaelgHurtigvalg(h: Pick<Hurtigvalg, "categoryId" | "subcategoryId">) {
+    if (starterDirekte(h.categoryId, h.subcategoryId)) {
+      startNyOpgave({ ...emptyDraft(), categoryId: h.categoryId, subcategoryId: h.subcategoryId });
+      return;
+    }
+    setError(null);
+    setDraft({ ...emptyDraft(), categoryId: h.categoryId, subcategoryId: h.subcategoryId });
+    setFormMode("startWork");
   }
 
   // Trucking V1: enheder vælges undervejs og gemmes på den aktive opgave (kort forsinkelse, så
@@ -1211,7 +1200,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
     <button
       key={`${h.categoryId}|${h.subcategoryId}`}
       className={stor ? "smu-btn-secondary ds-big" : "smu-btn-secondary"}
-      onClick={() => startHurtigvalg(h)}
+      onClick={() => vaelgHurtigvalg(h)}
       disabled={busy}
       title={h.fastId ? "Fastgjort hurtigvalg" : "Forslag ud fra dine registreringer de seneste 14 dage"}
     >
@@ -1227,7 +1216,10 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
       {/* ---------- FORMER ---------- */}
       {formMode === "startWork" ? (
         <>
-          <div className="ds-title">Start opgave</div>
+          <div className="ds-title">{task && !isPause ? "Skift opgave" : "Start opgave"}</div>
+          {task && !isPause && (
+            <div className="ds-help">Din nuværende opgave afsluttes, når du trykker Start opgave.</div>
+          )}
           {workFields}
           <div className="ds-actions">
             <button className="smu-btn-primary ds-primary" onClick={startWorkSubmit} disabled={busy}>

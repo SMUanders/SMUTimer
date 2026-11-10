@@ -8,6 +8,7 @@
 import type { TimeEntry } from "../types";
 import { getCategory, getSubcategory, isBreakCategory } from "../data/categories";
 import { isHelpNote } from "./helpContext";
+import { erFordelingsAktivitet } from "./fordeling";
 import type { FastHurtigvalg } from "./storage/types";
 
 export interface Hurtigvalg {
@@ -105,4 +106,12 @@ export function vistHurtigvalg(fastgjorte: FastHurtigvalg[], forslag: Hurtigvalg
 /** Det fastgjorte hurtigvalg for en aktivitet, hvis den er fastgjort. */
 export function fastgjortFor(fastgjorte: FastHurtigvalg[], categoryId: string, subcategoryId: string | null): FastHurtigvalg | null {
   return fastgjorte.find((f) => f.categoryId === categoryId && (f.subcategoryId ?? null) === (subcategoryId ?? null)) ?? null;
+}
+
+/**
+ * Starter hurtigvalget med ét tryk? Kun aktiviteter, der ikke registreres på en sag: Trucking (enheder i stedet),
+ * Uproduktiv tid og Pause. Alle andre åbner "Start opgave" med aktiviteten valgt, så sagen kan vælges (Anders 10. nov. 2026).
+ */
+export function starterDirekte(categoryId: string, subcategoryId: string | null): boolean {
+  return erFordelingsAktivitet(subcategoryId) || categoryId === "uproduktiv-tid" || isBreakCategory(categoryId);
 }
