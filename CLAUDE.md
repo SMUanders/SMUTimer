@@ -87,7 +87,7 @@ ligne SMU":
 - Lederrettelse = atomisk erstatning via `tid_erstat_registrering` (SECURITY INVOKER, hub-migration
   `20261022180000`): originalen blødt slettet + erstatning indsat i én transaktion — eller intet.
 - Valgt dato bevares i adressen (`?dato=`) i Min dag og leder-visningen.
-- **Trucking V1 (v2.4.0, TR-108 — teknisk klar, ikke LIVE):** Trucking (`montage-internt__trucking`) kan fordeles på flere
+- **Trucking V1 (v2.4.0, TR-108 — LIVE 10. nov. 2026, ikke valideret i brug):** Trucking (`montage-internt__trucking`) kan fordeles på flere
   enheder: `fordelte_enheder jsonb` på `tid_time_entries`/`tid_current_tasks` (`[{enhed_id, sag_id, sag_smu_nummer, visning}]`,
   snapshot; kun ved Trucking; aldrig sammen med `enhed_id`; trigger `tid_valider_fordelte_enheder`). Fordelingen gemmes ikke — den
   afledes: floor(T/n), de første T mod n enheder +1 (`src/lib/fordeling.ts` = databasens `tid_fordel_enheder`); arbejdstiden er ÉN
