@@ -8,6 +8,8 @@ import CategoryPicker from "./CategoryPicker";
 import TimeSelect from "./TimeSelect";
 import EnhedPicker from "./EnhedPicker";
 import SagPicker from "./SagPicker";
+import EnhedsVaelger from "./EnhedsVaelger";
+import { erFordelingsAktivitet, fordelingTekst } from "../lib/fordeling";
 
 interface Props {
   mode: "new" | "edit";
@@ -26,13 +28,15 @@ interface Props {
   onSave: (draft: EntryDraft, setAsCurrent: boolean) => void;
   onClose: () => void;
   /**
-   * Medarbejderen retter sin egen registrering: kun start, slut, aktivitet og note kan
-   * ændres (sag, enhed og omgøring vises som tekst). Ingen automatisk frokost-opdeling.
+   * Medarbejderen retter sin egen registrering: kun start, slut, aktivitet, note og — ved
+   * Trucking — enheder kan ændres (sag, enhed og omgøring vises som tekst). Ingen automatisk
+   * frokost-opdeling.
    */
   medarbejder?: boolean;
 }
 
 const emptyDraft = (): EntryDraft => ({
+  fordelteEnheder: [],
   startTime: "07:30",
   endTime: "08:00",
   categoryId: CATEGORIES[0].id,
@@ -69,6 +73,9 @@ export default function EntryEditor({
 
   const v = validateEntry(draft.startTime, draft.endTime, draft.categoryId, existing);
   const canSave = v.errors.length === 0;
+  const trucking = erFordelingsAktivitet(draft.subcategoryId);
+  const varighed =
+    isValidTime(draft.startTime) && isValidTime(draft.endTime) ? toMinutes(draft.endTime) - toMinutes(draft.startTime) : 0;
 
   // Rammer registreringen den FORESLÅEDE frokost? (håndteres automatisk ved gem)
   const lunch = getLunchWindow(workDate);
@@ -141,16 +148,40 @@ export default function EntryEditor({
               categoryId={draft.categoryId}
               subcategoryId={draft.subcategoryId}
               onChange={(cat, sub) =>
-                setDraft((d) => ({ ...d, categoryId: cat, subcategoryId: sub }))
+                setDraft((d) => ({
+                  ...d,
+                  categoryId: cat,
+                  subcategoryId: sub,
+                  // Enheder hører kun til Trucking (databasen afviser andet).
+                  fordelteEnheder: erFordelingsAktivitet(sub) ? d.fordelteEnheder : [],
+                }))
               }
             />
           </div>
 
-          {medarbejder && (draft.sagSmuNummer || draft.customer || draft.enhedVisning || draft.isRedo) && (
+          {/* Trucking V1: flere enheder fra pladsen; tiden fordeles automatisk (ingen tid pr. enhed). */}
+          {trucking && (
+            <>
+              <EnhedsVaelger
+                valgte={draft.fordelteEnheder}
+                minutter={varighed > 0 ? varighed : null}
+                onChange={(next) =>
+                  setDraft((d) => ({ ...d, fordelteEnheder: next, ...(next.length ? { enhedId: null, enhedVisning: null } : {}) }))
+                }
+              />
+              {varighed > 0 && draft.fordelteEnheder.length > 0 && (
+                <div className="ev-fordeling">
+                  {varighed} min i alt · {fordelingTekst(varighed, draft.fordelteEnheder)}
+                </div>
+              )}
+            </>
+          )}
+
+          {medarbejder && (draft.sagSmuNummer || draft.customer || (draft.enhedVisning && !draft.fordelteEnheder.length) || draft.isRedo) && (
             <div className="ds-field-hint" style={{ marginBottom: 10 }}>
               {[
                 draft.sagSmuNummer || draft.customer,
-                draft.enhedVisning,
+                draft.fordelteEnheder.length ? null : draft.enhedVisning,
                 draft.isRedo ? `Omgøring: ${getRedoReason(draft.redoReason)?.name ?? "årsag ukendt"}` : null,
               ]
                 .filter(Boolean)
@@ -161,7 +192,7 @@ export default function EntryEditor({
           {/* Ordre / SMU-sag: samme sagsvælger som medarbejderens flow (OS-ejet tid_sag_search).
               Valgt sag giver rigtig sag_id (tæller i Sag-overblik og OS' tidsforbrug); fri tekst
               (fx ordrenummer) er stadig muligt. Skift af sag nulstiller enheden. */}
-          {!medarbejder && (
+          {!medarbejder && (!trucking || draft.sagId || draft.customer) && (
             <div className="field">
               <SagPicker
                 label="Ordre / SMU-sag"
@@ -182,7 +213,7 @@ export default function EntryEditor({
           )}
 
           {/* Enhed (TR-088): kun når registreringen er knyttet til en SMU-sag. */}
-          {!medarbejder && (
+          {!medarbejder && draft.fordelteEnheder.length === 0 && (
           <EnhedPicker
             sagId={draft.sagId}
             categoryId={draft.categoryId}

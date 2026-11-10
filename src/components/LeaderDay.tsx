@@ -31,6 +31,7 @@ import DaySummary from "./DaySummary";
 import DayTimeline from "./DayTimeline";
 import EntryEditor, { emptyDraft } from "./EntryEditor";
 import LunchSplitDialog from "./LunchSplitDialog";
+import { erFordelingsAktivitet, enhedsResume } from "../lib/fordeling";
 import AbsenceEditor, { absenceDraftFrom } from "./AbsenceEditor";
 import type { AbsenceDraft } from "../lib/absence";
 import { isoToHHMM } from "../lib/currentTaskStart";
@@ -49,6 +50,7 @@ import { appProductVersion } from "../lib/version";
 
 function draftFromEntry(e: TimeEntry): EntryDraft {
   return {
+    fordelteEnheder: e.fordelteEnheder,
     startTime: e.startTime,
     endTime: e.endTime,
     categoryId: e.categoryId,
@@ -201,6 +203,7 @@ export default function LeaderDay() {
         customer: draft.customer.trim(),
         enhedId: draft.enhedId,
         enhedVisning: draft.enhedVisning,
+        fordelteEnheder: erFordelingsAktivitet(draft.subcategoryId) ? draft.fordelteEnheder : [],
         note: draft.note.trim(),
         isRedo: draft.isRedo,
         redoReason: draft.isRedo ? draft.redoReason : null,
@@ -385,6 +388,7 @@ export default function LeaderDay() {
         sagSmuNummer: task.sagSmuNummer,
         enhedId: task.enhedId,
         enhedVisning: task.enhedVisning,
+        fordelteEnheder: erFordelingsAktivitet(task.subcategoryId) ? task.fordelteEnheder ?? [] : [],
         note: task.note ?? "",
       },
       hint: "Bekræft eller ret start og slut. Intet gemmes før du trykker Gem — herefter fjernes den aktive opgave.",
@@ -496,6 +500,9 @@ export default function LeaderDay() {
             )}
             {currentTask.orderNumber && <span className="ct-order"> · {currentTask.orderNumber}</span>}
           </div>
+          {currentTask.fordelteEnheder?.length > 0 && (
+            <div className="ct-note">Enheder: {enhedsResume(currentTask.fordelteEnheder)}</div>
+          )}
           {currentTask.note && <div className="ct-note">{currentTask.note}</div>}
           {activeTaskStart && <div className="ct-started">Startet ca. {activeTaskStart}</div>}
           {canCorrect && (

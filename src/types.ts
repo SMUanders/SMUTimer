@@ -15,6 +15,18 @@ export interface Category {
   subcategories: Subcategory[];
 }
 
+/**
+ * Trucking V1: en enhed, som registreringens tid fordeles på (flere enheder pr. registrering).
+ * Snapshot af identiteten, så historikken kan læses, selvom enheden senere forlader pladsen.
+ */
+export interface FordeltEnhed {
+  enhedId: string;
+  sagId: string | null;
+  sagSmuNummer: string | null;
+  /** Visning som i enhedsvælgeren, fx "#3 · Schmitz trailer · AB12345 · …00999999". */
+  visning: string;
+}
+
 export interface TimeEntry {
   id: string;
   /** Hvilken medarbejder registreringen tilhører. */
@@ -39,6 +51,8 @@ export interface TimeEntry {
   enhedId: string | null;
   /** Display-snapshot af enheden ("#3 · beskrivelse · reg.nr"). */
   enhedVisning: string | null;
+  /** Trucking V1: enheder, som tiden fordeles på (tom = ingen fordeling). */
+  fordelteEnheder: FordeltEnhed[];
   /** Fri tekst, kan være lang. */
   note: string;
   /** true for auto-oprettede frokostlinjer (Pause). */
@@ -74,6 +88,8 @@ export interface CurrentTask {
   enhedId: string | null;
   /** Display-snapshot af enheden ("#3 · beskrivelse · reg.nr"). */
   enhedVisning: string | null;
+  /** Trucking V1: enheder valgt undervejs (tom = ingen). */
+  fordelteEnheder: FordeltEnhed[];
   note: string | null;
   updatedAt: string;
   updatedBy: string | null;
@@ -110,6 +126,8 @@ export interface Absence {
 
 /** Data brugeren indtaster i editoren (før split/udregning). */
 export interface EntryDraft {
+  /** Trucking V1: enheder, som tiden fordeles på (tom = ingen). */
+  fordelteEnheder: FordeltEnhed[];
   startTime: string;
   endTime: string;
   categoryId: string;

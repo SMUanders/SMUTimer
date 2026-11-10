@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Play, Coffee, CheckCircle2, Pencil, Clock, Square, RotateCcw, Users, UserMinus } from "lucide-react";
+import { Play, Coffee, CheckCircle2, Pencil, Clock, Square, RotateCcw, Users, UserMinus, Truck } from "lucide-react";
 import {
   CATEGORIES,
   getCategory,
@@ -13,7 +13,7 @@ import {
 import { store, newId, nowIso } from "../lib/storage";
 import { getTaskStart, setTaskStart, clearTaskStart, isoToHHMM } from "../lib/currentTaskStart";
 import { formatDuration, toMinutes } from "../lib/time";
-import { todayIso } from "../lib/dates";
+import { todayIso, addDays } from "../lib/dates";
 import { isDayEnded, setDayEnded } from "../lib/dayEnded";
 import { getHelp, setHelp, clearHelp, helpNote } from "../lib/helpContext";
 import type { OwnTask } from "../lib/helpContext";
@@ -40,11 +40,15 @@ import {
   konfliktVed,
 } from "../lib/segment";
 import type { Konflikt } from "../lib/segment";
-import type { CurrentTask, TimeEntry, Absence } from "../types";
+import type { CurrentTask, TimeEntry, Absence, FordeltEnhed } from "../types";
 import CategoryPicker from "./CategoryPicker";
 import TimeSelect from "./TimeSelect";
 import SagPicker from "./SagPicker";
 import EnhedPicker from "./EnhedPicker";
+import EnhedsVaelger from "./EnhedsVaelger";
+import { erFordelingsAktivitet, fordelingTekst } from "../lib/fordeling";
+import { hurtigvalg, HURTIGVALG_DAGE } from "../lib/hurtigvalg";
+import type { Hurtigvalg } from "../lib/hurtigvalg";
 
 interface Props {
   employeeId: string;
@@ -65,6 +69,8 @@ interface WorkDraft {
   enhedId: string | null;
   /** Display-snapshot af enheden ("#3 · beskrivelse · reg.nr"). */
   enhedVisning: string | null;
+  /** Trucking V1: enheder, som tiden fordeles på. */
+  fordelteEnheder: FordeltEnhed[];
   note: string;
 }
 
@@ -92,6 +98,7 @@ function emptyDraft(): WorkDraft {
     sagSmuNummer: null,
     enhedId: null,
     enhedVisning: null,
+    fordelteEnheder: [],
     note: "",
   };
 }
@@ -104,6 +111,7 @@ function draftFromTask(t: CurrentTask): WorkDraft {
     sagSmuNummer: t.sagSmuNummer ?? null,
     enhedId: t.enhedId ?? null,
     enhedVisning: t.enhedVisning ?? null,
+    fordelteEnheder: t.fordelteEnheder ?? [],
     note: t.note ?? "",
   };
 }
@@ -118,12 +126,27 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
   const [draft, setDraft] = useState<WorkDraft>(emptyDraft());
   const [pauseType, setPauseType] = useState<string>(LUNCH_SUBCATEGORY_ID);
   const [pauseStart, setPauseStart] = useState<string>("12:00");
-  const [finish, setFinish] = useState<{ startTime: string; endTime: string; note: string; pauseType: string }>({
+  const [finish, setFinish] = useState<{
+    startTime: string;
+    endTime: string;
+    note: string;
+    pauseType: string;
+    fordelteEnheder: FordeltEnhed[];
+  }>({
     startTime: "07:30",
     endTime: "08:00",
     note: "",
     pauseType: LUNCH_SUBCATEGORY_ID,
+    fordelteEnheder: [],
   });
+  // Personlige hurtigvalg (mest brugte aktiviteter de seneste dage) — ét tryk starter dem.
+  const [hurtig, setHurtig] = useState<Hurtigvalg[]>([]);
+  // Trucking V1: enheder på den aktive opgave (gemmes løbende, mens der arbejdes).
+  const [aktiveEnheder, setAktiveEnheder] = useState<FordeltEnhed[]>([]);
+  const enhedsGem = useRef<number | null>(null);
+  // Den aktuelle opgave, som et forsinket enhedsgem må skrive til (aldrig en forældet kopi).
+  const taskRef = useRef<CurrentTask | null>(null);
+  const ventendeEnheder = useRef<FordeltEnhed[] | null>(null);
   const [tick, setTick] = useState(0);
   // "Hjælp på anden opgave": den EGNE opgave der kan genoptages bagefter.
   const [helpOwn, setHelpOwn] = useState<OwnTask | null>(null);
@@ -148,7 +171,10 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
   const today = todayIso();
 
   async function refresh() {
-    setTask(await store().getCurrentTask(employeeId));
+    const t = await store().getCurrentTask(employeeId);
+    taskRef.current = t;
+    setTask(t);
+    if (!enhedsGem.current) setAktiveEnheder(t?.fordelteEnheder ?? []);
     setStartedAt(getTaskStart(employeeId));
     setDayEndedState(isDayEnded(employeeId, today));
     setHelpOwn(getHelp(employeeId));
@@ -159,6 +185,15 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
   useEffect(() => {
     setFormMode(null);
     refresh();
+    // Hurtigvalg: egne registreringer de seneste dage (kun aktivitet — aldrig sag/enhed).
+    let aktiv = true;
+    store()
+      .getEntriesInRange(addDays(today, -HURTIGVALG_DAGE), today)
+      .then((rows) => aktiv && setHurtig(hurtigvalg(rows, employeeId)))
+      .catch(() => aktiv && setHurtig([]));
+    return () => {
+      aktiv = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employeeId]);
 
@@ -208,6 +243,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
     setBusy(true);
     setError(null);
     try {
+      await flushAktiveEnheder(); // en ventende enhedsændring gemmes, før opgaven skifter/afsluttes
       await run();
     } catch (e) {
       // Databasefunktionerne giver danske, forståelige fejl (fx "Registreringen er ændret i
@@ -256,6 +292,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
         sagSmuNummer: draft.sagSmuNummer,
         enhedId: draft.enhedId,
         enhedVisning: draft.enhedVisning,
+        fordelteEnheder: draft.fordelteEnheder,
         note: draft.note.trim() || null,
         updatedAt: nowIso(),
         updatedBy: null,
@@ -270,6 +307,99 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
       await refresh();
       onChanged();
     });
+  }
+
+  // Hurtigvalg (ét tryk): start aktiviteten NU. Er en normal opgave i gang, lukkes den til
+  // skiftetidspunktet (samme regel som pause fra en aktiv opgave) — ingen formular.
+  function startHurtigvalg(h: Hurtigvalg) {
+    guarded(async () => {
+      const n = nu();
+      let start = suggestStart(n, n, lastEnd);
+      if (task && !isBreakCategory(task.categoryId)) {
+        const egen = egenStart(task);
+        const at = suggestSwitchAt(egen, n);
+        const own = ownCloseUntil(egen, at);
+        if (own) {
+          const luk = buildEntry({
+            employeeId,
+            workDate: today,
+            startTime: own.startTime,
+            endTime: own.endTime,
+            categoryId: task.categoryId,
+            subcategoryId: task.subcategoryId,
+            orderNumber: task.orderNumber ?? "",
+            sagId: task.sagId,
+            sagSmuNummer: task.sagSmuNummer,
+            enhedId: task.enhedId,
+            enhedVisning: task.enhedVisning,
+            fordelteEnheder: erFordelingsAktivitet(task.subcategoryId) ? aktiveEnheder : [],
+            note: task.note ?? "",
+            newId,
+            nowIso: nowIso(),
+          });
+          if (!isExactDuplicate(luk, entries)) await store().addEntries([luk]);
+          start = at;
+        } else {
+          start = egen; // opgaven nåede ikke at få tid — den nye starter, hvor den ville have startet
+        }
+      }
+      await store().setCurrentTask({
+        employeeId,
+        categoryId: h.categoryId,
+        subcategoryId: h.subcategoryId,
+        orderNumber: null,
+        sagId: null,
+        sagSmuNummer: null,
+        enhedId: null,
+        enhedVisning: null,
+        fordelteEnheder: [],
+        note: null,
+        updatedAt: nowIso(),
+        updatedBy: null,
+      });
+      setTaskStart(employeeId, hhmmToIsoToday(start));
+      setDayEnded(employeeId, today, false);
+      clearHelp(employeeId);
+      clearRedo(employeeId);
+      setFormMode(null);
+      await refresh();
+      onChanged();
+    });
+  }
+
+  // Trucking V1: enheder vælges undervejs og gemmes på den aktive opgave (kort forsinkelse, så
+  // flere hurtige tryk bliver ét gem). Ingen formular, ingen bekræftelse.
+  async function gemAktiveEnheder(next: FordeltEnhed[]) {
+    const t = taskRef.current;
+    if (!t || !erFordelingsAktivitet(t.subcategoryId)) return;
+    try {
+      const ny = { ...t, fordelteEnheder: next, enhedId: next.length ? null : t.enhedId, enhedVisning: next.length ? null : t.enhedVisning };
+      await store().setCurrentTask(ny);
+      taskRef.current = ny;
+    } catch (e) {
+      const besked = e && typeof e === "object" && "message" in e ? String((e as { message: unknown }).message) : "";
+      setError(besked ? `Kunne ikke gemme enhederne: ${besked}` : "Kunne ikke gemme enhederne. Prøv igen.");
+    }
+  }
+  function aendrAktiveEnheder(next: FordeltEnhed[]) {
+    setAktiveEnheder(next);
+    ventendeEnheder.current = next;
+    if (enhedsGem.current) window.clearTimeout(enhedsGem.current);
+    enhedsGem.current = window.setTimeout(() => {
+      enhedsGem.current = null;
+      ventendeEnheder.current = null;
+      gemAktiveEnheder(next);
+    }, 600);
+  }
+  /** Gem en ventende enhedsændring med det samme (fx før skift eller afslutning). */
+  async function flushAktiveEnheder() {
+    if (enhedsGem.current && ventendeEnheder.current) {
+      window.clearTimeout(enhedsGem.current);
+      enhedsGem.current = null;
+      const next = ventendeEnheder.current;
+      ventendeEnheder.current = null;
+      await gemAktiveEnheder(next);
+    }
   }
 
   function startPauseSubmit(v: Valg = null) {
@@ -300,6 +430,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
             sagSmuNummer: resume.sagSmuNummer,
             enhedId: resume.enhedId,
             enhedVisning: resume.enhedVisning,
+            fordelteEnheder: erFordelingsAktivitet(resume.subcategoryId) ? aktiveEnheder : [],
             note: resume.note ?? "",
             newId,
             nowIso: nowIso(),
@@ -317,6 +448,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
           sagSmuNummer: resume.sagSmuNummer,
           enhedId: resume.enhedId,
           enhedVisning: resume.enhedVisning,
+          fordelteEnheder: erFordelingsAktivitet(resume.subcategoryId) ? aktiveEnheder : [],
           note: resume.note ?? "",
         });
       } else {
@@ -331,6 +463,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
         sagSmuNummer: null,
         enhedId: null,
         enhedVisning: null,
+        fordelteEnheder: [],
         note: null,
         updatedAt: nowIso(),
         updatedBy: null,
@@ -357,6 +490,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
         sagSmuNummer: draft.sagSmuNummer,
         enhedId: draft.enhedId,
         enhedVisning: draft.enhedVisning,
+        fordelteEnheder: draft.fordelteEnheder,
         note: draft.note.trim() || null,
         updatedAt: nowIso(),
         updatedBy: null,
@@ -381,8 +515,9 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
         orderNumber: task.orderNumber ?? "",
         sagId: task.sagId,
         sagSmuNummer: task.sagSmuNummer,
-        enhedId: task.enhedId,
-        enhedVisning: task.enhedVisning,
+        enhedId: finish.fordelteEnheder.length ? null : task.enhedId,
+        enhedVisning: finish.fordelteEnheder.length ? null : task.enhedVisning,
+        fordelteEnheder: erFordelingsAktivitet(task.subcategoryId) ? finish.fordelteEnheder : [],
         note: finish.note,
         newId,
         nowIso: nowIso(),
@@ -432,6 +567,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
           sagSmuNummer: pauseOwn.sagSmuNummer ?? null,
           enhedId: pauseOwn.enhedId ?? null,
           enhedVisning: pauseOwn.enhedVisning ?? null,
+          fordelteEnheder: pauseOwn.fordelteEnheder ?? [],
           note: pauseOwn.note.trim() || null,
           updatedAt: nowIso(),
           updatedBy: null,
@@ -480,6 +616,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
           sagSmuNummer: task.sagSmuNummer,
           enhedId: task.enhedId,
           enhedVisning: task.enhedVisning,
+          fordelteEnheder: erFordelingsAktivitet(task.subcategoryId) ? aktiveEnheder : [],
           note: task.note ?? "",
           newId,
           nowIso: nowIso(),
@@ -497,6 +634,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
         sagSmuNummer: task.sagSmuNummer,
         enhedId: task.enhedId,
         enhedVisning: task.enhedVisning,
+        fordelteEnheder: erFordelingsAktivitet(task.subcategoryId) ? aktiveEnheder : [],
         note: task.note ?? "",
         hjaelpTrykket: trykket, // faktisk start — bruges hvis medarbejderen valgte "start fra"
       });
@@ -510,6 +648,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
         sagSmuNummer: draft.sagSmuNummer,
         enhedId: draft.enhedId,
         enhedVisning: draft.enhedVisning,
+        fordelteEnheder: draft.fordelteEnheder,
         note: draft.note.trim() || null,
         updatedAt: nowIso(),
         updatedBy: null,
@@ -564,6 +703,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
           sagSmuNummer: task.sagSmuNummer,
           enhedId: task.enhedId,
           enhedVisning: task.enhedVisning,
+          fordelteEnheder: erFordelingsAktivitet(task.subcategoryId) ? aktiveEnheder : [],
           // Hjælp-mærket + medarbejderens egen note fra hjælp-formularen (tidligere tabt).
           note: helpNote(task.note ?? ""),
           newId,
@@ -583,6 +723,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
         sagSmuNummer: helpOwn.sagSmuNummer ?? null,
         enhedId: helpOwn.enhedId ?? null,
         enhedVisning: helpOwn.enhedVisning ?? null,
+        fordelteEnheder: helpOwn.fordelteEnheder ?? [],
         note: helpOwn.note.trim() || null,
         updatedAt: nowIso(),
         updatedBy: null,
@@ -629,6 +770,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
             sagSmuNummer: task.sagSmuNummer,
             enhedId: task.enhedId,
             enhedVisning: task.enhedVisning,
+            fordelteEnheder: erFordelingsAktivitet(task.subcategoryId) ? aktiveEnheder : [],
             note: task.note ?? "",
             newId,
             nowIso: nowIso(),
@@ -645,6 +787,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
           sagSmuNummer: task.sagSmuNummer,
           enhedId: task.enhedId,
           enhedVisning: task.enhedVisning,
+          fordelteEnheder: erFordelingsAktivitet(task.subcategoryId) ? aktiveEnheder : [],
           note: task.note ?? "",
         };
       }
@@ -660,6 +803,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
         sagSmuNummer: draft.sagSmuNummer,
         enhedId: draft.enhedId,
         enhedVisning: draft.enhedVisning,
+        fordelteEnheder: draft.fordelteEnheder,
         note: draft.note.trim() || null,
         updatedAt: nowIso(),
         updatedBy: null,
@@ -690,6 +834,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
         sagSmuNummer: task.sagSmuNummer,
         enhedId: task.enhedId,
         enhedVisning: task.enhedVisning,
+        fordelteEnheder: erFordelingsAktivitet(task.subcategoryId) ? aktiveEnheder : [],
         note: "",
         isRedo: true,
         redoReason,
@@ -713,6 +858,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
           sagSmuNummer: redoCtx.ownTask.sagSmuNummer ?? null,
           enhedId: redoCtx.ownTask.enhedId ?? null,
           enhedVisning: redoCtx.ownTask.enhedVisning ?? null,
+          fordelteEnheder: redoCtx.ownTask.fordelteEnheder ?? [],
           note: redoCtx.ownTask.note.trim() || null,
           updatedAt: nowIso(),
           updatedBy: null,
@@ -795,7 +941,8 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
     setFormMode("startPause");
   }
   function openEditWork() {
-    if (task) setDraft(draftFromTask(task));
+    void flushAktiveEnheder();
+    if (task) setDraft({ ...draftFromTask(task), fordelteEnheder: aktiveEnheder });
     setFormMode("editWork");
   }
   // Afslutningsforslag: start = præcis den start kortet viser; slut = nu rundet ned til
@@ -807,7 +954,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
   }
   function openFinishWork() {
     const t = finishSuggestion();
-    setFinish((f) => ({ ...f, startTime: t.startTime, endTime: t.endTime, note: task?.note ?? "" }));
+    setFinish((f) => ({ ...f, startTime: t.startTime, endTime: t.endTime, note: task?.note ?? "", fordelteEnheder: aktiveEnheder }));
     setFormMode("finishWork");
   }
   function openFinishPause() {
@@ -843,6 +990,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
       sagSmuNummer: c.sagSmuNummer ?? null,
       enhedId: c.enhedId ?? null,
       enhedVisning: c.enhedVisning ?? null,
+      fordelteEnheder: [],
       note: c.note ?? "",
     });
   }
@@ -930,9 +1078,26 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
         <CategoryPicker
           categoryId={draft.categoryId}
           subcategoryId={draft.subcategoryId}
-          onChange={(cat, sub) => setDraft((d) => ({ ...d, categoryId: cat, subcategoryId: sub }))}
+          onChange={(cat, sub) =>
+            setDraft((d) => ({
+              ...d,
+              categoryId: cat,
+              subcategoryId: sub,
+              fordelteEnheder: erFordelingsAktivitet(sub) ? d.fordelteEnheder : [],
+            }))
+          }
         />
       </div>
+      {erFordelingsAktivitet(draft.subcategoryId) && (
+        <EnhedsVaelger
+          valgte={draft.fordelteEnheder}
+          onChange={(next) =>
+            setDraft((d) => ({ ...d, fordelteEnheder: next, ...(next.length ? { enhedId: null, enhedVisning: null } : {}) }))
+          }
+        />
+      )}
+      {/* Trucking: enhederne vælges ovenfor — ingen manuel sag (kun vist, hvis opgaven allerede har en). */}
+      {(!erFordelingsAktivitet(draft.subcategoryId) || draft.sagId || draft.orderNumber) && (
       <SagPicker
         customer={draft.orderNumber}
         sagId={draft.sagId}
@@ -948,6 +1113,8 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
           }))
         }
       />
+      )}
+      {draft.fordelteEnheder.length === 0 && (
       <EnhedPicker
         sagId={draft.sagId}
         categoryId={draft.categoryId}
@@ -955,6 +1122,7 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
         enhedVisning={draft.enhedVisning}
         onChange={(n) => setDraft((d) => ({ ...d, enhedId: n.enhedId, enhedVisning: n.enhedVisning }))}
       />
+      )}
       <div className="field">
         <label>Note</label>
         <input
@@ -1082,9 +1250,24 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
               <span className="ds-sub"> · {getSubcategory(task.categoryId, task.subcategoryId)?.name}</span>
             )}
             {task?.orderNumber && <span className="ds-order"> · {task.orderNumber}</span>}
-            {task?.enhedVisning && <span className="ds-order"> · {task.enhedVisning}</span>}
+            {task?.enhedVisning && !finish.fordelteEnheder.length && <span className="ds-order"> · {task.enhedVisning}</span>}
           </div>
           {timePair}
+          {task && erFordelingsAktivitet(task.subcategoryId) && (
+            <>
+              <EnhedsVaelger
+                valgte={finish.fordelteEnheder}
+                onChange={(next) => setFinish((f) => ({ ...f, fordelteEnheder: next }))}
+                minutter={finishValid ? toMinutes(finish.endTime) - toMinutes(finish.startTime) : null}
+              />
+              {finishValid && finish.fordelteEnheder.length > 0 && (
+                <div className="ev-fordeling">
+                  {toMinutes(finish.endTime) - toMinutes(finish.startTime)} min i alt ·{" "}
+                  {fordelingTekst(toMinutes(finish.endTime) - toMinutes(finish.startTime), finish.fordelteEnheder)}
+                </div>
+              )}
+            </>
+          )}
           <div className="field">
             <label>Note</label>
             <input
@@ -1429,6 +1612,20 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
         ) : (
           <>
             <div className="ds-title">Hvad nu?</div>
+            {hurtig.length > 0 && (
+              <div className="ds-hurtig">
+                {hurtig.map((h) => (
+                  <button
+                    key={`${h.categoryId}|${h.subcategoryId}`}
+                    className="smu-btn-primary ds-big"
+                    onClick={() => startHurtigvalg(h)}
+                    disabled={busy}
+                  >
+                    {erFordelingsAktivitet(h.subcategoryId) ? <Truck size={16} /> : <Play size={16} />} Start {h.navn}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="ds-hvadnu">
               <button className="smu-btn-primary ds-big" onClick={openStartWork} disabled={busy}>
                 <Play size={16} /> Start opgave
@@ -1593,6 +1790,11 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
               {elapsedText ? ` · ${elapsedText} i gang` : ""}
             </div>
           )}
+          {erFordelingsAktivitet(task.subcategoryId) && (
+            <div className="ds-enheder">
+              <EnhedsVaelger valgte={aktiveEnheder} onChange={aendrAktiveEnheder} />
+            </div>
+          )}
           <div className="ds-actions">
             <button className="smu-btn-primary ds-primary" onClick={openFinishWork} disabled={busy}>
               <CheckCircle2 size={16} /> Gå til afslutning
@@ -1607,6 +1809,23 @@ export default function DayScreen({ employeeId, entries, onChanged, opdateret = 
               <RotateCcw size={15} /> Start omgøring
             </button>
           </div>
+          {hurtig.some((h) => h.categoryId !== task.categoryId || h.subcategoryId !== task.subcategoryId) && (
+            <div className="ds-skift">
+              <span className="ds-skift-label">Skift til</span>
+              {hurtig
+                .filter((h) => h.categoryId !== task.categoryId || h.subcategoryId !== task.subcategoryId)
+                .map((h) => (
+                  <button
+                    key={`${h.categoryId}|${h.subcategoryId}`}
+                    className="smu-btn-secondary"
+                    onClick={() => startHurtigvalg(h)}
+                    disabled={busy}
+                  >
+                    {erFordelingsAktivitet(h.subcategoryId) ? <Truck size={15} /> : <Play size={15} />} {h.navn}
+                  </button>
+                ))}
+            </div>
+          )}
           <div className="ds-secondary">
             <button className="smu-btn-ghost" onClick={openEditWork} disabled={busy}>
               <Pencil size={14} /> Ret aktiv opgave

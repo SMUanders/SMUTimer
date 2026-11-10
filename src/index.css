@@ -153,6 +153,66 @@ body {
 .sag-result-titel { font-size: 12px; font-weight: 600; color: var(--color-text-muted); }
 .sag-muted { color: var(--color-text-muted); font-weight: 600; }
 
+/* ---------- Trucking V1: enhedsvælger (enheder på pladsen) ---------- */
+.ev-antal {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px;
+  margin-left: 6px; border-radius: 10px; background: var(--color-primary-soft); color: var(--color-primary-deep);
+  font-size: 12px; font-weight: 800;
+}
+.ev-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.ev-chip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+  padding: 4px 4px 4px 10px; border-radius: 10px; border: 1px solid var(--color-border);
+  background: var(--color-primary-soft); color: var(--color-navy); font-size: 13px; font-weight: 700;
+}
+.ev-chip-txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ev-chip-min { color: var(--color-primary-deep); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ev-chip-x {
+  display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; flex: 0 0 auto;
+  border: 0; border-radius: 8px; background: transparent; color: var(--color-text-muted); cursor: pointer;
+}
+.ev-chip-x:hover { background: var(--color-card); color: var(--color-text); }
+.ev-aabn { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin-top: 4px; }
+.ev-panel { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.ev-liste {
+  border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-card);
+  max-height: 340px; overflow-y: auto;
+}
+.ev-tom { padding: 14px 12px; font-size: 13px; font-weight: 600; color: var(--color-text-muted); }
+.ev-gruppe { border-bottom: 1px solid var(--color-border); }
+.ev-gruppe:last-child { border-bottom: 0; }
+.ev-gruppe-top {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px 4px;
+  position: sticky; top: 0; background: var(--color-card); z-index: 1;
+}
+.ev-gruppe-navn { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ev-gruppe-navn strong { color: var(--color-navy); font-weight: 800; }
+.ev-alle { flex: 0 0 auto; padding: 6px 8px; border-radius: 8px; }
+.ev-enhed {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; text-align: left;
+  padding: 8px 12px; border: 0; background: transparent; cursor: pointer; font: inherit;
+  font-size: 14px; font-weight: 600; color: var(--color-text);
+}
+.ev-enhed:hover { background: var(--color-grey-soft); }
+.ev-enhed.is-valgt { background: var(--color-primary-soft); color: var(--color-navy); font-weight: 700; }
+.ev-check {
+  display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; flex: 0 0 auto;
+  border-radius: 8px; border: 2px solid var(--color-border); color: var(--color-card);
+}
+.ev-enhed.is-valgt .ev-check { background: var(--color-primary-deep); border-color: var(--color-primary-deep); }
+.ev-enhed-txt { flex: 1; min-width: 0; }
+.ev-zone { flex: 0 0 auto; }
+.ev-fod { display: flex; justify-content: flex-end; }
+.ev-fordeling { font-size: 13px; font-weight: 700; color: var(--color-primary-deep); margin-top: -4px; margin-bottom: 10px; }
+/* Personlige hurtigvalg + skift (Min dag) */
+.ds-hurtig { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.ds-hurtig .ds-big { flex: 1 1 140px; width: auto; }
+.ds-skift { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.ds-skift .smu-btn-secondary { display: inline-flex; align-items: center; gap: 6px; }
+.ds-skift-label { font-size: 12px; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.ds-enheder { margin-top: 10px; }
+.ds-enheder .ev-chips { margin-bottom: 6px; }
+
 /* Read-only detaljevisning (Min dag → klik på registrering) */
 .detail-kind { margin-bottom: 12px; }
 .detail-row { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--color-border); }
@@ -687,6 +747,7 @@ body {
 .tl-tag-pause { background: var(--color-orange-soft); color: var(--color-orange-deep); }
 .tl-tag-conflict { background: var(--color-orange-deep); color: #fff; }
 .tl-reason { font-size: 12px; margin-top: 2px; font-weight: 700; color: var(--color-primary-deep); }
+.tl-fordeling { color: var(--color-primary-deep); font-weight: 700; }
 
 @media (max-width: 560px) {
   .tl-row { grid-template-columns: 48px minmax(0, 1fr); gap: 8px; }

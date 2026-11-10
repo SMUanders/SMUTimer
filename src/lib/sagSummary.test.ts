@@ -14,7 +14,7 @@ function e(over: Partial<TimeEntry>): TimeEntry {
     subcategoryId: "montage-internt__montering",
     customer: "SMU-0123",
     sagId: "sag-1",
-    sagSmuNummer: "SMU-0123", enhedId: null, enhedVisning: null,
+    sagSmuNummer: "SMU-0123", enhedId: null, enhedVisning: null, fordelteEnheder: [],
     note: "",
     isBreak: false,
     isRedo: false,

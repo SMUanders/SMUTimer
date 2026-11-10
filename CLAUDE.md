@@ -87,6 +87,16 @@ ligne SMU":
 - Lederrettelse = atomisk erstatning via `tid_erstat_registrering` (SECURITY INVOKER, hub-migration
   `20261022180000`): originalen blødt slettet + erstatning indsat i én transaktion — eller intet.
 - Valgt dato bevares i adressen (`?dato=`) i Min dag og leder-visningen.
+- **Trucking V1 (v2.4.0, TR-108 — teknisk klar, ikke LIVE):** Trucking (`montage-internt__trucking`) kan fordeles på flere
+  enheder: `fordelte_enheder jsonb` på `tid_time_entries`/`tid_current_tasks` (`[{enhed_id, sag_id, sag_smu_nummer, visning}]`,
+  snapshot; kun ved Trucking; aldrig sammen med `enhed_id`; trigger `tid_valider_fordelte_enheder`). Fordelingen gemmes ikke — den
+  afledes: floor(T/n), de første T mod n enheder +1 (`src/lib/fordeling.ts` = databasens `tid_fordel_enheder`); arbejdstiden er ÉN
+  registrering. Enhedsvælgeren (`EnhedsVaelger`) viser KUN enheder på pladsen via Pladsliste-ejet `pladsliste_tid_enheder_paa_pladsen`
+  (søgning i appen: `src/lib/pladsEnheder.ts`). Personlige hurtigvalg (`src/lib/hurtigvalg.ts`: mest brugte aktiviteter de seneste 14
+  dage, ≥ 3 gange, højst 3) i "Hvad nu?" og som "Skift til" på den aktive opgave (lukker den ved skiftet). Enheder vælges på den aktive
+  Trucking (gemmes løbende, ventende gem skrives før enhver handling), i afslutningen og i editorerne; `tid_ret_egen_registrering` har en
+  8-parameter-version med `p_enheder` (udeladt = bevar). Hub-migrationer `20261110150000` + `20261110150100`; DEV-adfærdstest i
+  hubbens `supabase/testdata/tid_trucking_v1_adfaerd_dev.mjs`. **Deploy først efter LIVE-migrationen** (appen skriver den nye kolonne).
 - Forventet arbejdsdag 7,5 t (weekend 0).
 - Storage bag interface: `src/lib/storage/` (localAdapter dev-fallback +
   supabaseAdapter). Én delt klient `src/lib/supabaseClient.ts`.

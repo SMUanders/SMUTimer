@@ -13,7 +13,7 @@ function te(o: Partial<TimeEntry> = {}): TimeEntry {
     durationMinutes: 60,
     categoryId: "montage-ude",
     subcategoryId: null,
-    customer: "54277", sagId: null, sagSmuNummer: null, enhedId: null, enhedVisning: null,
+    customer: "54277", sagId: null, sagSmuNummer: null, enhedId: null, enhedVisning: null, fordelteEnheder: [],
     note: "",
     isBreak: false,
     isRedo: false,

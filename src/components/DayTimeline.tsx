@@ -5,6 +5,7 @@ import type { TimelineBlock } from "../lib/dayTimeline";
 import { getCategory, getSubcategory, getRedoReason } from "../data/categories";
 import { absenceTypeName } from "../data/absences";
 import { formatDuration } from "../lib/time";
+import { enhedsResume, fordelingTekst } from "../lib/fordeling";
 
 // Lodret dags-tidslinje ("Min dag"). Samme visning for medarbejder og leder.
 // Registrerings-blokke er klikbare, når onEditEntry gives (medarbejderen retter egne,
@@ -78,6 +79,13 @@ function BlockBody({ b }: { b: TimelineBlock }) {
       )}
       {(b.entry?.customer || b.entry?.enhedVisning) && (
         <div className="tl-order">{[b.entry.customer, b.entry.enhedVisning].filter(Boolean).join(" · ")}</div>
+      )}
+      {/* Trucking V1: én registrering, tiden fordelt på enhederne (underliggende data). */}
+      {b.entry && b.entry.fordelteEnheder?.length > 0 && (
+        <div className="tl-order">
+          {enhedsResume(b.entry.fordelteEnheder)}
+          <span className="tl-fordeling"> · {fordelingTekst(b.durationMin, b.entry.fordelteEnheder)}</span>
+        </div>
       )}
     </div>
   );

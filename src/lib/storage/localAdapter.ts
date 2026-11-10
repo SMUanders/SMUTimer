@@ -1,5 +1,6 @@
 import type { TimeEntry, CurrentTask, Absence } from "../../types";
-import type { TimeEntryStore } from "./types";
+import type { TimeEntryStore, PladsEnhed } from "./types";
+import { erFordelingsAktivitet } from "../fordeling";
 import { nowIso, newId } from "./types";
 
 const ABSENCES_KEY = "smu-tid.absences.v1";
@@ -150,6 +151,14 @@ export const localAdapter: TimeEntryStore = {
       categoryId: patch.categoryId, subcategoryId: patch.subcategoryId, note: patch.note, isBreak: patch.categoryId === "pause",
       createdAt: now, updatedAt: now,
     };
+    // Trucking V1 (som databasen): enheder kun ved Trucking; udeladt = uændret; enheder erstatter en enkelt enhed.
+    if (patch.fordelteEnheder?.length && !erFordelingsAktivitet(patch.subcategoryId)) throw new Error("Enheder kan kun vælges ved Trucking");
+    const enheder = erFordelingsAktivitet(patch.subcategoryId) ? patch.fordelteEnheder ?? r.fordelteEnheder ?? [] : [];
+    kopi.fordelteEnheder = enheder;
+    if (enheder.length) {
+      kopi.enhedId = null;
+      kopi.enhedVisning = null;
+    }
     saveAll([...all.map((e) => (e.id === r.id ? { ...e, slettet: true, updatedAt: now } : e)), kopi]);
   },
 
@@ -260,4 +269,35 @@ export const localAdapter: TimeEntryStore = {
   async getSagEnheder() {
     return [];
   },
+
+  // Lokal dev: et lille, fast demo-sæt "på pladsen" (ingen Pladsliste i lokal dev), så
+  // Trucking-flowet kan afprøves i browseren. Rammer aldrig rigtige data.
+  async getEnhederPaaPladsen() {
+    return DEMO_PLADS;
+  },
 };
+
+function demo(n: number, sag: string, smu: string, titel: string, loeb: number, besk: string | null, reg: string | null, stel: string | null = null): PladsEnhed {
+  return {
+    enhedId: `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`,
+    sagId: `00000000-0000-4000-9000-${sag.padStart(12, "0")}`,
+    smuNummer: smu,
+    sagTitel: titel,
+    kunde: "Demo-kunde",
+    loebenummer: loeb,
+    beskrivelse: besk,
+    regNr: reg,
+    stelnummer: stel,
+    trailerNr: null,
+    interntNr: null,
+    zone: null,
+  };
+}
+const DEMO_PLADS: PladsEnhed[] = [
+  demo(1, "1", "SMU-0043L", "Lastbiler folie", 1, null, "AD6649"),
+  demo(2, "1", "SMU-0043L", "Lastbiler folie", 2, null, "AD8204"),
+  demo(3, "1", "SMU-0043L", "Lastbiler folie", 3, null, "FB8807", "WDB9634031L123456"),
+  demo(4, "2", "SMU-0012L", "Trailere", 1, "Schmitz trailer", "CH6364"),
+  demo(5, "2", "SMU-0012L", "Trailere", 2, "Krone trailer", "FC8021"),
+  demo(6, "3", "SMU-0115L", "Varebiler", 7, "Sprinter", "DK12345"),
+];

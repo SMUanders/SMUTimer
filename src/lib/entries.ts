@@ -69,6 +69,7 @@ function makeWorkEntry(
     sagSmuNummer: draft.sagSmuNummer ?? null,
     enhedId: draft.enhedId ?? null,
     enhedVisning: draft.enhedVisning ?? null,
+    fordelteEnheder: draft.fordelteEnheder ?? [],
     note: draft.note.trim(),
     // Manuel "Pause"-kategori tæller også som pause (ikke arbejdstid).
     isBreak: isBreakCategory(draft.categoryId),
@@ -104,6 +105,7 @@ function makeBreakEntry(
     sagSmuNummer: null,
     enhedId: null,
     enhedVisning: null,
+    fordelteEnheder: [],
     note: "",
     isBreak: true,
     isRedo: false,

@@ -215,6 +215,8 @@ export interface BuildParams {
   enhedId?: string | null;
   /** Display-snapshot af enheden ("#3 · beskrivelse · reg.nr"). */
   enhedVisning?: string | null;
+  /** Trucking V1: enheder, som tiden fordeles på. */
+  fordelteEnheder?: import("../types").FordeltEnhed[];
   note: string;
   newId: () => string;
   nowIso: string;
@@ -249,6 +251,7 @@ export function buildEntry(p: BuildParams): TimeEntry {
     sagSmuNummer: p.sagSmuNummer ?? null,
     enhedId: p.enhedId ?? null,
     enhedVisning: p.enhedVisning ?? null,
+    fordelteEnheder: p.fordelteEnheder ?? [],
     note: p.note.trim(),
     isBreak: isBreakCategory(p.categoryId),
     isRedo,

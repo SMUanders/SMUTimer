@@ -1,4 +1,4 @@
-import type { TimeEntry, CurrentTask, Absence } from "../../types";
+import type { TimeEntry, CurrentTask, Absence, FordeltEnhed } from "../../types";
 
 /** Resultat fra sags-søgning (OS-ejet read-contract public.tid_sag_search). */
 export interface SagRef {
@@ -20,6 +20,19 @@ export interface SagEnhed {
   interntNr: string | null;
 }
 
+/**
+ * Trucking V1: en OS-enhed, der står på pladsen NU (Pladsliste-ejet læsekontrakt
+ * public.pladsliste_tid_enheder_paa_pladsen — aktivt ophold, ikke kørt fra, ikke annulleret).
+ */
+export interface PladsEnhed extends SagEnhed {
+  sagId: string;
+  smuNummer: string;
+  sagTitel: string | null;
+  kunde: string | null;
+  /** Pladslistens zone (fx "Klar til afhentning"), hvis sat. */
+  zone: string | null;
+}
+
 // Fælles storage-interface. Al persistering går gennem dette — resten af appen
 // kender ikke til om data ligger i localStorage eller Supabase.
 // Alle metoder er async, så adapterne kan være netværksbaserede (Supabase).
@@ -30,6 +43,8 @@ export interface OwnEntryPatch {
   categoryId: string;
   subcategoryId: string | null;
   note: string;
+  /** Trucking V1: valgte enheder (udeladt = uændret; [] = ingen). */
+  fordelteEnheder?: FordeltEnhed[];
 }
 
 /** Det, der kan rettes på et fravær. */
@@ -103,6 +118,10 @@ export interface TimeEntryStore {
   // Enhed (TR-088): sagens aktive enheder via OS-ejet read-contract (tid_sag_enheder).
   // Kræver ingen 'os'-adgang. Local-adapter returnerer [] (ingen OS i dev).
   getSagEnheder(sagId: string): Promise<SagEnhed[]>;
+
+  // Trucking V1: alle OS-enheder på pladsen nu (Pladsliste er autoritativ). Kræver kun 'tid'-adgang.
+  // Søgningen sker i appen (src/lib/pladsEnheder.ts). Local-adapter returnerer et lille demo-sæt.
+  getEnhederPaaPladsen(): Promise<PladsEnhed[]>;
 }
 
 // ID/tidsstempel — bruges når nye entries bygges. crypto.randomUUID giver et

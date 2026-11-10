@@ -37,6 +37,7 @@ describe("buildEntry (afslut opgave) bærer sag + enhed", () => {
 
 describe("buildEntries (leder-korrektion) bærer enhed; frokost-split giver pause uden enhed", () => {
   const draft: EntryDraft = {
+      fordelteEnheder: [],
     startTime: "08:00",
     endTime: "14:00",
     categoryId: "montage-ude",

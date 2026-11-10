@@ -1,8 +1,19 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { TimeEntry, CurrentTask, Absence } from "../../types";
-import type { TimeEntryStore, SagRef, SagEnhed } from "./types";
+import type { TimeEntry, CurrentTask, Absence, FordeltEnhed } from "../../types";
+import type { TimeEntryStore, SagRef, SagEnhed, PladsEnhed } from "./types";
 
 const TASKS_TABLE = "tid_current_tasks";
+
+// Trucking V1: jsonb-kolonnen fordelte_enheder ↔ FordeltEnhed[].
+interface FordeltRow { enhed_id: string; sag_id: string | null; sag_smu_nummer: string | null; visning: string }
+function fordelteFraRow(v: unknown): FordeltEnhed[] {
+  if (!Array.isArray(v)) return [];
+  return (v as FordeltRow[]).map((r) => ({ enhedId: r.enhed_id, sagId: r.sag_id ?? null, sagSmuNummer: r.sag_smu_nummer ?? null, visning: r.visning ?? "" }));
+}
+function fordelteTilRow(v: FordeltEnhed[] | undefined): FordeltRow[] | null {
+  if (!v || v.length === 0) return null;
+  return v.map((e) => ({ enhed_id: e.enhedId, sag_id: e.sagId, sag_smu_nummer: e.sagSmuNummer, visning: e.visning }));
+}
 const ABSENCES_TABLE = "tid_absences";
 
 interface AbsenceRow {
@@ -43,6 +54,7 @@ interface TaskRow {
   sag_smu_nummer: string | null;
   enhed_id: string | null;
   enhed_visning: string | null;
+  fordelte_enheder?: unknown;
   note: string | null;
   updated_at: string;
   updated_by: string | null;
@@ -57,6 +69,7 @@ function taskFromRow(r: TaskRow): CurrentTask {
     sagSmuNummer: r.sag_smu_nummer ?? null,
     enhedId: r.enhed_id ?? null,
     enhedVisning: r.enhed_visning ?? null,
+    fordelteEnheder: fordelteFraRow(r.fordelte_enheder),
     note: r.note,
     updatedAt: r.updated_at,
     updatedBy: r.updated_by,
@@ -90,6 +103,7 @@ interface Row {
   sag_smu_nummer: string | null;
   enhed_id: string | null;
   enhed_visning: string | null;
+  fordelte_enheder?: unknown;
   note: string;
   is_break: boolean;
   is_redo: boolean;
@@ -116,6 +130,7 @@ function toRow(e: TimeEntry): Row {
     sag_smu_nummer: e.sagSmuNummer,
     enhed_id: e.enhedId,
     enhed_visning: e.enhedVisning,
+    fordelte_enheder: fordelteTilRow(e.fordelteEnheder),
     note: e.note,
     is_break: e.isBreak,
     is_redo: e.isRedo,
@@ -143,6 +158,7 @@ function fromRow(r: Row): TimeEntry {
     sagSmuNummer: r.sag_smu_nummer ?? null,
     enhedId: r.enhed_id ?? null,
     enhedVisning: r.enhed_visning ?? null,
+    fordelteEnheder: fordelteFraRow(r.fordelte_enheder),
     note: r.note,
     isBreak: r.is_break,
     isRedo: r.is_redo,
@@ -171,6 +187,7 @@ function patchToRow(patch: Partial<TimeEntry>): Record<string, unknown> {
     sagSmuNummer: "sag_smu_nummer",
     enhedId: "enhed_id",
     enhedVisning: "enhed_visning",
+    fordelteEnheder: "fordelte_enheder",
     note: "note",
     isBreak: "is_break",
     isRedo: "is_redo",
@@ -182,7 +199,7 @@ function patchToRow(patch: Partial<TimeEntry>): Record<string, unknown> {
   };
   const out: Record<string, unknown> = {};
   for (const key of Object.keys(patch) as (keyof TimeEntry)[]) {
-    out[map[key]] = patch[key];
+    out[map[key]] = key === "fordelteEnheder" ? fordelteTilRow(patch.fordelteEnheder) : patch[key];
   }
   out.updated_at = new Date().toISOString();
   return out;
@@ -302,6 +319,9 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
         p_kategori: patch.categoryId,
         p_underkategori: patch.subcategoryId,
         p_note: patch.note,
+        // Trucking V1: 8-parameter-versionen, når enhederne sendes med ([] = ingen). Udeladt =
+        // 7-parameter-versionen, der bevarer registreringens enheder.
+        ...(patch.fordelteEnheder !== undefined ? { p_enheder: fordelteTilRow(patch.fordelteEnheder) ?? [] } : {}),
       });
       if (error) throw error;
     },
@@ -352,6 +372,7 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
         sag_smu_nummer: task.sagSmuNummer,
         enhed_id: task.enhedId,
         enhed_visning: task.enhedVisning,
+        fordelte_enheder: fordelteTilRow(task.fordelteEnheder),
         note: task.note,
       };
       const { error } = await client
@@ -516,6 +537,49 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
             stelnummer: r.stelnummer,
             trailerNr: r.trailer_nr,
             interntNr: r.internt_nr,
+          })
+        );
+      } catch {
+        return [];
+      }
+    },
+
+    // ---- Trucking V1 — enheder på pladsen (Pladsliste-ejet læsekontrakt) ----
+    // public.pladsliste_tid_enheder_paa_pladsen(null) = alle OS-enheder med et aktivt ophold.
+    // Håndhæver har_app_adgang('tid'); kun identitetsfelter. Fejler blødt (tom liste).
+    async getEnhederPaaPladsen() {
+      try {
+        const { data, error } = await client.rpc("pladsliste_tid_enheder_paa_pladsen", { p_q: null });
+        if (error || !data) return [];
+        return (
+          data as {
+            enhed_id: string;
+            sag_id: string;
+            smu_nummer: string;
+            sag_titel: string | null;
+            kunde: string | null;
+            loebenummer: number;
+            beskrivelse: string | null;
+            reg_nr: string | null;
+            stelnummer: string | null;
+            trailer_nr: string | null;
+            internt_nr: string | null;
+            zone: string | null;
+          }[]
+        ).map(
+          (r): PladsEnhed => ({
+            enhedId: r.enhed_id,
+            sagId: r.sag_id,
+            smuNummer: r.smu_nummer,
+            sagTitel: r.sag_titel,
+            kunde: r.kunde,
+            loebenummer: r.loebenummer,
+            beskrivelse: r.beskrivelse,
+            regNr: r.reg_nr,
+            stelnummer: r.stelnummer,
+            trailerNr: r.trailer_nr,
+            interntNr: r.internt_nr,
+            zone: r.zone,
           })
         );
       } catch {

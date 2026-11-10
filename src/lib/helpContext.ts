@@ -22,6 +22,8 @@ export interface OwnTask {
   enhedId?: string | null;
   /** Display-snapshot af enheden ("#3 · beskrivelse · reg.nr"). */
   enhedVisning?: string | null;
+  /** Trucking V1: enheder valgt undervejs (følger opgaven gennem pause/hjælp/omgøring). */
+  fordelteEnheder?: import("../types").FordeltEnhed[];
   note: string;
   /**
    * Kun ved hjælp: det faktiske tidspunkt (ISO), hvor hjælpen blev startet. Bruges, hvis

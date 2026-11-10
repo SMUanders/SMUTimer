@@ -18,6 +18,7 @@ import EntryEditor from "./EntryEditor";
 import AbsenceEditor, { absenceDraftFrom } from "./AbsenceEditor";
 import type { AbsenceDraft } from "../lib/absence";
 import { HELP_NOTE, helpNote, isHelpNote } from "../lib/helpContext";
+import { erFordelingsAktivitet } from "../lib/fordeling";
 import { isoToHHMM } from "../lib/currentTaskStart";
 import { buildDayTimeline } from "../lib/dayTimeline";
 import { UpdateBanner } from "../platform-update/UpdateBanner";
@@ -146,6 +147,8 @@ export default function EmployeeApp() {
         subcategoryId: d.subcategoryId,
         // Hjælp-linjer beholder deres mærke foran medarbejderens egen note.
         note: isHelpNote(retter.note) ? helpNote(d.note) : d.note.trim(),
+        // Trucking V1: enhederne sendes altid med ([] ved andre aktiviteter → ingen fordeling).
+        fordelteEnheder: erFordelingsAktivitet(d.subcategoryId) ? d.fordelteEnheder : [],
       });
       await efterRettelse();
     } catch (e) {
@@ -358,6 +361,7 @@ export default function EmployeeApp() {
           medarbejder
           workDate={retter.workDate}
           initial={{
+            fordelteEnheder: retter.fordelteEnheder,
             startTime: retter.startTime,
             endTime: retter.endTime,
             categoryId: retter.categoryId,
