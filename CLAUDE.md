@@ -97,7 +97,7 @@ ligne SMU":
   Trucking (gemmes løbende, ventende gem skrives før enhver handling), i afslutningen og i editorerne; `tid_ret_egen_registrering` har en
   8-parameter-version med `p_enheder` (udeladt = bevar). Hub-migrationer `20261110150000` + `20261110150100`; DEV-adfærdstest i
   hubbens `supabase/testdata/tid_trucking_v1_adfaerd_dev.mjs`. **Deploy først efter LIVE-migrationen** (appen skriver den nye kolonne).
-- **Fastgjorte hurtigvalg (v2.5.0, TR-109 — teknisk klar, ikke LIVE):** `tid_hurtigvalg` (hub-migration `20261110170000`) gemmer
+- **Fastgjorte hurtigvalg (v2.5.0, TR-109 — LIVE 10. nov. 2026, ikke valideret i brug):** `tid_hurtigvalg` (hub-migration `20261110170000`) gemmer
   medarbejderens fastgjorte aktiviteter (kun egne rækker, også for ledere; soft delete; højst 8; én pr. aktivitet). "Hvad nu?":
   "Start opgave" → fastgjorte → "Forslag" (automatiske fra `hurtigvalg()`, uden dubletter: `vistHurtigvalg` i
   `src/lib/hurtigvalg.ts`); alle i "Skift til". Fastgør/fjern under aktivitetsvælgeren (`CategoryPicker`-prop `hurtigvalg`) i
