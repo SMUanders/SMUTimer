@@ -102,7 +102,7 @@ ligne SMU":
   "Start opgave" → fastgjorte → "Forslag" (automatiske fra `hurtigvalg()`, uden dubletter: `vistHurtigvalg` i
   `src/lib/hurtigvalg.ts`); alle i "Skift til". Fastgør/fjern under aktivitetsvælgeren (`CategoryPicker`-prop `hurtigvalg`) i
   "Start opgave"/"Ret aktiv opgave". Læsning fejler blødt. DEV-test: hubbens `supabase/testdata/tid_hurtigvalg_adfaerd_dev.mjs`.
-  **v2.6.0 (Anders, efter Henriettes erfaring):** kun aktiviteter uden sag starter med ét tryk (`starterDirekte`: Trucking,
+  **v2.6.0 (Anders, efter Henriettes erfaring; LIVE 10. nov. 2026):** kun aktiviteter uden sag starter med ét tryk (`starterDirekte`: Trucking,
   Uproduktiv tid, Pause). Øvrige hurtigvalg åbner "Start opgave" med aktiviteten valgt, så sagen vælges; uret starter ved
   "Start opgave". Fra en aktiv opgave hedder formularen "Skift opgave", og den aktive lukkes først ved "Start opgave"
   (fælles `startNyOpgave` i `DayScreen` — også for den almindelige "Start opgave").
