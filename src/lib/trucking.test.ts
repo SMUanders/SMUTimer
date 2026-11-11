@@ -45,9 +45,9 @@ describe("supabaseAdapter — Trucking", () => {
       },
     ]);
   });
-  it("fejler blødt → tom liste", async () => {
+  it("melder en fejl (vedligeholdelsespakke 2: vælgeren viser beskeden i stedet for 'Henter…')", async () => {
     const store = createSupabaseAdapter(fakeClient(vi.fn().mockResolvedValue({ data: null, error: { message: "x" } })));
-    expect(await store.getEnhederPaaPladsen()).toEqual([]);
+    await expect(store.getEnhederPaaPladsen()).rejects.toThrow("Kunne ikke hente enhederne på pladsen");
   });
   it("updateOwnEntry sender enhederne (8 parametre); [] = ingen; udeladt = bevar (7 parametre)", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: "ny", error: null });

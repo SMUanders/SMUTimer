@@ -19,8 +19,21 @@ function formatUpdated(iso: string | null): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-export default function DayOverview({ visiblePeople }: { visiblePeople: Person[] }) {
-  const [date, setDate] = useState<string>(todayIso());
+export default function DayOverview({
+  visiblePeople,
+  startDato = null,
+  onDato,
+}: {
+  visiblePeople: Person[];
+  /** Dato fra adressen (vedligeholdelsespakke 2); null = i dag. */
+  startDato?: string | null;
+  /** Meldes til Overblik, der skriver den i adressen. */
+  onDato?: (dato: string) => void;
+}) {
+  const [date, setDate] = useState<string>(startDato ?? todayIso());
+  useEffect(() => {
+    onDato?.(date);
+  }, [date, onDato]);
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [absences, setAbsences] = useState<Absence[]>([]);
 

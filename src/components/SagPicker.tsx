@@ -24,6 +24,8 @@ export default function SagPicker({ label = "SMU-nr. / sag / kunde", customer, s
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(false);
+  // Søgningen fejlede (vedligeholdelsespakke 2) — vises i stedet for en tom liste, der ligner "ingen sager".
+  const [fejl, setFejl] = useState<string | null>(null);
   const boxRef = useRef<HTMLDivElement | null>(null);
 
   // Debounced søgning: kun når feltet har fokus, mindst 2 tegn, og ingen sag er valgt.
@@ -32,12 +34,19 @@ export default function SagPicker({ label = "SMU-nr. / sag / kunde", customer, s
     if (!focused || sagId || q.length < 2) {
       setResults([]);
       setOpen(false);
+      setFejl(null);
       return;
     }
     setLoading(true);
     const t = window.setTimeout(async () => {
-      const rows = await store().searchSager(q);
-      setResults(rows);
+      try {
+        const rows = await store().searchSager(q);
+        setResults(rows);
+        setFejl(null);
+      } catch (e) {
+        setResults([]);
+        setFejl(`${e instanceof Error ? e.message : "Kunne ikke søge i SMU-sagerne"} — tjek forbindelsen og prøv igen.`);
+      }
       setOpen(true);
       setLoading(false);
     }, 250);
@@ -95,9 +104,14 @@ export default function SagPicker({ label = "SMU-nr. / sag / kunde", customer, s
         <div className="sag-hint">Vælg en SMU-sag fra listen, eller skriv en fri reference.</div>
       )}
 
-      {open && (results.length > 0 || loading) && (
+      {open && (results.length > 0 || loading || fejl) && (
         <div className="sag-results">
           {loading && <div className="sag-result sag-muted">Søger…</div>}
+          {!loading && fejl && (
+            <div className="sag-result sag-fejl" role="alert">
+              {fejl}
+            </div>
+          )}
           {!loading &&
             results.map((s) => (
               <button

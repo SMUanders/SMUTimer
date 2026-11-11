@@ -491,13 +491,15 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
 
     // ---- SMU-sag søgning (OS-ejet read-contract) ----
     // Kalder public.tid_sag_search(q). Ingen direkte adgang til sager/kunder — RPC'en
-    // håndhæver har_app_adgang('tid') og returnerer kun minimale felter. Fejler blødt.
+    // håndhæver har_app_adgang('tid') og returnerer kun minimale felter. En fejl meldes (vedligeholdelsespakke 2),
+    // så brugeren ser "Kunne ikke …" i stedet for en tom liste, der ligner "ingen sager".
     async searchSager(query) {
       const q = query.trim();
       if (q.length < 2) return [];
-      try {
+      {
         const { data, error } = await client.rpc("tid_sag_search", { q });
-        if (error || !data) return [];
+        if (error) throw new Error("Kunne ikke søge i SMU-sagerne");
+        if (!data) return [];
         return (data as { sag_id: string; smu_nummer: string; titel: string; kunde_navn: string }[]).map(
           (r): SagRef => ({
             sagId: r.sag_id,
@@ -506,18 +508,18 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
             kundeNavn: r.kunde_navn,
           })
         );
-      } catch {
-        return [];
       }
     },
 
     // ---- Enhed (TR-088) — OS-ejet read-contract ----
     // Kalder public.tid_sag_enheder(p_sag_id). Ingen direkte adgang til enheder — RPC'en
-    // håndhæver har_app_adgang('tid') og returnerer kun identitetsfelter. Fejler blødt.
+    // håndhæver har_app_adgang('tid') og returnerer kun identitetsfelter. En fejl meldes (vedligeholdelsespakke 2),
+    // så enhedsvælgeren ikke bare forsvinder — montøren skal kunne se, at sagens enheder ikke kunne hentes.
     async getSagEnheder(sagId) {
-      try {
+      {
         const { data, error } = await client.rpc("tid_sag_enheder", { p_sag_id: sagId });
-        if (error || !data) return [];
+        if (error) throw new Error("Kunne ikke hente sagens enheder");
+        if (!data) return [];
         return (
           data as {
             enhed_id: string;
@@ -539,14 +541,12 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
             interntNr: r.internt_nr,
           })
         );
-      } catch {
-        return [];
       }
     },
 
     // ---- Trucking V1 — enheder på pladsen (Pladsliste-ejet læsekontrakt) ----
     // public.pladsliste_tid_enheder_paa_pladsen(null) = alle OS-enheder med et aktivt ophold.
-    // Håndhæver har_app_adgang('tid'); kun identitetsfelter. Fejler blødt (tom liste).
+    // Håndhæver har_app_adgang('tid'); kun identitetsfelter. Fejl meldes (se getEnhederPaaPladsen nedenfor).
     // ---- Personlige hurtigvalg (tid_hurtigvalg; RLS: kun egne rækker) ----
     async getFastgjorteHurtigvalg(employeeId) {
       try {
@@ -578,10 +578,12 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
       if (error) throw error;
     },
 
+    // En fejl meldes (vedligeholdelsespakke 2): "Kunne ikke hente …" i stedet for "ingen enheder på pladsen".
     async getEnhederPaaPladsen() {
-      try {
+      {
         const { data, error } = await client.rpc("pladsliste_tid_enheder_paa_pladsen", { p_q: null });
-        if (error || !data) return [];
+        if (error) throw new Error("Kunne ikke hente enhederne på pladsen");
+        if (!data) return [];
         return (
           data as {
             enhed_id: string;
@@ -613,8 +615,6 @@ export function createSupabaseAdapter(client: SupabaseClient): TimeEntryStore {
             zone: r.zone,
           })
         );
-      } catch {
-        return [];
       }
     },
   };

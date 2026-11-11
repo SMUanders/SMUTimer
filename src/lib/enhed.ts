@@ -58,3 +58,18 @@ export function enhedDetaljer(e: SagEnhed): { label: string; vaerdi: string }[] 
 export function standardEnhed(categoryId: string, enheder: SagEnhed[]): SagEnhed | null {
   return erMontageKategori(categoryId) && enheder.length === 1 ? enheder[0] : null;
 }
+
+/**
+ * Tekst i enhedsvælgeren (vedligeholdelsespakke 2). Mangler beskrivelsen — det gælder de fleste enheder — står der
+ * i dag kun "#1", "#2"; montørerne kender ofte enheden på internt nr. eller trailer-nr. Så tilføjes de her.
+ * KUN visning i vælgeren: snapshottet på registreringen er fortsat `enhedVisning` (uændret).
+ */
+export function enhedValgTekst(e: SagEnhed): string {
+  const basis = enhedVisning(e);
+  if (e.beskrivelse?.trim()) return basis;
+  const internt = e.interntNr?.trim();
+  const trailer = e.trailerNr?.trim();
+  return [basis, internt ? `Internt nr. ${internt}` : null, trailer ? `Trailer-nr. ${trailer}` : null]
+    .filter(Boolean)
+    .join(" · ");
+}

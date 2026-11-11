@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { enhedVisning, enhedDetaljer, kortStel, standardEnhed, erMontageKategori } from "./enhed";
+import { enhedVisning, enhedValgTekst, enhedDetaljer, kortStel, standardEnhed, erMontageKategori } from "./enhed";
 import type { SagEnhed } from "./storage/types";
 
 function enhed(over: Partial<SagEnhed> = {}): SagEnhed {
@@ -87,5 +87,23 @@ describe("standardEnhed — godkendt standardvalg", () => {
   it("erMontageKategori", () => {
     expect(erMontageKategori("montage-ude")).toBe(true);
     expect(erMontageKategori("salg-administration")).toBe(false);
+  });
+});
+
+describe("enhedValgTekst — vælgerens tekst (vedligeholdelsespakke 2)", () => {
+  it("uden beskrivelse: internt nr. og trailer-nr. kommer med", () => {
+    expect(enhedValgTekst(enhed({ loebenummer: 1, interntNr: "T-17" }))).toBe("#1 · Internt nr. T-17");
+    expect(enhedValgTekst(enhed({ loebenummer: 2, regNr: "AB12345", trailerNr: "889" }))).toBe("#2 · AB12345 · Trailer-nr. 889");
+    expect(enhedValgTekst(enhed({ loebenummer: 3, interntNr: "T-1", trailerNr: "889" }))).toBe("#3 · Internt nr. T-1 · Trailer-nr. 889");
+  });
+  it("med beskrivelse: uændret (som snapshottet)", () => {
+    const e = enhed({ beskrivelse: "Schmitz trailer", regNr: "AB12345", interntNr: "T-17" });
+    expect(enhedValgTekst(e)).toBe(enhedVisning(e));
+  });
+  it("uden numre: kun løbenummeret, som før", () => {
+    expect(enhedValgTekst(enhed({ loebenummer: 4 }))).toBe("#4");
+  });
+  it("snapshottet (enhedVisning) er uændret", () => {
+    expect(enhedVisning(enhed({ loebenummer: 1, interntNr: "T-17", trailerNr: "889" }))).toBe("#1");
   });
 });
