@@ -776,3 +776,8 @@ body {
 @media (max-width: 560px) {
   .tl-row { grid-template-columns: 48px minmax(0, 1fr); gap: 8px; }
 }
+
+/* Sag-overblik: SMU-nummeret åbner sagen i SMU OS (vedligeholdelsespakke 1) */
+.sag-ov-oslink { display: inline-flex; align-items: center; gap: 4px; color: var(--color-navy); text-decoration: none; }
+.sag-ov-oslink:hover .sag-ov-nr { text-decoration: underline; }
+.sag-ov-oslink-tekst { font-size: 12px; font-weight: 700; color: var(--color-text-muted); }

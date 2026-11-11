@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Clock, Users, Info } from "lucide-react";
+import { Clock, Users, Info, ExternalLink } from "lucide-react";
+import { osSagUrl } from "../../lib/osLink";
 import type { TimeEntry, CurrentTask } from "../../types";
 import type { SagRef } from "../../lib/storage/types";
 import type { SagDeeplink } from "../../lib/sagDeeplink";
@@ -104,7 +105,18 @@ export default function SagOverview({ startSag = null }: Props) {
         <>
           <section className="ov-section sag-ov-head">
             <div className="sag-ov-ident">
-              <span className="sag-ov-nr">{sag.smuNummer}</span>
+              {/* SMU-nummeret åbner sagen i SMU OS (vedligeholdelsespakke 1); OS håndhæver selv adgangen */}
+              <a
+                className="sag-ov-oslink"
+                href={osSagUrl(sag.sagId)}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Åbn ${sag.smuNummer || "sagen"} i SMU OS`}
+              >
+                <span className="sag-ov-nr">{sag.smuNummer || "Sag"}</span>
+                <span className="sag-ov-oslink-tekst">Åbn i SMU OS</span>
+                <ExternalLink size={13} aria-hidden="true" />
+              </a>
               <span className="sag-ov-kunde">{sag.kundeNavn}</span>
             </div>
             {sag.titel && <div className="sag-ov-titel">{sag.titel}</div>}
