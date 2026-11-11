@@ -109,6 +109,8 @@ ligne SMU":
 - **Hjælp (v2.6.0):** `/hjaelp` (`src/components/Hjaelp.tsx`, link "Hjælp" i toppen — tekst, som i SMU Pladsliste): fire trin +
   "Fejl?" med skærmbilleder i `public/hjaelp/`, taget i lokal dev med demodata og beskåret uden medarbejdernavn. Ændres
   skærmene, skal billederne tages om.
+- **Link til SMU OS** (11. nov. 2026, hubbens TR-115, Vedligeholdelsespakke 1 — LIVE, ikke valideret i brug): Sag-overblikkets
+  hoved viser "SMU-0123 Åbn i SMU OS ↗" til sagen i OS (`src/lib/osLink.ts` = app-kataloget; ny fane). Kun frontend.
 - Forventet arbejdsdag 7,5 t (weekend 0).
 - Storage bag interface: `src/lib/storage/` (localAdapter dev-fallback +
   supabaseAdapter). Én delt klient `src/lib/supabaseClient.ts`.
