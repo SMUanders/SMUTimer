@@ -120,14 +120,17 @@ export interface TimeEntryStore {
 
   // SMU-sag: søg eksisterende OS-sager via OS-ejet read-contract (tid_sag_search).
   // Kræver ingen 'os'-adgang. Local-adapter returnerer [] (ingen OS i dev).
+  // Fejl (fx netværk) afvises med en Error, så UI kan vise "Kunne ikke …" (vedligeholdelsespakke 2).
   searchSager(query: string): Promise<SagRef[]>;
 
   // Enhed (TR-088): sagens aktive enheder via OS-ejet read-contract (tid_sag_enheder).
   // Kræver ingen 'os'-adgang. Local-adapter returnerer [] (ingen OS i dev).
+  // Fejl afvises med en Error (vedligeholdelsespakke 2); tom liste = sagen har ingen aktive enheder.
   getSagEnheder(sagId: string): Promise<SagEnhed[]>;
 
   // Trucking V1: alle OS-enheder på pladsen nu (Pladsliste er autoritativ). Kræver kun 'tid'-adgang.
   // Søgningen sker i appen (src/lib/pladsEnheder.ts). Local-adapter returnerer et lille demo-sæt.
+  // Fejl afvises med en Error (vedligeholdelsespakke 2).
   getEnhederPaaPladsen(): Promise<PladsEnhed[]>;
 
   // Personlige hurtigvalg (tid_hurtigvalg): KUN egne (RLS). Læsning fejler blødt (tom liste).

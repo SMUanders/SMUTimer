@@ -25,9 +25,11 @@ function activityName(categoryId: string, subcategoryId: string | null): string 
 interface Props {
   /** Sag valgt på forhånd via deep-link fra SMU OS (?sag=<id>&smu=<SMU-nr.>). */
   startSag?: SagDeeplink | null;
+  /** Den valgte sag meldes til Overblik, der skriver den i adressen (vedligeholdelsespakke 2). */
+  onSag?: (sag: SagDeeplink | null) => void;
 }
 
-export default function SagOverview({ startSag = null }: Props) {
+export default function SagOverview({ startSag = null, onSag }: Props) {
   const startNr = startSag?.smuNummer ?? "";
   const [picker, setPicker] = useState<{ customer: string; sagId: string | null; sagSmuNummer: string | null }>({
     customer: startNr,
@@ -41,23 +43,37 @@ export default function SagOverview({ startSag = null }: Props) {
   const [activeNow, setActiveNow] = useState<CurrentTask[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Deep-link: titel og kunde hentes via samme read-contract som søgningen (tid_sag_search).
-  // Findes sagen ikke dér (fx lukket), vises registreringerne alligevel — de hentes via sag_id.
+  const sagId = sag?.sagId ?? null;
+
+  // Den valgte sag står i adressen (vedligeholdelsespakke 2): F5 viser samme sag, og et skift opdaterer adressen.
+  const sagSmu = sag?.smuNummer || null;
   useEffect(() => {
-    if (!startSag?.smuNummer) return;
+    onSag?.(sagId ? { sagId, smuNummer: sagSmu } : null);
+  }, [sagId, sagSmu, onSag]);
+
+  // Deep-link/adresse: titel og kunde hentes via samme read-contract som søgningen (tid_sag_search). Mangler
+  // SMU-nummeret i adressen (?sag= uden &smu=), bruges registreringernes eget SMU-snapshot (sag_smu_nummer) —
+  // ingen ny kontrakt. Findes sagen ikke i søgningen (fx lukket), vises registreringerne alligevel via sag_id.
+  const manglerTitel = !!sag && !sag.titel;
+  const opslagNr = manglerTitel ? sagSmu ?? entries.find((e) => e.sagSmuNummer)?.sagSmuNummer ?? null : null;
+  useEffect(() => {
+    if (!sagId || !opslagNr) return;
     let alive = true;
+    // Vis i det mindste SMU-nummeret med det samme.
+    setSag((cur) => (cur?.sagId === sagId && !cur.smuNummer ? { ...cur, smuNummer: opslagNr } : cur));
+    setPicker((p) => (p.sagId === sagId && !p.customer ? { ...p, customer: opslagNr, sagSmuNummer: opslagNr } : p));
     store()
-      .searchSager(startSag.smuNummer)
+      .searchSager(opslagNr)
       .then((rows) => {
-        const hit = rows.find((r) => r.sagId === startSag.sagId);
+        const hit = rows.find((r) => r.sagId === sagId);
         if (alive && hit) setSag((cur) => (cur?.sagId === hit.sagId ? hit : cur));
-      });
+      })
+      .catch(() => undefined);
     return () => {
       alive = false;
     };
-  }, [startSag]);
+  }, [sagId, opslagNr]);
 
-  const sagId = sag?.sagId ?? null;
   useEffect(() => {
     if (!sagId) {
       setEntries([]);

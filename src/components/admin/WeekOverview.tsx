@@ -24,8 +24,21 @@ function hours(minutes: number): string {
   return String(h).replace(".", ",");
 }
 
-export default function WeekOverview({ visiblePeople }: { visiblePeople: Person[] }) {
-  const [anchor, setAnchor] = useState<string>(todayIso());
+export default function WeekOverview({
+  visiblePeople,
+  startUge = null,
+  onUge,
+}: {
+  visiblePeople: Person[];
+  /** Ugens ankerdato fra adressen (vedligeholdelsespakke 2); null = denne uge. */
+  startUge?: string | null;
+  /** Meldes til Overblik, der skriver den i adressen. */
+  onUge?: (anker: string) => void;
+}) {
+  const [anchor, setAnchor] = useState<string>(startUge ?? todayIso());
+  useEffect(() => {
+    onUge?.(anchor);
+  }, [anchor, onUge]);
   const [entries, setEntries] = useState<TimeEntry[]>([]);
 
   const days = useMemo(() => workWeek(anchor), [anchor]);

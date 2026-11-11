@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, LogOut } from "lucide-react";
 import { initStore } from "../lib/storage";
 import { loadPeople, people } from "../lib/people";
@@ -14,7 +14,9 @@ import EmployeeFilter from "./admin/EmployeeFilter";
 import { UpdateBanner } from "../platform-update/UpdateBanner";
 import { appBuildIdShort } from "../platform-update/buildId";
 import { appProductVersion } from "../lib/version";
-import { sagFraUrl } from "../lib/sagDeeplink";
+import type { SagDeeplink } from "../lib/sagDeeplink";
+import { skrivOverblikAdresse, tolkOverblik, type OverblikTilstand } from "../lib/overblikAdresse";
+import { todayIso } from "../lib/dates";
 
 type Tab = "dag" | "uge" | "sag";
 
@@ -23,8 +25,19 @@ type Tab = "dag" | "uge" | "sag";
 // deep-link (?medarbejder=<id>&dato=<YYYY-MM-DD>). Fra SMU OS kan sagens tidsforbrug
 // åbne fanen "Sag" med sagen valgt (?sag=<id>&smu=<SMU-nr.>).
 export default function Admin() {
-  const [startSag] = useState(() => sagFraUrl(window.location.search));
-  const [tab, setTab] = useState<Tab>(startSag ? "sag" : "dag");
+  // Fane, dato, uge og valgt sag står i adressen (vedligeholdelsespakke 2, src/lib/overblikAdresse.ts): F5 og
+  // tilbage fra en medarbejders dag lander samme sted. Uden parametre: Dag, i dag (som før). OS-deeplinket
+  // (?sag=&smu=) åbner fortsat fanen Sag.
+  const [start] = useState(() => tolkOverblik(window.location.search));
+  const [adr, setAdr] = useState<OverblikTilstand>(start);
+  const tab = adr.fane;
+  const setTab = (fane: Tab) => setAdr((a) => ({ ...a, fane }));
+  const onDato = useCallback((dato: string) => setAdr((a) => (a.dato === dato ? a : { ...a, dato })), []);
+  const onUge = useCallback((uge: string) => setAdr((a) => (a.uge === uge ? a : { ...a, uge })), []);
+  const onSag = useCallback((sag: SagDeeplink | null) => setAdr((a) => ({ ...a, sag })), []);
+  useEffect(() => {
+    skrivOverblikAdresse(adr, todayIso());
+  }, [adr]);
   const [ready, setReady] = useState(false);
   const [storageName, setStorageName] = useState<"local" | "supabase">("local");
   const [hidden, setHidden] = useState<Set<string>>(() => loadHidden());
@@ -87,7 +100,7 @@ export default function Admin() {
         <div className="empty">Indlæser…</div>
       ) : tab === "sag" ? (
         // Sag-overblik er på tværs af alle medarbejdere (ikke medarbejder-filtreret).
-        <SagOverview startSag={startSag} />
+        <SagOverview startSag={adr.sag} onSag={onSag} />
       ) : (
         <>
           <EmployeeFilter people={allPeople} hidden={hidden} onChange={setHidden} />
@@ -96,9 +109,9 @@ export default function Admin() {
               Ingen medarbejdere valgt i filteret. Tryk “Alle” for at vise dem igen.
             </div>
           ) : tab === "dag" ? (
-            <DayOverview visiblePeople={visiblePeople} />
+            <DayOverview visiblePeople={visiblePeople} startDato={adr.dato} onDato={onDato} />
           ) : (
-            <WeekOverview visiblePeople={visiblePeople} />
+            <WeekOverview visiblePeople={visiblePeople} startUge={adr.uge} onUge={onUge} />
           )}
         </>
       )}

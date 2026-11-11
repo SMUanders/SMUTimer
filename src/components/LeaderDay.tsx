@@ -38,6 +38,7 @@ import { isoToHHMM } from "../lib/currentTaskStart";
 import { UpdateBanner } from "../platform-update/UpdateBanner";
 import { appBuildIdShort } from "../platform-update/buildId";
 import { appProductVersion } from "../lib/version";
+import { overblikAdresse } from "../lib/overblikAdresse";
 
 // SMU Tid v2 — LEDER-VISNING af én medarbejders dag ("Andreas' dag").
 //
@@ -409,7 +410,7 @@ export default function LeaderDay() {
         <p className="picker-sub">
           Ingen medarbejder valgt. Gå til Overblik og klik på en medarbejder for at se dagen.
         </p>
-        <a className="smu-btn-primary link-btn" href="/oversigt">
+        <a className="smu-btn-primary link-btn" href={overblikAdresse()}>
           <LayoutGrid size={15} /> Til Overblik
         </a>
       </div>
@@ -450,7 +451,7 @@ export default function LeaderDay() {
           {getSupabaseClient() && (
             <AppSwitcher supabase={getSupabaseClient()!} currentAppKey="tid" />
           )}
-          <a className="smu-btn-secondary link-btn" href="/oversigt">
+          <a className="smu-btn-secondary link-btn" href={overblikAdresse()}>
             <LayoutGrid size={15} /> Overblik
           </a>
           {isSupabaseConfigured && (

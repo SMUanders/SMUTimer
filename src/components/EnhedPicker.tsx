@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { store } from "../lib/storage";
 import type { SagEnhed } from "../lib/storage/types";
-import { enhedVisning, enhedDetaljer, erMontageKategori, standardEnhed } from "../lib/enhed";
+import { enhedVisning, enhedValgTekst, enhedDetaljer, erMontageKategori, standardEnhed } from "../lib/enhed";
 
 // "Enhed" — vælg den konkrete enhed på den valgte SMU-sag (TR-088). Vises KUN når der er
 // valgt en rigtig sag med aktive enheder. Ét valg pr. registrering; arbejde på flere/alle
@@ -27,12 +27,17 @@ export default function EnhedPicker({ sagId, categoryId, enhedId, enhedVisning: 
   // KUN for en sag valgt i denne formular — en eksisterende registrering omskrives aldrig
   // automatisk med en enhed (TR-088: ingen kunstig præcision, ingen backfill).
   const aabnetMedSag = useRef(sagId);
+  // Kunne sagens enheder ikke hentes, vises en besked i stedet for at feltet bare forsvinder
+  // (vedligeholdelsespakke 2). "Prøv igen" henter igen; registrering på sagsniveau virker stadig.
+  const [fejl, setFejl] = useState<string | null>(null);
+  const [forsoeg, setForsoeg] = useState(0);
 
   useEffect(() => {
     roert.current = sagId !== null && sagId === aabnetMedSag.current;
     autoValgt.current = null;
     setEnheder([]);
     setHentetFor(null);
+    setFejl(null);
     if (!sagId) return;
     let aktiv = true;
     store()
@@ -41,11 +46,14 @@ export default function EnhedPicker({ sagId, categoryId, enhedId, enhedVisning: 
         if (!aktiv) return;
         setEnheder(rows);
         setHentetFor(sagId);
+      })
+      .catch((e: unknown) => {
+        if (aktiv) setFejl(e instanceof Error ? e.message : "Kunne ikke hente sagens enheder");
       });
     return () => {
       aktiv = false;
     };
-  }, [sagId]);
+  }, [sagId, forsoeg]);
 
   // Godkendt standardregel: montage + præcis én aktiv enhed → forvælg. Ellers sagsniveau.
   useEffect(() => {
@@ -60,6 +68,21 @@ export default function EnhedPicker({ sagId, categoryId, enhedId, enhedVisning: 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sagId, hentetFor, categoryId, enheder]);
+
+  if (sagId && fejl) {
+    return (
+      <div className="field">
+        <label>Enhed</label>
+        <div className="enhed-fejl" role="alert">
+          {fejl}. Du kan registrere på hele sagen, eller{" "}
+          <button type="button" className="enhed-fejl-igen" onClick={() => setForsoeg((n) => n + 1)}>
+            prøve igen
+          </button>
+          .
+        </div>
+      </div>
+    );
+  }
 
   if (!sagId || hentetFor !== sagId || enheder.length === 0) return null;
 
@@ -83,7 +106,7 @@ export default function EnhedPicker({ sagId, categoryId, enhedId, enhedVisning: 
         <option value="">Hele sagen (flere/alle enheder)</option>
         {enheder.map((e) => (
           <option key={e.enhedId} value={e.enhedId}>
-            {enhedVisning(e)}
+            {enhedValgTekst(e)}
           </option>
         ))}
         {ukendt && <option value={enhedId!}>{snapshot ?? "Ukendt enhed"}</option>}

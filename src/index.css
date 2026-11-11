@@ -781,3 +781,8 @@ body {
 .sag-ov-oslink { display: inline-flex; align-items: center; gap: 4px; color: var(--color-navy); text-decoration: none; }
 .sag-ov-oslink:hover .sag-ov-nr { text-decoration: underline; }
 .sag-ov-oslink-tekst { font-size: 12px; font-weight: 700; color: var(--color-text-muted); }
+
+/* Kunne ikke hente sager/enheder (vedligeholdelsespakke 2): fejlen vises i stedet for en tom liste */
+.enhed-fejl, .sag-fejl { font-size: 13px; font-weight: 600; color: var(--color-red-deep); background: var(--color-red-soft); border-radius: 8px; padding: 6px 10px; }
+.sag-results .sag-fejl { cursor: default; }
+.enhed-fejl-igen { background: none; border: none; padding: 0; font: inherit; color: inherit; text-decoration: underline; cursor: pointer; }

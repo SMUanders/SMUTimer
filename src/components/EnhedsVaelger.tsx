@@ -24,17 +24,24 @@ export default function EnhedsVaelger({ valgte, onChange, minutter = null, start
   const [plads, setPlads] = useState<PladsEnhed[] | null>(null);
   const [q, setQ] = useState("");
   const [aaben, setAaben] = useState(startAaben);
+  // Kunne enhederne på pladsen ikke hentes, vises det (vedligeholdelsespakke 2) — ikke "Henter…" for evigt.
+  const [fejl, setFejl] = useState<string | null>(null);
+  const [forsoeg, setForsoeg] = useState(0);
 
   useEffect(() => {
     if (!aaben || plads) return;
     let aktiv = true;
+    setFejl(null);
     store()
       .getEnhederPaaPladsen()
-      .then((rows) => aktiv && setPlads(rows));
+      .then((rows) => aktiv && setPlads(rows))
+      .catch((e: unknown) => {
+        if (aktiv) setFejl(e instanceof Error ? e.message : "Kunne ikke hente enhederne på pladsen");
+      });
     return () => {
       aktiv = false;
     };
-  }, [aaben, plads]);
+  }, [aaben, plads, forsoeg]);
 
   const grupper = useMemo(() => grupperPaaSag(filtrerPladsEnheder(plads ?? [], q)), [plads, q]);
   const valgtSet = new Set(valgte.map((e) => e.enhedId));
@@ -93,7 +100,14 @@ export default function EnhedsVaelger({ valgte, onChange, minutter = null, start
             )}
           </div>
           <div className="ev-liste" role="list">
-            {plads === null ? (
+            {plads === null && fejl ? (
+              <div className="ev-tom enhed-fejl" role="alert">
+                {fejl}.{" "}
+                <button type="button" className="enhed-fejl-igen" onClick={() => setForsoeg((n) => n + 1)}>
+                  Prøv igen
+                </button>
+              </div>
+            ) : plads === null ? (
               <div className="ev-tom">Henter enheder på pladsen…</div>
             ) : plads.length === 0 ? (
               <div className="ev-tom">Der står ingen registrerede enheder på pladsen lige nu.</div>

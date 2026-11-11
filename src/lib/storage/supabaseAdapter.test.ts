@@ -61,15 +61,24 @@ describe("supabaseAdapter.searchSager — kalder OS read-contract og mapper felt
     ]);
   });
 
-  it("getSagEnheder fejler blødt → tom liste (vælgeren skjules)", async () => {
+  // Vedligeholdelsespakke 2: en fejl meldes (UI viser "Kunne ikke …") i stedet for en tom liste, der ligner
+  // "sagen har ingen enheder"/"ingen sager". Ingen data = tom liste som før.
+  it("getSagEnheder melder en fejl (vælgeren viser beskeden)", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: { message: "denied" } });
     const store = createSupabaseAdapter(fakeClient(rpc));
-    expect(await store.getSagEnheder("sag-1")).toEqual([]);
+    await expect(store.getSagEnheder("sag-1")).rejects.toThrow("Kunne ikke hente sagens enheder");
   });
 
-  it("fejler blødt → tom liste (ingen crash i UI)", async () => {
+  it("searchSager melder en fejl (søgningen viser beskeden)", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: { message: "denied" } });
     const store = createSupabaseAdapter(fakeClient(rpc));
+    await expect(store.searchSager("SMU")).rejects.toThrow("Kunne ikke søge i SMU-sagerne");
+  });
+
+  it("intet svar uden fejl = tom liste (som før)", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
+    const store = createSupabaseAdapter(fakeClient(rpc));
     expect(await store.searchSager("SMU")).toEqual([]);
+    expect(await store.getSagEnheder("sag-1")).toEqual([]);
   });
 });
