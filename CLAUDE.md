@@ -111,6 +111,12 @@ ligne SMU":
   skærmene, skal billederne tages om.
 - **Link til SMU OS** (11. nov. 2026, hubbens TR-115, Vedligeholdelsespakke 1 — LIVE, ikke valideret i brug): Sag-overblikkets
   hoved viser "SMU-0123 Åbn i SMU OS ↗" til sagen i OS (`src/lib/osLink.ts` = app-kataloget; ny fane). Kun frontend.
+- **Overblik husker sig selv; fejl vises; enhedsvælgerens tekst** (11. nov. 2026, hubbens TR-117, Vedligeholdelsespakke 2 — LIVE,
+  ikke valideret i brug): Overbliks fane, dato (Dag), uge (Uge) og valgt sag står i adressen (`src/lib/overblikAdresse.ts`, skrevet med
+  `history.replaceState`); "Overblik" i leder-visningen går til den huskede adresse (fanens sessionStorage). `?sag=` uden `&smu=` slår
+  SMU-nummeret op fra registreringernes `sag_smu_nummer`. `searchSager`, `getSagEnheder` og `getEnhederPaaPladsen` melder fejl (Error) i
+  stedet for `[]`; SagPicker, EnhedPicker og EnhedsVaelger viser "Kunne ikke …" (med "Prøv igen"). Enhedsvælgeren viser internt nr. og
+  trailer-nr., når beskrivelsen mangler (`enhedValgTekst`); snapshottet `enhed_visning` er uændret (`enhedVisning`). Kun frontend.
 - Forventet arbejdsdag 7,5 t (weekend 0).
 - Storage bag interface: `src/lib/storage/` (localAdapter dev-fallback +
   supabaseAdapter). Én delt klient `src/lib/supabaseClient.ts`.
