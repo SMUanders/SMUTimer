@@ -16,12 +16,10 @@ const PRODUCT_VERSION = JSON.parse(readFileSync("./package.json", "utf-8")).vers
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss(), platformUpdate()],
+  // Fast port pr. app (porttabel i SMU_APP_STANDARD.md). strictPort: optaget port = fejl, ikke en anden port.
+  server: { port: 5182, strictPort: true },
   define: {
     __APP_PRODUCT_VERSION__: JSON.stringify(PRODUCT_VERSION),
-  },
-  server: {
-    // Brug den tildelte PORT (autoPort) hvis sat; ellers 5173 som standard.
-    port: Number(process.env.PORT) || 5173,
   },
   test: {
     globals: true,
